@@ -1,0 +1,31 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/home/yuksal21/maestro.yuksalishbot.uz']
+ERROR:    [Errno 98] Address already in use
+INFO:     205.210.31.148:0 - "GET /index.php HTTP/1.1" 404 Not Found
+INFO:     205.210.31.32:0 - "GET /index.php HTTP/1.1" 404 Not Found
+INFO:     34.123.240.249:0 - "POST /index.php HTTP/1.1" 404 Not Found
+INFO:     205.210.31.46:0 - "GET /index.php HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     34.148.52.114:0 - "GET /403.shtml HTTP/1.1" 404 Not Found
+INFO:     205.210.31.59:0 - "GET /index.php HTTP/1.1" 404 Not Found
+INFO:     94.176.90.68:0 - "GET /index.php HTTP/1.1" 404 Not Found
+INFO:     94.176.90.68:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     144.124.192.100:0 - "OPTIONS /api/v1/posts?limit=8 HTTP/1.1" 404 Not Found
+INFO:     144.124.192.100:0 - "OPTIONS /api/v1/games HTTP/1.1" 404 Not Found
