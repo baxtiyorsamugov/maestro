@@ -35,9 +35,20 @@ async def check_reminders(bot: Bot):
 
                 # Уведомление за 1 час (если осталось от 45 до 75 минут)
                 elif timedelta(minutes=45) <= diff <= timedelta(minutes=75) and not b.reminder_hour_sent:
+                    stylist_name = b.stylist.name if b.stylist else "Maestro"
                     text = {
-                        "uz": f"⚡️ Eslatma! Bir soatdan keyin uchrashuvimiz bor. Manzilni unutmang! 😊",
-                        "ru": f"⚡️ Напоминаем! Ждем вас через час. Пожалуйста, не опаздывайте! 😊"
+                        "uz": (
+                            f"⚡️ <b>Maestro {stylist_name} sizni kutmoqda!</b>\n\n"
+                            f"Bir soatdan keyin uchrashuvimiz boshlanadi. Biz sizning tashrifingizga "
+                            f"deyarli tayyormiz. ✨\n\n"
+                            f"Iltimos, kechikmang, har bir daqiqa sizning go'zalligingiz uchun muhim! 😊"
+                        ),
+                        "ru": (
+                            f"⚡️ <b>Маэстро {stylist_name} уже ждет вас!</b>\n\n"
+                            f"До нашей встречи остался всего один час. Мы уже вовсю готовимся "
+                            f"к вашему преображению. ✨\n\n"
+                            f"Пожалуйста, не опаздывайте, каждая минута важна для идеального результата! 😊"
+                        )
                     }[lang]
                     await bot.send_message(b.user.telegram_id, text)
                     b.reminder_hour_sent = True

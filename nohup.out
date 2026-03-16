@@ -7663,3 +7663,31 @@ INFO:aiogram.event:Update id=863692370 is handled. Duration 144 ms by bot id=840
 INFO:apscheduler.executors.default:Running job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 15:00:00 +05)" (scheduled at 2026-03-16 14:00:00+05:00)
 INFO:root:Проверка напоминаний...
 INFO:apscheduler.executors.default:Job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 15:00:00 +05)" executed successfully
+INFO:aiogram.event:Update id=863692371 is handled. Duration 373 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692372 is handled. Duration 348 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692373 is handled. Duration 286 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692374 is handled. Duration 157 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692375 is handled. Duration 270 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692376 is handled. Duration 483 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692377 is handled. Duration 445 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692378 is handled. Duration 417 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692379 is handled. Duration 362 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692380 is handled. Duration 351 ms by bot id=8403442567

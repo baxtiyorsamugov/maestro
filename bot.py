@@ -1496,13 +1496,25 @@ async def approve_booking(cb: CallbackQuery):
         client_lang = booking.user.language_code or "ru"
         try:
             await bot.send_message(
-                chat_id=booking.user.telegram_id,
-                text={
-                    "ru": f"<b>\u0417\u0430\u043f\u0438\u0441\u044c \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0430.</b>\n\n\u041c\u0430\u0441\u0442\u0435\u0440 \u0436\u0434\u0435\u0442 \u0432\u0430\u0441 {booking.datetime}.",
-                    "uz": f"<b>Yozuv tasdiqlandi.</b>\n\nMaestro sizni {booking.datetime} da kutadi.",
-                }[client_lang],
-                parse_mode="HTML",
-            )
+            chat_id=booking.user.telegram_id,
+            text={
+                "ru": (
+                    "✨ <b>Прекрасный выбор!</b>\n\n"
+                    "Ваша запись успешно подтверждена. Мастер уже готовится к вашему визиту, "
+                    "чтобы создать ваш безупречный образ.\n\n"
+                    "📅 Мы ждем вас: <b>{booking.datetime}</b>\n\n"
+                    "До встречи в Maestro! ✂️"
+                ).format(booking=booking),
+                "uz": (
+                    "✨ <b>Ajoyib tanlov!</b>\n\n"
+                    "Sizning yozuvingiz muvaffaqiyatli tasdiqlandi. Maestro siz uchun "
+                    "betakror uslub yaratishga tayyorgarlik ko'rmoqda.\n\n"
+                    "📅 Sizni kutamiz: <b>{booking.datetime}</b>\n\n"
+                    "Maestro’da ko'rishguncha! ✂️"
+                ).format(booking=booking),
+            }[client_lang],
+            parse_mode="HTML",
+        )
         except Exception:
             pass
 
