@@ -7691,3 +7691,75 @@ INFO:apscheduler.scheduler:Scheduler started
 INFO:aiogram.dispatcher:Start polling
 INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
 INFO:aiogram.event:Update id=863692380 is handled. Duration 351 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692381 is handled. Duration 350 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692382 is handled. Duration 161 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692383 is handled. Duration 133 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692384 is handled. Duration 497 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692385 is handled. Duration 165 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692386 is handled. Duration 119 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692387 is handled. Duration 362 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692388 is handled. Duration 127 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692389 is handled. Duration 370 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692392 is handled. Duration 359 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692393 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692394 is handled. Duration 143 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692395 is handled. Duration 356 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692396 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692397 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692398 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692399 is handled. Duration 117 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692400 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692401 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692402 is handled. Duration 178 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692403 is handled. Duration 140 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692404 is handled. Duration 304 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692405 is handled. Duration 119 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692406 is handled. Duration 130 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692407 is handled. Duration 137 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692408 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692409 is handled. Duration 0 ms by bot id=8403442567

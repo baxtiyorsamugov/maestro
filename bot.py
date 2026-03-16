@@ -973,16 +973,39 @@ async def process_search_input(message: Message, state: FSMContext):
 
 @dp.message(F.text.in_([texts.get_buttons("ru")["search_menu"], texts.get_buttons("uz")["search_menu"]]))
 async def booking_start_menu(message: Message, state: FSMContext):
-    await state.clear() # ДОБАВЬ ЭТУ СТРОКУ
-    search_cache.pop(message.from_user.id, None) # И ЭТУ ТОЖЕ
+    # 1. Полная очистка перед стартом
+    await state.clear()
     
+    # 2. Проверка регистрации (чтобы мы знали язык и телефон клиента)
     user = await ensure_registered_message(message)
     if not user:
         return
 
+    # 3. СРАЗУ ставим бота в режим ожидания ID
+    await state.set_state(SearchForm.waiting_for_name)
+    search_cache[message.from_user.id] = "id" # Указываем, что ждем именно ID мастера
+    
     lang = user.language_code or "ru"
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=texts.get_text("search_by_id", lang), callback_data="search_id")]])
-    await message.answer(texts.get_text("ask_search_method", lang), reply_markup=kb)
+
+    # 4. Красивый и понятный текст в стиле Maestro
+    text = {
+        "ru": (
+            "✨ <b>Добро пожаловать в мир Maestro!</b>\n\n"
+            "Чтобы мгновенно найти своего мастера и забронировать время, "
+            "просто <b>введите его ID номер</b> ниже:\n\n"
+            "🆔 <i>Номер указан на табличке с QR-кодом или визитке мастера.</i>"
+        ),
+        "uz": (
+            "✨ <b>Maestro olamiga xush kelibsiz!</b>\n\n"
+            "O'z ustangizni bir zumda topish va vaqtni band qilish uchun "
+            "uning <b>ID raqamini</b> pastga yuboring:\n\n"
+            "🆔 <i>ID raqami usta peshlavhasidagi QR-kod ostida yoki instagram biosida ko'rsatilgan.</i>"
+        )
+    }[lang]
+
+    # Отправляем сообщение. Мы не убираем Reply-кнопки, чтобы клиент мог передумать 
+    # и нажать "Мой профиль", но фокус теперь на вводе цифр.
+    await message.answer(text, parse_mode="HTML")
 
 @dp.callback_query(F.data == "back_home")
 async def back_home(cb: CallbackQuery):
