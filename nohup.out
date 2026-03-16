@@ -7763,3 +7763,1266 @@ INFO:aiogram.event:Update id=863692406 is handled. Duration 130 ms by bot id=840
 INFO:aiogram.event:Update id=863692407 is handled. Duration 137 ms by bot id=8403442567
 INFO:aiogram.event:Update id=863692408 is handled. Duration 139 ms by bot id=8403442567
 INFO:aiogram.event:Update id=863692409 is handled. Duration 0 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692410 is handled. Duration 470 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692411 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692412 is handled. Duration 141 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692413 is handled. Duration 127 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692414 is handled. Duration 135 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692415 is handled. Duration 158 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692416 is handled. Duration 123 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692417 is handled. Duration 368 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692418 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692419 is handled. Duration 138 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692420 is handled. Duration 231 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692421 is handled. Duration 292 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692422 is handled. Duration 242 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692423 is handled. Duration 471 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692424 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692425 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692426 is handled. Duration 131 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692427 is handled. Duration 141 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692428 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692429 is handled. Duration 156 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692430 is handled. Duration 0 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692431 is handled. Duration 358 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692433 is handled. Duration 420 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692434 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692435 is handled. Duration 148 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692436 is handled. Duration 218 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692437 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692438 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692439 is handled. Duration 159 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692440 is not handled. Duration 2 ms by bot id=8403442567
+ERROR:aiogram.event:Cause exception while process update id=863692440 by bot id=8403442567
+OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 657, in _read_bytes
+    data = await self._reader.readexactly(num_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/alt/python312/lib64/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 4 expected bytes
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+pymysql.err.OperationalError: (2013, 'Lost connection to MySQL server during query')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 707, in open_language_menu
+    user = await ensure_registered_message(message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 611, in ensure_registered_message
+    user = await get_user_by_telegram_id(message.from_user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 544, in get_user_by_telegram_id
+    return await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 505, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:aiogram.event:Update id=863692441 is handled. Duration 425 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692442 is handled. Duration 348 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692443 is handled. Duration 192 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692444 is handled. Duration 146 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692445 is handled. Duration 184 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692446 is handled. Duration 127 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692447 is handled. Duration 119 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692448 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692449 is handled. Duration 137 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692450 is handled. Duration 149 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692451 is handled. Duration 122 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692452 is handled. Duration 155 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692453 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692454 is handled. Duration 137 ms by bot id=8403442567
+INFO:apscheduler.executors.default:Running job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 16:00:00 +05)" (scheduled at 2026-03-16 15:00:00+05:00)
+INFO:root:Проверка напоминаний...
+ERROR:root:Ошибка в напоминании 26: (sqlalchemy.exc.MissingGreenlet) greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place?
+[SQL: SELECT stylists.id AS stylists_id, stylists.name AS stylists_name, stylists.barbershop_id AS stylists_barbershop_id, stylists.user_id AS stylists_user_id, stylists.avg_rating AS stylists_avg_rating 
+FROM stylists 
+WHERE stylists.id = %s]
+[parameters: [{'pk_1': 1}]]
+(Background on this error at: https://sqlalche.me/e/20/xd2s)
+INFO:apscheduler.executors.default:Job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 16:00:00 +05)" executed successfully
+INFO:aiogram.event:Update id=863692455 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692456 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692457 is handled. Duration 147 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692458 is not handled. Duration 3 ms by bot id=8403442567
+ERROR:aiogram.event:Cause exception while process update id=863692458 by bot id=8403442567
+OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 657, in _read_bytes
+    data = await self._reader.readexactly(num_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/alt/python312/lib64/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 4 expected bytes
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+pymysql.err.OperationalError: (2013, 'Lost connection to MySQL server during query')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 1785, in show_favorites
+    user = await ensure_registered_message(message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 611, in ensure_registered_message
+    user = await get_user_by_telegram_id(message.from_user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 544, in get_user_by_telegram_id
+    return await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 505, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:aiogram.event:Update id=863692459 is handled. Duration 173 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692460 is handled. Duration 213 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692461 is handled. Duration 138 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692462 is handled. Duration 154 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692463 is handled. Duration 383 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692464 is handled. Duration 183 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692465 is handled. Duration 162 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692466 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692467 is handled. Duration 145 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692468 is handled. Duration 364 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692469 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692470 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692471 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692472 is handled. Duration 142 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692473 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692474 is handled. Duration 137 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692475 is handled. Duration 151 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692476 is handled. Duration 138 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692477 is handled. Duration 134 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692478 is handled. Duration 173 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692479 is handled. Duration 149 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692480 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692481 is handled. Duration 138 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692482 is handled. Duration 265 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692483 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692484 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692485 is not handled. Duration 3 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692486 is handled. Duration 137 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692487 is handled. Duration 160 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692488 is handled. Duration 235 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692489 is handled. Duration 330 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692490 is handled. Duration 254 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692491 is handled. Duration 172 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692492 is handled. Duration 1160 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692493 is handled. Duration 124 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692494 is handled. Duration 148 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692495 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692496 is handled. Duration 244 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692497 is handled. Duration 141 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692498 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692499 is handled. Duration 159 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692500 is handled. Duration 128 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692501 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692502 is handled. Duration 134 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692503 is handled. Duration 122 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692504 is handled. Duration 1 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692505 is handled. Duration 413 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692506 is handled. Duration 134 ms by bot id=8403442567
+Traceback (most recent call last):
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 977, in <module>
+    @dp.message(F.text.in_([texts.get_buttons("ru")["search_menu"], texts.get_buttons("uz")["search_menu"]]), state="*")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 143, in wrapper
+    self.register(callback, *filters, flags=flags, **kwargs)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 77, in register
+    raise UnsupportedKeywordArgument(msg)
+aiogram.exceptions.UnsupportedKeywordArgument: Passing any additional keyword arguments to the registrar method is not supported.
+This error may be caused when you are trying to register filters like in 2.x version of this framework, if it's true just look at correspoding documentation pages.
+Please remove the {'state'} arguments from this call.
+
+(background on this error at: https://docs.aiogram.dev/en/dev-3.x/migration_2_to_3.html#filtering-events)
+Traceback (most recent call last):
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 1667, in <module>
+    @dp.message(F.text.in_([texts.get_buttons("ru")["my_profile"], texts.get_buttons("uz")["my_profile"]]), state="*")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 143, in wrapper
+    self.register(callback, *filters, flags=flags, **kwargs)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 77, in register
+    raise UnsupportedKeywordArgument(msg)
+aiogram.exceptions.UnsupportedKeywordArgument: Passing any additional keyword arguments to the registrar method is not supported.
+This error may be caused when you are trying to register filters like in 2.x version of this framework, if it's true just look at correspoding documentation pages.
+Please remove the {'state'} arguments from this call.
+
+(background on this error at: https://docs.aiogram.dev/en/dev-3.x/migration_2_to_3.html#filtering-events)
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692517 is handled. Duration 390 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692518 is handled. Duration 128 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692519 is handled. Duration 128 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692520 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692521 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692522 is handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692523 is handled. Duration 154 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692524 is handled. Duration 131 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692525 is handled. Duration 145 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692526 is handled. Duration 161 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692527 is handled. Duration 154 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692528 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692529 is handled. Duration 134 ms by bot id=8403442567
+Traceback (most recent call last):
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 977, in <module>
+    @dp.message(F.text.in_([texts.get_buttons("ru")["search_menu"], texts.get_buttons("uz")["search_menu"]]), state="*")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 143, in wrapper
+    self.register(callback, *filters, flags=flags, **kwargs)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 77, in register
+    raise UnsupportedKeywordArgument(msg)
+aiogram.exceptions.UnsupportedKeywordArgument: Passing any additional keyword arguments to the registrar method is not supported.
+This error may be caused when you are trying to register filters like in 2.x version of this framework, if it's true just look at correspoding documentation pages.
+Please remove the {'state'} arguments from this call.
+
+(background on this error at: https://docs.aiogram.dev/en/dev-3.x/migration_2_to_3.html#filtering-events)
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692534 is handled. Duration 366 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692535 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692536 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692537 is handled. Duration 159 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692538 is handled. Duration 240 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692539 is handled. Duration 130 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692540 is handled. Duration 123 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692541 is handled. Duration 121 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692542 is handled. Duration 236 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692543 is handled. Duration 687 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692544 is handled. Duration 151 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692545 is handled. Duration 198 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692546 is handled. Duration 504 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692547 is handled. Duration 134 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692548 is handled. Duration 122 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692549 is handled. Duration 273 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692550 is handled. Duration 471 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692551 is not handled. Duration 2 ms by bot id=8403442567
+ERROR:aiogram.event:Cause exception while process update id=863692551 by bot id=8403442567
+OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 657, in _read_bytes
+    data = await self._reader.readexactly(num_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/alt/python312/lib64/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 4 expected bytes
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+pymysql.err.OperationalError: (2013, 'Lost connection to MySQL server during query')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 983, in booking_start_menu
+    user = await ensure_registered_message(message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 611, in ensure_registered_message
+    user = await get_user_by_telegram_id(message.from_user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 544, in get_user_by_telegram_id
+    return await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 505, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:aiogram.event:Update id=863692552 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692553 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692554 is handled. Duration 306 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692555 is handled. Duration 141 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692556 is handled. Duration 145 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692557 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692558 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692559 is handled. Duration 163 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692560 is handled. Duration 133 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692561 is handled. Duration 149 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692562 is handled. Duration 170 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692563 is handled. Duration 135 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692564 is handled. Duration 139 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692565 is handled. Duration 128 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692566 is handled. Duration 186 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692567 is handled. Duration 178 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692568 is handled. Duration 138 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692569 is handled. Duration 179 ms by bot id=8403442567
+INFO:apscheduler.executors.default:Running job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 17:00:00 +05)" (scheduled at 2026-03-16 16:00:00+05:00)
+INFO:root:Проверка напоминаний...
+INFO:apscheduler.executors.default:Job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 17:00:00 +05)" executed successfully
+INFO:aiogram.event:Update id=863692570 is handled. Duration 396 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692571 is handled. Duration 357 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692572 is handled. Duration 136 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692573 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692574 is handled. Duration 144 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692575 is handled. Duration 355 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692576 is handled. Duration 542 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692577 is handled. Duration 157 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692578 is handled. Duration 137 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692579 is not handled. Duration 2 ms by bot id=8403442567
+ERROR:aiogram.event:Cause exception while process update id=863692579 by bot id=8403442567
+OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (6633981653,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 657, in _read_bytes
+    data = await self._reader.readexactly(num_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/alt/python312/lib64/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 4 expected bytes
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+pymysql.err.OperationalError: (2013, 'Lost connection to MySQL server during query')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 1931, in show_bookings_menu
+    user, stylist = await ensure_active_stylist_message(message)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 357, in ensure_active_stylist_message
+    user, stylist = await get_stylist_profile_by_telegram(session, message.from_user.id)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 298, in get_stylist_profile_by_telegram
+    user = await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 505, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (6633981653,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:aiogram.event:Update id=863692580 is handled. Duration 145 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692581 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692582 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692583 is handled. Duration 145 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692584 is handled. Duration 124 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692585 is handled. Duration 1271 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692586 is handled. Duration 415 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692587 is handled. Duration 346 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692588 is handled. Duration 415 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692589 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692590 is handled. Duration 596 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692591 is handled. Duration 222 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692592 is handled. Duration 270 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692593 is handled. Duration 219 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692594 is handled. Duration 235 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692595 is handled. Duration 230 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692596 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692597 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692598 is handled. Duration 130 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692599 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692600 is handled. Duration 274 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692601 is handled. Duration 408 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692602 is handled. Duration 219 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692603 is handled. Duration 132 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692604 is handled. Duration 393 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692605 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692606 is handled. Duration 157 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692607 is handled. Duration 266 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692608 is handled. Duration 220 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692609 is handled. Duration 128 ms by bot id=8403442567
+INFO:apscheduler.executors.default:Running job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 18:00:00 +05)" (scheduled at 2026-03-16 17:00:00+05:00)
+INFO:root:Проверка напоминаний...
+INFO:apscheduler.executors.default:Job "check_reminders (trigger: cron[hour='*', minute='0'], next run at: 2026-03-16 18:00:00 +05)" executed successfully
+INFO:aiogram.event:Update id=863692610 is handled. Duration 336 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692611 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692612 is handled. Duration 495 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692613 is handled. Duration 182 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692614 is handled. Duration 267 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692615 is handled. Duration 152 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692616 is handled. Duration 124 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692617 is handled. Duration 126 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692618 is handled. Duration 130 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692619 is handled. Duration 131 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692620 is not handled. Duration 1 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692621 is not handled. Duration 2 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692622 is handled. Duration 127 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692623 is handled. Duration 141 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692624 is handled. Duration 237 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692625 is not handled. Duration 1 ms by bot id=8403442567
+ERROR:aiogram.event:Cause exception while process update id=863692625 by bot id=8403442567
+OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 657, in _read_bytes
+    data = await self._reader.readexactly(num_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/alt/python312/lib64/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 4 expected bytes
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+pymysql.err.OperationalError: (2013, 'Lost connection to MySQL server during query')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 983, in booking_start_menu
+    user = await ensure_registered_message(message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 611, in ensure_registered_message
+    user = await get_user_by_telegram_id(message.from_user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/maestro.yuksalishbot.uz/bot.py", line 544, in get_user_by_telegram_id
+    return await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/ext/asyncio/session.py", line 505, in scalar
+    return await greenlet_spawn(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2399, in scalar
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib64/python3.12/site-packages/sqlalchemy/connectors/asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 239, in execute
+    await self._query(query)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/cursors.py", line 457, in _query
+    await conn.query(q)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 469, in query
+    await self._read_query_result(unbuffered=unbuffered)
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+    await result.read()
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 1164, in read
+    first_packet = await self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 609, in _read_packet
+    packet_header = await self._read_bytes(4)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yuksal21/virtualenv/maestro.yuksalishbot.uz/3.12/lib/python3.12/site-packages/aiomysql/connection.py", line 661, in _read_bytes
+    raise OperationalError(CR.CR_SERVER_LOST, msg) from e
+sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2013, 'Lost connection to MySQL server during query')
+[SQL: SELECT users.id, users.telegram_id, users.first_name, users.phone_number, users.language_code, users.role, users.subscription_until, users.is_active 
+FROM users 
+WHERE users.telegram_id = %s]
+[parameters: (372688693,)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:aiogram.event:Update id=863692626 is handled. Duration 133 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692627 is handled. Duration 134 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692628 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692629 is handled. Duration 121 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692630 is handled. Duration 124 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692631 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692632 is handled. Duration 202 ms by bot id=8403442567
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "check_reminders" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_follow_ups" to job store "default"
+INFO:apscheduler.scheduler:Added job "check_subscription_expiry" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:aiogram.dispatcher:Start polling
+INFO:aiogram.dispatcher:Run polling for bot @barberstashkentbot id=8403442567 - 'MAESTRO'
+INFO:aiogram.event:Update id=863692633 is handled. Duration 349 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692634 is handled. Duration 149 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692635 is handled. Duration 178 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692636 is handled. Duration 193 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692637 is handled. Duration 125 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692638 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692639 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692640 is handled. Duration 124 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692641 is handled. Duration 131 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692642 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692643 is handled. Duration 518 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692644 is handled. Duration 143 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692645 is handled. Duration 121 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692646 is handled. Duration 129 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692647 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692648 is handled. Duration 144 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692649 is handled. Duration 121 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692650 is handled. Duration 0 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692651 is handled. Duration 465 ms by bot id=8403442567
+INFO:aiogram.event:Update id=863692652 is handled. Duration 127 ms by bot id=8403442567

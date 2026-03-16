@@ -703,7 +703,10 @@ async def lang_choice(cb: CallbackQuery, state: FSMContext):
 
 @dp.message(F.text.in_([texts.get_buttons('ru')['change_language'], texts.get_buttons('uz')['change_language']]))
 async def open_language_menu(message: Message, state: FSMContext):
-    await clear_search_context(state, message.from_user.id)
+    # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
+    await state.clear()
+    search_cache.pop(message.from_user.id, None)
+    
     user = await ensure_registered_message(message)
     if not user:
         return
@@ -891,19 +894,24 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
                     "uz": "ID faqat raqamlardan iborat bo'lishi kerak. Qayta urinib ko'ring.",
                 }[lang])
                 return False
+            
             requested_id = int(message.text)
+            
+            # ИСПРАВЛЕНИЕ: Ищем ТОЛЬКО по основному ID стилиста (тот, что в твоей таблице)
             stylist = await session.scalar(
                 select(db.Stylist)
-                .where((db.Stylist.id == requested_id) | (db.Stylist.user_id == requested_id))
+                .where(db.Stylist.id == requested_id)
                 .options(joinedload(db.Stylist.user_account))
             )
+            
             if stylist and not is_stylist_subscription_active(stylist.user_account):
                 expiry_text = stylist.user_account.subscription_until.strftime("%Y-%m-%d") if stylist.user_account and stylist.user_account.subscription_until else None
                 await message.answer({
                     "ru": f"Мастер найден, но сейчас недоступен для записи. Срок тарифа истёк: {expiry_text or 'не указан'}.",
-                    "uz": f"Maestro topildi, lekin hozir yozilish uchun mavjud emas. Tarif muddati tugagan: {expiry_text or "ko'rsatilmagan"}.",
+                    "uz": f"Maestro topildi, lekin hozir yozilish uchun mavjud emas. Tarif muddati tugagan: {expiry_text or 'koʻrsatilmagan'}.",
                 }[lang])
                 return False
+            
             stylists = [stylist] if stylist else []
             title = {"ru": "Результат поиска по ID:", "uz": "ID bo'yicha qidiruv natijasi:"}[lang]
         else:
@@ -997,9 +1005,9 @@ async def booking_start_menu(message: Message, state: FSMContext):
         ),
         "uz": (
             "✨ <b>Maestro olamiga xush kelibsiz!</b>\n\n"
-            "O'z ustangizni bir zumda topish va vaqtni band qilish uchun "
+            "O'z maestroingizni bir zumda topish va vaqtni band qilish uchun "
             "uning <b>ID raqamini</b> pastga yuboring:\n\n"
-            "🆔 <i>ID raqami usta peshlavhasidagi QR-kod ostida yoki instagram biosida ko'rsatilgan.</i>"
+            "🆔 <i>ID raqami Maestro peshlavhasidagi QR-kod ostida yoki instagram biosida ko'rsatilgan.</i>"
         )
     }[lang]
 
@@ -1663,7 +1671,10 @@ async def complete_booking(cb: CallbackQuery):
 
 @dp.message(F.text.in_([texts.get_buttons("ru")["my_profile"], texts.get_buttons("uz")["my_profile"]]))
 async def show_profile(message: Message, state: FSMContext):
-    await clear_search_context(state, message.from_user.id)
+    # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
+    await state.clear()
+    search_cache.pop(message.from_user.id, None)
+    
     user = await ensure_registered_message(message)
     if not user:
         return
@@ -1772,7 +1783,10 @@ async def cancel_booking(cb: CallbackQuery):
 # Хэндлер для кнопки "⭐ Мои мастера"
 @dp.message(F.text.in_([texts.get_buttons("ru")["my_masters"], texts.get_buttons("uz")["my_masters"]]))
 async def show_favorites(message: Message, state: FSMContext):
-    await clear_search_context(state, message.from_user.id)
+    # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
+    await state.clear()
+    search_cache.pop(message.from_user.id, None)
+    
     user = await ensure_registered_message(message)
     if not user:
         return
@@ -1789,12 +1803,15 @@ async def show_favorites(message: Message, state: FSMContext):
         await message.answer(texts.get_text("favorites_empty", lang))
         return
 
-    btns = [[InlineKeyboardButton(text=f"💇‍♂️ {stylist.name}", callback_data=f"stylist_{stylist.id}"), InlineKeyboardButton(text="❌", callback_data=f"fav_rem_{stylist.id}")] for stylist in user.favorite_stylists]
+    btns = [[InlineKeyboardButton(text=f"💇‍♂️ {stylist.name}", callback_data=f"stylist_{stylist.id}"), 
+             InlineKeyboardButton(text="❌", callback_data=f"fav_rem_{stylist.id}")] for stylist in user.favorite_stylists]
+    
     await message.answer(
         f"<b>{texts.get_text('favorites_title', lang)}</b>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML"
     )
+    
 # Хэндлер для добавления в избранное
 @dp.callback_query(F.data.startswith("fav_add_"))
 async def add_favorite(cb: CallbackQuery):

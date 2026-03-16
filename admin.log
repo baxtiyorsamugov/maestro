@@ -29,3 +29,4 @@ INFO:     94.176.90.68:0 - "GET /index.php HTTP/1.1" 404 Not Found
 INFO:     94.176.90.68:0 - "GET /favicon.ico HTTP/1.1" 404 Not Found
 INFO:     144.124.192.100:0 - "OPTIONS /api/v1/posts?limit=8 HTTP/1.1" 404 Not Found
 INFO:     144.124.192.100:0 - "OPTIONS /api/v1/games HTTP/1.1" 404 Not Found
+INFO:     2a14:7c1:400::1:0 - "GET /415.shtml HTTP/1.1" 404 Not Found
