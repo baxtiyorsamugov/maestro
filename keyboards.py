@@ -165,16 +165,18 @@ async def get_main_keyboard(user_id: int):
     buttons = texts.get_buttons(lang)
 
     if user and user.role == "stylist":
+        panel = texts.get_stylist_buttons(lang)
         if is_stylist_subscription_active(user):
             kb = [
-                [KeyboardButton(text="📓 Мои записи"), KeyboardButton(text="📊 Моя статистика")],
-                [KeyboardButton(text="🕒 Управление расписанием"), KeyboardButton(text="✂️ Мои услуги")],
-                [KeyboardButton(text="🖼 Мое портфолио"), KeyboardButton(text="💳 Срок тарифа")],
+                [KeyboardButton(text=panel["my_bookings"]), KeyboardButton(text=panel["my_stats"])],
+                [KeyboardButton(text=panel["manage_schedule"]), KeyboardButton(text=panel["my_services"])],
+                [KeyboardButton(text=panel["my_portfolio"]), KeyboardButton(text=panel["subscription"])],
             ]
             return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, row_width=2)
 
+        # Тариф истёк: оставляем только продление и переключение языка.
         limited_kb = [
-            [KeyboardButton(text="💳 Срок тарифа")],
+            [KeyboardButton(text=panel["subscription"])],
             [KeyboardButton(text=buttons["change_language"])],
         ]
         return ReplyKeyboardMarkup(keyboard=limited_kb, resize_keyboard=True)

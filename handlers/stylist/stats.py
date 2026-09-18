@@ -13,6 +13,7 @@ from aiogram.types import (
 from sqlalchemy import func, select
 
 import database as db
+import texts
 import timeutils
 from database import BOOKING_APPROVED, BOOKING_COMPLETED, BOOKING_PENDING
 from guards import (
@@ -23,7 +24,7 @@ from guards import (
 router = Router(name="stylist_stats")
 
 
-@router.message(F.text == "📊 Моя статистика")
+@router.message(F.text.in_(texts.all_variants("my_stats")))
 async def show_stats_menu(message: Message):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):

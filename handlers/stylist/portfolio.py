@@ -13,8 +13,10 @@ from aiogram.types import (
 from sqlalchemy import select
 
 import database as db
+import texts
 from guards import (
     ensure_active_stylist_message,
+    get_user_lang,
 )
 from keyboards import (
     get_main_keyboard,
@@ -24,7 +26,7 @@ from states import PortfolioForm
 router = Router(name="stylist_portfolio")
 
 
-@router.message(F.text == "🖼 Мое портфолио")
+@router.message(F.text.in_(texts.all_variants("my_portfolio")))
 async def manage_portfolio(message: Message, state: FSMContext):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):
@@ -42,17 +44,20 @@ async def manage_portfolio(message: Message, state: FSMContext):
         media_group = [InputMediaPhoto(media=photo.telegram_photo_file_id) for photo in photos]
         await message.answer_media_group(media=media_group)
 
+    lang = user.language_code or "ru"
     await state.set_state(PortfolioForm.waiting_for_photo)
     await message.answer(
-        f"Сейчас в вашем портфолио: <b>{len(photos)}</b> фото.\n"
-        "Отправьте новое фото сообщением в чат. Когда закончите, нажмите кнопку ниже.",
-        reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Готово")]], resize_keyboard=True),
+        texts.get_text("portfolio_prompt", lang).format(count=len(photos)),
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text=texts.get_stylist_buttons(lang)["done"])]],
+            resize_keyboard=True,
+        ),
         parse_mode="HTML",
     )
 
 @router.message(PortfolioForm.waiting_for_photo, F.photo)
 async def process_portfolio_photo(message: Message, state: FSMContext):
-    # Берем самое качественное фото из предложенны
+    # Берём самое качественное фото из предложенных
 
     file_id = message.photo[-1].file_id
 
@@ -60,17 +65,20 @@ async def process_portfolio_photo(message: Message, state: FSMContext):
         user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
         stylist = await session.scalar(select(db.Stylist).where(db.Stylist.user_id == user.id))
 
-        # Со
-# раняем file_id в базу
+        # Сохраняем file_id в базу
         new_photo = db.Portfolio(stylist_id=stylist.id, telegram_photo_file_id=file_id)
         session.add(new_photo)
         await session.commit()
 
-    await message.answer("Фото добавлено в портфолио.")
+    lang = await get_user_lang(message.from_user.id)
+    await message.answer(texts.get_text("portfolio_photo_added", lang))
 
-# Вы
-# од из режима добавления фото
-@router.message(PortfolioForm.waiting_for_photo, F.text == "Готово")
+# Выход из режима добавления фото
+@router.message(PortfolioForm.waiting_for_photo, F.text.in_(texts.all_variants("done")))
 async def done_adding_photos(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Вы вышли из режима добавления фото.", reply_markup=await get_main_keyboard(message.from_user.id))
+    lang = await get_user_lang(message.from_user.id)
+    await message.answer(
+        texts.get_text("portfolio_done", lang),
+        reply_markup=await get_main_keyboard(message.from_user.id),
+    )

@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 import database as db
+import texts
 import timeutils
 from database import (
     ACTIVE_BOOKING_STATUSES,
@@ -40,7 +41,7 @@ from services.access import (
 router = Router(name="stylist_bookings")
 
 
-@router.message(F.text == "📓 Мои записи")
+@router.message(F.text.in_(texts.all_variants("my_bookings")))
 async def show_bookings_menu(message: Message):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):

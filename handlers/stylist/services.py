@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 import database as db
+import texts
 from guards import (
     ensure_active_stylist_callback,
     ensure_active_stylist_message,
@@ -27,7 +28,7 @@ from states import ServiceForm
 router = Router(name="stylist_services")
 
 
-@router.message(F.text == "✂️ Мои услуги")
+@router.message(F.text.in_(texts.all_variants("my_services")))
 async def manage_services(message: Message):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):

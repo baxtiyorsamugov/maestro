@@ -11,6 +11,7 @@ from aiogram.types import (
 from sqlalchemy import select
 
 import database as db
+import texts
 import timeutils
 from constants import DAY_LABELS
 from guards import (
@@ -62,7 +63,7 @@ async def cancel_fsm_handler(cb: CallbackQuery, state: FSMContext):
     await cb.message.edit_text("Действие отменено.", reply_markup=None)
     await cb.answer()
 
-@router.message(F.text == "🕒 Управление расписанием")
+@router.message(F.text.in_(texts.all_variants("manage_schedule")))
 async def manage_schedule(message: Message):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):

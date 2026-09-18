@@ -100,6 +100,26 @@ TEXTS = {
         "ru": "🇺🇿 Узбекский",
         "uz": "🇺🇿 O'zbekcha",
     },
+    "panel_welcome": {
+        "ru": "Добро пожаловать в панель управления! Успехов в работе!",
+        "uz": "Boshqaruv paneliga xush kelibsiz! Ishlaringizga rivoj!",
+    },
+    "panel_exited": {
+        "ru": "Вы вернулись в главное меню.",
+        "uz": "Siz asosiy menyuga qaytdingiz.",
+    },
+    "portfolio_prompt": {
+        "ru": "Сейчас в вашем портфолио: <b>{count}</b> фото.\nОтправьте новое фото сообщением в чат. Когда закончите, нажмите кнопку ниже.",
+        "uz": "Hozir portfoliongizda: <b>{count}</b> ta rasm.\nYangi rasmni xabar sifatida yuboring. Tugatgach, quyidagi tugmani bosing.",
+    },
+    "portfolio_photo_added": {
+        "ru": "Фото добавлено в портфолио.",
+        "uz": "Rasm portfolioga qo'shildi.",
+    },
+    "portfolio_done": {
+        "ru": "Вы вышли из режима добавления фото.",
+        "uz": "Rasm qo'shish rejimidan chiqdingiz.",
+    },
 }
 
 BUTTONS = {
@@ -122,6 +142,45 @@ BUTTONS = {
 }
 
 
+# Кнопки панели мастера. Выделены отдельно от BUTTONS: у клиента и у мастера
+# разные меню, и смешивать их в одном словаре — значит однажды показать
+# клиенту кнопку «Мои услуги».
+STYLIST_BUTTONS = {
+    "my_bookings": {
+        "ru": "📓 Мои записи",
+        "uz": "📓 Mening yozuvlarim",
+    },
+    "my_stats": {
+        "ru": "📊 Моя статистика",
+        "uz": "📊 Mening statistikam",
+    },
+    "manage_schedule": {
+        "ru": "🕒 Управление расписанием",
+        "uz": "🕒 Jadvalni boshqarish",
+    },
+    "my_services": {
+        "ru": "✂️ Мои услуги",
+        "uz": "✂️ Mening xizmatlarim",
+    },
+    "my_portfolio": {
+        "ru": "🖼 Мое портфолио",
+        "uz": "🖼 Mening portfoliom",
+    },
+    "subscription": {
+        "ru": "💳 Срок тарифа",
+        "uz": "💳 Tarif muddati",
+    },
+    "exit_panel": {
+        "ru": "↩️ Выйти из админ-панели",
+        "uz": "↩️ Boshqaruv panelidan chiqish",
+    },
+    "done": {
+        "ru": "Готово",
+        "uz": "Tayyor",
+    },
+}
+
+
 def get_text(key: str, lang: str = DEFAULT_LANGUAGE) -> str:
     """Строка интерфейса. При отсутствии перевода откатывается на русский."""
     translations = TEXTS.get(key)
@@ -136,3 +195,24 @@ def get_buttons(lang: str = DEFAULT_LANGUAGE) -> dict[str, str]:
         key: translations.get(lang) or translations.get(DEFAULT_LANGUAGE, "")
         for key, translations in BUTTONS.items()
     }
+
+
+def get_stylist_buttons(lang: str = DEFAULT_LANGUAGE) -> dict[str, str]:
+    """Подписи кнопок панели мастера на выбранном языке."""
+    return {
+        key: translations.get(lang) or translations.get(DEFAULT_LANGUAGE, "")
+        for key, translations in STYLIST_BUTTONS.items()
+    }
+
+
+def all_variants(key: str) -> list[str]:
+    """
+    Подпись кнопки на всех языках.
+
+    Фильтры хендлеров сравнивают текст сообщения с подписью буквально.
+    Если фильтр знает только русский вариант, то после переключения языка
+    кнопка перестаёт работать — причём молча, без единой ошибки в логах.
+    Поэтому фильтр всегда строится через этот хелпер.
+    """
+    source = STYLIST_BUTTONS.get(key) or BUTTONS.get(key) or {}
+    return [value for value in source.values() if value]
