@@ -1,10 +1,11 @@
 name: CI
 
 on:
+  # Проверяем любую ветку. Список префиксов тут уже один раз подвёл: ветка
+  # refactor/** в него не попала, и CI молча не запускался — а это ровно тот
+  # случай, ради которого проверки и заводятся.
   push:
-    branches: [main, develop, "feat/**", "fix/**", "chore/**"]
   pull_request:
-    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
