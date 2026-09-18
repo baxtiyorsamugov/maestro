@@ -1,10 +1,13 @@
-from datetime import datetime, timedelta, date
+import logging
+from datetime import timedelta
+
+from aiogram import Bot
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from aiogram import Bot
+
 import database as db
-import logging
 import timeutils
+
 
 # 1. Напоминания за 24 часа и за 1 час
 async def check_reminders(bot: Bot):
@@ -78,7 +81,7 @@ async def check_follow_ups(bot: Bot):
             db.Booking.status == db.BOOKING_COMPLETED,
             db.Booking.starts_at >= day_start,
             db.Booking.starts_at < day_end,
-            db.Booking.follow_up_sent == False
+            db.Booking.follow_up_sent.is_(False)
         ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
         
         bookings = (await session.execute(query)).scalars().all()
@@ -117,8 +120,8 @@ async def check_subscription_expiry(bot: Bot):
         users = (await session.execute(
             select(db.User).where(
                 db.User.role == "stylist",
-                db.User.is_active == True,
-                db.User.subscription_until != None
+                db.User.is_active.is_(True),
+                db.User.subscription_until.isnot(None)
             )
         )).scalars().all()
 

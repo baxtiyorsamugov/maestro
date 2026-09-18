@@ -5,7 +5,7 @@
 через границу «код — база — экран». Сдвиг на 5 часов не падает с ошибкой,
 он просто покажет клиенту не тот час — это худший вид бага.
 """
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import database as db
 import timeutils
@@ -31,9 +31,8 @@ class TestParsing:
         assert timeutils.now().tzinfo is None
 
     def test_now_matches_tashkent_wall_clock(self):
-        from datetime import timezone
 
-        utc_now = datetime.now(timezone.utc)
+        utc_now = datetime.now(UTC)
         expected = utc_now.astimezone(timeutils.TZ).replace(tzinfo=None)
         assert abs((timeutils.now() - expected).total_seconds()) < 5
 

@@ -10,16 +10,16 @@ SQLite и PostgreSQL поддерживают частичные индексы.
 Revision ID: c1a7e4b92f10
 Revises: b8d3d117f0f2
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
 
 
 revision: str = "c1a7e4b92f10"
-down_revision: Union[str, Sequence[str], None] = "b8d3d117f0f2"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "b8d3d117f0f2"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 ACTIVE_STATUSES = "status IN ('pending', 'approved')"
 SLOT_INDEX = "uq_active_booking_slot"

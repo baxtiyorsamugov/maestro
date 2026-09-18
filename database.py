@@ -3,11 +3,20 @@ import asyncio
 import datetime
 from pathlib import Path
 
-from sqlalchemy import DateTime, Date, Boolean, Index, select, func, UniqueConstraint
-
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import BigInteger, String, ForeignKey, Float, Integer
 
 from config import load_database_settings
 

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import database as db
 
+
 async def seed_data():
     print("🗑️ Пересоздаем таблицы по новой схеме...")
     async with db.engine.begin() as conn:

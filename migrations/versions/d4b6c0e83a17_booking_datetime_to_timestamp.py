@@ -15,16 +15,16 @@ Revision ID: d4b6c0e83a17
 Revises: c1a7e4b92f10
 """
 from datetime import datetime, timedelta
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
 
 
 revision: str = "d4b6c0e83a17"
-down_revision: Union[str, Sequence[str], None] = "c1a7e4b92f10"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "c1a7e4b92f10"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 ACTIVE_STATUSES = "status IN ('pending', 'approved')"
 SLOT_INDEX = "uq_active_booking_slot"

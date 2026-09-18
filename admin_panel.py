@@ -6,11 +6,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
-from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
+from starlette.middleware.sessions import SessionMiddleware
 from wtforms.fields import SelectField
 
 import database as db
@@ -74,7 +73,7 @@ async def _collect_dashboard_data() -> dict:
         users_count = await session.scalar(select(func.count(db.User.id))) or 0
         stylists_count = await session.scalar(select(func.count(db.Stylist.id))) or 0
         active_stylists_count = await session.scalar(
-            select(func.count(db.User.id)).where(db.User.role == "stylist", db.User.is_active == True)
+            select(func.count(db.User.id)).where(db.User.role == "stylist", db.User.is_active.is_(True))
         ) or 0
         barbershops_count = await session.scalar(select(func.count(db.Barbershop.id))) or 0
         services_count = await session.scalar(select(func.count(db.Service.id))) or 0

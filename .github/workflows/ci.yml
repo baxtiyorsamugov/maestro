@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feat/**", "fix/**", "chore/**"]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: Быстрые проверки
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Проект однажды потерял 35 строк интерфейса из-за записи файла
+      # в неверной кодировке (docs/AUDIT.md, A-1). Эта проверка не даёт повториться.
+      - name: Повреждённая кириллица
+        run: |
+          if grep -rn '???' --include='*.py' .; then
+            echo "::error::Найдена повреждённая кириллица — см. docs/AUDIT.md, A-1"
+            exit 1
+          fi
+          echo "Кодировка в порядке"
+
+      - name: Секреты не закоммичены
+        run: |
+          if git ls-files | grep -E '^\.env$|\.log$|\.db$|\.zip$'; then
+            echo "::error::В индексе файлы, которых там быть не должно"
+            exit 1
+          fi
+          echo "Индекс чистый"
+
+      # Ключи ru и uz должны совпадать: без этого узбекоязычный пользователь
+      # молча получает русский текст или «Text not found».
+      - name: Полнота локализации
+        run: python scripts/check_locales.py
+
+  lint:
+    name: Линтер
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff==0.8.4
+      - run: ruff check .
+
+  tests:
+    name: Тесты (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 — заявленный минимум, 3.12 стоит на боевом хостинге.
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: pytest
+        env:
+          BOT_TOKEN: "123456789:CIFakeTokenNotARealSecret"
+          DB_DRIVER: sqlite
+          ADMIN_USERNAME: ci
+          ADMIN_PASSWORD: ci
+          ADMIN_SECRET_KEY: ci-secret-key-for-tests-only-32chars
+        run: pytest tests/ -q

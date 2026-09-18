@@ -6,7 +6,6 @@ import threading
 import time
 import webbrowser
 
-
 ADMIN_HOST = "127.0.0.1"
 ADMIN_PORT = 8002
 ADMIN_URL = f"http://{ADMIN_HOST}:{ADMIN_PORT}/dashboard"
@@ -16,6 +15,7 @@ STATUS_URL = f"http://{ADMIN_HOST}:{ADMIN_PORT}/"
 def run_admin() -> None:
     try:
         import uvicorn
+
         from admin_panel import app
 
         config = uvicorn.Config(

@@ -1,32 +1,37 @@
 # Файл: bot.py
-import calendar
-from sqlalchemy import select, func
-from sqlalchemy.exc import IntegrityError
-import sys
-import texts
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import scheduler
 import asyncio
+import calendar
 import logging
 import re
+import sys
+from datetime import date, datetime, timedelta
 from html import escape
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.fsm.storage.memory import MemoryStorage # Хранилище состояний в памяти
-from datetime import datetime, timedelta, date
-from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import ErrorEvent
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage  # Хранилище состояний в памяти
 from aiogram.types import (
-    Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
-    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
+    CallbackQuery,
+    ErrorEvent,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaPhoto,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
-from sqlalchemy import select
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from dotenv import load_dotenv
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload  # Важный импорт
 
 import database as db
+import scheduler
+import texts
 import timeutils
 import utils  # Наш файл календаря
 from config import get_optional_env, get_required_env
@@ -1447,7 +1452,7 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
 
     btns = []
     for srv in services:
-        price = "{:,.0f}".format(srv.price).replace(",", " ")
+        price = f"{srv.price:,.0f}".replace(",", " ")
         duration_label = {"ru": "мин", "uz": "daq"}[lang]
         btns.append([
             InlineKeyboardButton(
