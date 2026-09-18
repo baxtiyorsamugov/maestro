@@ -29,6 +29,7 @@ from guards import (
     deny_access,
     ensure_active_stylist_callback,
     ensure_active_stylist_message,
+    get_user_lang,
 )
 from loader import bot
 from presenters import (
@@ -134,6 +135,7 @@ async def process_view_bookings(cb: CallbackQuery):
 @router.callback_query(F.data.startswith("approve_"))
 async def approve_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[-1])
+    lang = await get_user_lang(cb.from_user.id)
 
     async with db.async_session() as session:
         booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
@@ -141,7 +143,7 @@ async def approve_booking(cb: CallbackQuery):
             await deny_access(cb)
             return
         if booking.status != BOOKING_PENDING:
-            await cb.answer("Эта заявка уже обработана.", show_alert=True)
+            await cb.answer(texts.get_text("booking_already_handled", lang), show_alert=True)
             return
 
         booking.status = BOOKING_APPROVED
@@ -149,7 +151,7 @@ async def approve_booking(cb: CallbackQuery):
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
         booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
-        card = build_booking_card(booking, footer="Запись подтверждена")
+        card = build_booking_card(booking, texts.get_text("booking_approved", lang), lang)
 
     try:
         await bot.send_message(
@@ -179,6 +181,7 @@ async def approve_booking(cb: CallbackQuery):
 @router.callback_query(F.data.startswith("decline_"))
 async def decline_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[-1])
+    lang = await get_user_lang(cb.from_user.id)
 
     async with db.async_session() as session:
         booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
@@ -186,7 +189,7 @@ async def decline_booking(cb: CallbackQuery):
             await deny_access(cb)
             return
         if booking.status != BOOKING_PENDING:
-            await cb.answer("Эта заявка уже обработана.", show_alert=True)
+            await cb.answer(texts.get_text("booking_already_handled", lang), show_alert=True)
             return
 
         booking.status = BOOKING_DECLINED
@@ -194,7 +197,7 @@ async def decline_booking(cb: CallbackQuery):
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
         booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
-        card = build_booking_card(booking, footer="Запись отклонена")
+        card = build_booking_card(booking, texts.get_text("booking_declined", lang), lang)
 
     try:
         await bot.send_message(
@@ -220,6 +223,7 @@ async def decline_booking(cb: CallbackQuery):
 @router.callback_query(F.data.startswith("complete_"))
 async def complete_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[1])
+    lang = await get_user_lang(cb.from_user.id)
 
     async with db.async_session() as session:
         booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
@@ -227,14 +231,14 @@ async def complete_booking(cb: CallbackQuery):
             await deny_access(cb)
             return
         if booking.status == BOOKING_COMPLETED:
-            await cb.answer("Визит уже отмечен как завершённый.", show_alert=True)
+            await cb.answer(texts.get_text("booking_already_completed", lang), show_alert=True)
             return
 
         booking.status = BOOKING_COMPLETED
         await session.commit()
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
-        card = build_booking_card(booking, footer="Визит завершён")
+        card = build_booking_card(booking, texts.get_text("booking_completed", lang), lang)
 
     try:
         kb = InlineKeyboardMarkup(inline_keyboard=[[

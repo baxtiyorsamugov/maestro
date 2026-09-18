@@ -18,7 +18,7 @@ from sqlalchemy import select
 import database as db
 import texts
 import timeutils
-from constants import DAY_SHORT_LABELS, TIME_OPTIONS
+from constants import DEFAULT_LANGUAGE, TIME_OPTIONS, day_short, week_header
 
 # Зависимость идёт в одну сторону: клавиатура может показать готовую подпись,
 # но presenters ничего не знает про разметку.
@@ -26,7 +26,9 @@ from presenters import format_schedule_range
 from services.access import is_stylist_subscription_active
 
 
-def get_schedule_time_kb(day_of_week: int, action: str, start_time: str | None = None):
+def get_schedule_time_kb(
+    day_of_week: int, action: str, start_time: str | None = None, lang: str = DEFAULT_LANGUAGE
+):
     buttons = []
     row = []
     for time_value in TIME_OPTIONS:
@@ -39,11 +41,18 @@ def get_schedule_time_kb(day_of_week: int, action: str, start_time: str | None =
     if row:
         buttons.append(row)
     if action == "end":
-        buttons.append([InlineKeyboardButton(text="← Назад ко времени начала", callback_data=f"schedule_back_start_{day_of_week}")])
-    buttons.append([InlineKeyboardButton(text="✖ Отмена", callback_data="cancel_fsm")])
+        buttons.append([InlineKeyboardButton(
+            text=texts.get_text("kb_back_to_start_time", lang),
+            callback_data=f"schedule_back_start_{day_of_week}",
+        )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_cancel", lang), callback_data="cancel_fsm"
+    )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_special_schedule_time_kb(target_date: str, action: str, start_time: str | None = None):
+def get_special_schedule_time_kb(
+    target_date: str, action: str, start_time: str | None = None, lang: str = DEFAULT_LANGUAGE
+):
     buttons = []
     row = []
     for time_value in TIME_OPTIONS:
@@ -56,27 +65,48 @@ def get_special_schedule_time_kb(target_date: str, action: str, start_time: str 
     if row:
         buttons.append(row)
     if action == "end":
-        buttons.append([InlineKeyboardButton(text="← Назад ко времени начала", callback_data=f"special_back_start_{target_date}")])
-    buttons.append([InlineKeyboardButton(text="✖ Отмена", callback_data="cancel_fsm")])
+        buttons.append([InlineKeyboardButton(
+            text=texts.get_text("kb_back_to_start_time", lang),
+            callback_data=f"special_back_start_{target_date}",
+        )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_cancel", lang), callback_data="cancel_fsm"
+    )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_schedule_management_kb(schedule_map: dict[int, db.Schedule]):
+def get_schedule_management_kb(
+    schedule_map: dict[int, db.Schedule], lang: str = DEFAULT_LANGUAGE
+):
     buttons = []
     for day in range(1, 8):
         schedule = schedule_map.get(day)
         buttons.append([
-            InlineKeyboardButton(text=f"{DAY_SHORT_LABELS[day]} • {format_schedule_range(schedule)}", callback_data=f"set_day_{day}"),
-            InlineKeyboardButton(text="Выходной", callback_data=f"set_day_off_{day}"),
+            InlineKeyboardButton(
+                text=f"{day_short(day, lang)} • {format_schedule_range(schedule, lang)}",
+                callback_data=f"set_day_{day}",
+            ),
+            InlineKeyboardButton(
+                text=texts.get_text("schedule_day_off_short", lang),
+                callback_data=f"set_day_off_{day}",
+            ),
         ])
-    buttons.append([InlineKeyboardButton(text="📅 Особые даты", callback_data="schedule_special_dates")])
-    buttons.append([InlineKeyboardButton(text="✖ Закрыть", callback_data="schedule_close")])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_special_dates", lang), callback_data="schedule_special_dates"
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_close", lang), callback_data="schedule_close"
+    )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_special_dates_calendar_kb(year: int, month: int, stylist_id: int):
+def get_special_dates_calendar_kb(
+    year: int, month: int, stylist_id: int, lang: str = DEFAULT_LANGUAGE
+):
     cal = calendar.Calendar()
     kb = []
     kb.append([InlineKeyboardButton(text=f"{calendar.month_name[month]} {year}", callback_data="ignore")])
-    kb.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]])
+    kb.append([
+        InlineKeyboardButton(text=day, callback_data="ignore") for day in week_header(lang)
+    ])
     today = timeutils.today()
     for week in cal.monthdayscalendar(year, month):
         row = []
@@ -97,18 +127,34 @@ def get_special_dates_calendar_kb(year: int, month: int, stylist_id: int):
         InlineKeyboardButton(text=" ", callback_data="ignore"),
         InlineKeyboardButton(text="➡️", callback_data=f"spec_cal_{next_year}-{next_month}_{stylist_id}"),
     ])
-    kb.append([InlineKeyboardButton(text="⬅️ К недельному графику", callback_data="schedule_weekly")])
+    kb.append([InlineKeyboardButton(
+        text=texts.get_text("kb_back_to_weekly", lang), callback_data="schedule_weekly"
+    )])
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
-def get_special_date_actions_kb(target_date: str, stylist_id: int, has_override: bool):
+def get_special_date_actions_kb(
+    target_date: str, stylist_id: int, has_override: bool, lang: str = DEFAULT_LANGUAGE
+):
     year_month = target_date[:7]
     buttons = [
-        [InlineKeyboardButton(text="🕒 Задать часы", callback_data=f"special_set_hours_{target_date}_{stylist_id}")],
-        [InlineKeyboardButton(text="🌴 Сделать выходным", callback_data=f"special_day_off_{target_date}_{stylist_id}")],
+        [InlineKeyboardButton(
+            text=texts.get_text("kb_set_hours", lang),
+            callback_data=f"special_set_hours_{target_date}_{stylist_id}",
+        )],
+        [InlineKeyboardButton(
+            text=texts.get_text("kb_make_day_off", lang),
+            callback_data=f"special_day_off_{target_date}_{stylist_id}",
+        )],
     ]
     if has_override:
-        buttons.append([InlineKeyboardButton(text="♻️ Убрать исключение", callback_data=f"special_delete_{target_date}_{stylist_id}")])
-    buttons.append([InlineKeyboardButton(text="⬅️ К календарю", callback_data=f"spec_cal_{year_month}_{stylist_id}")])
+        buttons.append([InlineKeyboardButton(
+            text=texts.get_text("kb_remove_exception", lang),
+            callback_data=f"special_delete_{target_date}_{stylist_id}",
+        )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("back_to_calendar", lang),
+        callback_data=f"spec_cal_{year_month}_{stylist_id}",
+    )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_language_keyboard() -> InlineKeyboardMarkup:
