@@ -1,0 +1,14 @@
+-r requirements.txt
+
+# Линтеры и форматирование
+ruff==0.8.4
+black==24.10.0
+mypy==1.14.0
+
+# Тесты
+pytest==8.3.4
+pytest-asyncio==0.25.0
+
+# Сборка Windows-версии
+pyinstaller==6.11.1
+pyinstaller-hooks-contrib==2024.10

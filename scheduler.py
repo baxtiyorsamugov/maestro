@@ -4,30 +4,38 @@ from sqlalchemy.orm import joinedload
 from aiogram import Bot
 import database as db
 import logging
+import timeutils
 
 # 1. Напоминания за 24 часа и за 1 час
 async def check_reminders(bot: Bot):
     logging.info("Проверка напоминаний...")
-    now = datetime.now()
-    
+    now = timeutils.now()
+
     async with db.async_session() as session:
         # Берем только одобренные записи
-        query = select(db.Booking).where(db.Booking.status == "approved").options(
+        # joinedload(stylist) обязателен: без него обращение к b.stylist.name ниже
+        # бросает MissingGreenlet и часовое напоминание не отправляется (docs/AUDIT.md, A-5).
+        query = select(db.Booking).where(
+            db.Booking.status == db.BOOKING_APPROVED,
+            db.Booking.starts_at >= now,
+            db.Booking.starts_at <= now + timedelta(hours=26),
+        ).options(
             joinedload(db.Booking.user),
+            joinedload(db.Booking.stylist),
             joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
         )
         bookings = (await session.execute(query)).scalars().all()
 
         for b in bookings:
             try:
-                b_time = datetime.strptime(b.datetime, "%Y-%m-%d %H:%M")
+                b_time = b.starts_at
                 lang = b.user.language_code or "ru"
                 diff = b_time - now
 
                 # Уведомление за 1 день (если осталось от 23 до 25 часов)
                 if timedelta(hours=23) <= diff <= timedelta(hours=25) and not b.reminder_day_sent:
                     text = {
-                        "uz": f"👋 Salom! Ertaga soat {b_time.strftime('%H:%M')} da sizni kutamiz.\nУслуга: {b.service.catalog_service.name}",
+                        "uz": f"👋 Salom! Ertaga soat {b_time.strftime('%H:%M')} da sizni kutamiz.\nXizmat: {b.service.catalog_service.name}",
                         "ru": f"👋 Привет! Напоминаем о вашей завтрашней записи в {b_time.strftime('%H:%M')}.\nУслуга: {b.service.catalog_service.name}"
                     }[lang]
                     await bot.send_message(b.user.telegram_id, text)
@@ -54,20 +62,22 @@ async def check_reminders(bot: Bot):
                     b.reminder_hour_sent = True
                 
             except Exception as e:
-                logging.error(f"Ошибка в напоминании {b.id}: {e}")
-        
+                logging.exception("reminder.failed booking_id=%s error=%s", b.id, e)
+
         await session.commit()
 
 # 2. Напоминание через 20 дней (Пора стричься)
 async def check_follow_ups(bot: Bot):
     logging.info("Проверка 'Пора стричься'...")
     # Ищем записи, которые были завершены ровно 20 дней назад
-    target_date = (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d")
+    target_day = (timeutils.now() - timedelta(days=20)).date()
+    day_start, day_end = timeutils.day_bounds(target_day)
 
     async with db.async_session() as session:
         query = select(db.Booking).where(
-            db.Booking.status == "completed",
-            db.Booking.datetime.like(f"{target_date}%"),
+            db.Booking.status == db.BOOKING_COMPLETED,
+            db.Booking.starts_at >= day_start,
+            db.Booking.starts_at < day_end,
             db.Booking.follow_up_sent == False
         ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
         
@@ -76,7 +86,7 @@ async def check_follow_ups(bot: Bot):
         for b in bookings:
             # Проверяем, не записался ли он уже снова (чтобы не быть навязчивым)
             recent = await session.scalar(
-                select(db.Booking).where(db.Booking.user_id == b.user_id, db.Booking.datetime > b.datetime)
+                select(db.Booking).where(db.Booking.user_id == b.user_id, db.Booking.starts_at > b.starts_at)
             )
             if recent:
                 continue
@@ -94,13 +104,13 @@ async def check_follow_ups(bot: Bot):
                 await bot.send_message(b.user.telegram_id, text, disable_web_page_preview=True)
                 b.follow_up_sent = True
             except Exception as e:
-                logging.error(f"Ошибка в follow-up: {e}")
+                logging.warning("notify.follow_up_failed booking_id=%s error=%s", b.id, e)
         
         await session.commit()
         
 async def check_subscription_expiry(bot: Bot):
-    print(f"[{datetime.now()}] Проверка срока подписки мастеров...")
-    today = date.today()
+    logging.info("subscription.check_started")
+    today = timeutils.today()
     
     async with db.async_session() as session:
         # Ищем активных мастеров, у которых есть дата окончания подписки
@@ -126,4 +136,4 @@ async def check_subscription_expiry(bot: Bot):
                 try:
                     await bot.send_message(user.telegram_id, text, parse_mode="HTML")
                 except Exception as e:
-                    print(f"Ошибка отправки уведомления мастеру {user.id}: {e}")
+                    logging.warning("notify.subscription_failed user_id=%s error=%s", user.id, e)

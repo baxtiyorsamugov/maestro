@@ -1,14 +1,30 @@
-# Файл с секретными данными
+# Secrets
 .env
 
-# Папка виртуального окружения
+# Virtual environments
 venv/
+.venv/
 
-# Системные файлы Python
+# Python
 __pycache__/
+.codex_pycache/
 *.pyc
+*.pyo
+*.pyd
+*.db
 
-# Системные файлы редакторов кода
+# Logs and runtime output
+*.log
+nohup
+nohup.out
+
+# PyInstaller
+build/
+dist/
+
+# Editors
 .idea/
 .vscode/
-```    Это стандартный и очень важный набор правил для любого Python-проекта.
+
+# Alembic
+migrations/versions/__pycache__/
