@@ -7,7 +7,7 @@
 """
 import pytest
 
-import bot
+from handlers.client import registration, stylist_card
 
 
 class TestParseStartPayload:
@@ -22,7 +22,7 @@ class TestParseStartPayload:
         ],
     )
     def test_valid_payloads(self, payload, expected):
-        assert bot.parse_start_payload(payload) == expected
+        assert registration.parse_start_payload(payload) == expected
 
     @pytest.mark.parametrize(
         "payload",
@@ -42,25 +42,25 @@ class TestParseStartPayload:
     )
     def test_invalid_payloads_are_ignored(self, payload):
         """Мусор не должен ломать /start — человек просто попадёт в меню."""
-        assert bot.parse_start_payload(payload) is None
+        assert registration.parse_start_payload(payload) is None
 
     def test_zero_is_not_a_valid_id(self):
-        assert bot.parse_start_payload("0") is None
+        assert registration.parse_start_payload("0") is None
 
     def test_huge_number_does_not_raise(self):
-        assert bot.parse_start_payload("9" * 50) == int("9" * 50)
+        assert registration.parse_start_payload("9" * 50) == int("9" * 50)
 
 
 class TestStylistCard:
     async def test_card_loads_for_active_stylist(self, fixture_data):
-        card, error = await bot.load_stylist_card(fixture_data["stylist"].id, "ru")
+        card, error = await stylist_card.load_stylist_card(fixture_data["stylist"].id, "ru")
         assert error is None
         assert card is not None
         assert "Мастер" in card["caption"]
         assert card["keyboard"] is not None
 
     async def test_missing_stylist_returns_error(self, fixture_data):
-        card, error = await bot.load_stylist_card(999999, "ru")
+        card, error = await stylist_card.load_stylist_card(999999, "ru")
         assert card is None
         assert "не найден" in error
 
@@ -71,7 +71,7 @@ class TestStylistCard:
         fixture_data["stylist_user"].subscription_until = datetime.date(2000, 1, 1)
         await session.commit()
 
-        card, error = await bot.load_stylist_card(fixture_data["stylist"].id, "ru")
+        card, error = await stylist_card.load_stylist_card(fixture_data["stylist"].id, "ru")
         assert card is None
         assert "недоступен" in error
 
@@ -81,7 +81,7 @@ class TestStylistCard:
         fixture_data["stylist"].reviews_count = 7
         await session.commit()
 
-        card, _ = await bot.load_stylist_card(fixture_data["stylist"].id, "ru")
+        card, _ = await stylist_card.load_stylist_card(fixture_data["stylist"].id, "ru")
         assert "(7)" in card["caption"]
 
     async def test_card_escapes_stylist_name(self, fixture_data):
@@ -89,10 +89,10 @@ class TestStylistCard:
         fixture_data["stylist"].name = "<b>взлом</b>"
         await session.commit()
 
-        card, _ = await bot.load_stylist_card(fixture_data["stylist"].id, "ru")
+        card, _ = await stylist_card.load_stylist_card(fixture_data["stylist"].id, "ru")
         assert "&lt;b&gt;взлом&lt;/b&gt;" in card["caption"]
 
     async def test_card_available_in_uzbek(self, fixture_data):
-        card, error = await bot.load_stylist_card(fixture_data["stylist"].id, "uz")
+        card, error = await stylist_card.load_stylist_card(fixture_data["stylist"].id, "uz")
         assert error is None
         assert "Maestro" in card["caption"]

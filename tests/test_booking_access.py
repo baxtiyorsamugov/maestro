@@ -3,13 +3,14 @@
 """
 from datetime import timedelta
 
-import bot
+import presenters
 import timeutils
+from services import access, rating
 
 
 class TestStylistAccess:
     async def test_stylist_sees_own_booking(self, fixture_data):
-        booking = await bot.load_booking_for_stylist(
+        booking = await access.load_booking_for_stylist(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["stylist_user"].telegram_id,
@@ -18,7 +19,7 @@ class TestStylistAccess:
         assert booking.id == fixture_data["booking"].id
 
     async def test_intruder_cannot_access_foreign_booking(self, fixture_data):
-        booking = await bot.load_booking_for_stylist(
+        booking = await access.load_booking_for_stylist(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["intruder"].telegram_id,
@@ -26,7 +27,7 @@ class TestStylistAccess:
         assert booking is None, "посторонний не должен получать чужую заявку"
 
     async def test_client_cannot_approve_own_booking_as_stylist(self, fixture_data):
-        booking = await bot.load_booking_for_stylist(
+        booking = await access.load_booking_for_stylist(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["client_user"].telegram_id,
@@ -36,7 +37,7 @@ class TestStylistAccess:
 
 class TestClientAccess:
     async def test_client_sees_own_booking(self, fixture_data):
-        booking = await bot.load_booking_for_client(
+        booking = await access.load_booking_for_client(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["client_user"].telegram_id,
@@ -44,7 +45,7 @@ class TestClientAccess:
         assert booking is not None
 
     async def test_intruder_cannot_cancel_foreign_booking(self, fixture_data):
-        booking = await bot.load_booking_for_client(
+        booking = await access.load_booking_for_client(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["intruder"].telegram_id,
@@ -52,7 +53,7 @@ class TestClientAccess:
         assert booking is None, "посторонний не должен отменять чужую запись"
 
     async def test_stylist_is_not_client_of_booking(self, fixture_data):
-        booking = await bot.load_booking_for_client(
+        booking = await access.load_booking_for_client(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["stylist_user"].telegram_id,
@@ -69,7 +70,7 @@ class TestRatingRecalculation:
         fixture_data["booking"].rating = 5
         await session.commit()
 
-        value = await bot.recalculate_stylist_rating(session, fixture_data["stylist"].id)
+        value = await rating.recalculate_stylist_rating(session, fixture_data["stylist"].id)
         assert value == 5.0
         assert fixture_data["stylist"].avg_rating == 5.0
 
@@ -92,7 +93,7 @@ class TestRatingRecalculation:
         session.add(second)
         await session.commit()
 
-        value = await bot.recalculate_stylist_rating(session, fixture_data["stylist"].id)
+        value = await rating.recalculate_stylist_rating(session, fixture_data["stylist"].id)
         assert value == 4.5
 
     async def test_unrated_bookings_are_ignored(self, fixture_data):
@@ -113,7 +114,7 @@ class TestRatingRecalculation:
         )
         await session.commit()
 
-        value = await bot.recalculate_stylist_rating(session, fixture_data["stylist"].id)
+        value = await rating.recalculate_stylist_rating(session, fixture_data["stylist"].id)
         assert value == 4.0, "записи без оценки не должны занижать средний балл"
 
 
@@ -123,21 +124,21 @@ class TestBookingCard:
         fixture_data["client_user"].first_name = "<b>Взлом</b>"
         await session.commit()
 
-        booking = await bot.load_booking_for_stylist(
+        booking = await access.load_booking_for_stylist(
             session, fixture_data["booking"].id, fixture_data["stylist_user"].telegram_id
         )
-        card = bot.build_booking_card(booking)
+        card = presenters.build_booking_card(booking)
 
         assert "<b>Взлом</b>" not in card.replace("<b>Новая заявка</b>", "")
         assert "&lt;b&gt;Взлом&lt;/b&gt;" in card
 
     async def test_card_uses_database_not_message_text(self, fixture_data):
-        booking = await bot.load_booking_for_stylist(
+        booking = await access.load_booking_for_stylist(
             fixture_data["session"],
             fixture_data["booking"].id,
             fixture_data["stylist_user"].telegram_id,
         )
-        card = bot.build_booking_card(booking, footer="Запись подтверждена")
+        card = presenters.build_booking_card(booking, footer="Запись подтверждена")
 
         assert "+998901234567" in card
         assert "Стрижка" in card

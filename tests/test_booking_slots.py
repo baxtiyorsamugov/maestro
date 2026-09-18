@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 import database as db
 import timeutils
+from services import rating
 
 
 def _booking(fixture_data, when: str, status: str = db.BOOKING_PENDING) -> db.Booking:
@@ -87,7 +88,6 @@ class TestSlotUniqueness:
 
 class TestReviewsCount:
     async def test_reviews_count_tracks_number_of_ratings(self, fixture_data):
-        import bot
 
         session = fixture_data["session"]
         fixture_data["booking"].rating = 5
@@ -102,6 +102,6 @@ class TestReviewsCount:
         second.rating = 3
         await session.commit()
 
-        await bot.recalculate_stylist_rating(session, fixture_data["stylist"].id)
+        await rating.recalculate_stylist_rating(session, fixture_data["stylist"].id)
         assert fixture_data["stylist"].reviews_count == 2
         assert fixture_data["stylist"].avg_rating == 4.0
