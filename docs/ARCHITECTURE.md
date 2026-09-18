@@ -3,12 +3,22 @@
 ## 1. Как есть сейчас
 
 ```
-Telegram ──polling──> bot.py (2687 строк)
-                         │  хендлеры + клавиатуры + бизнес-логика + SQL + тексты
-                         ├─> database.py (модели, engine, async_session)
-                         ├─> scheduler.py (APScheduler: напоминания, follow-up, тарифы)
-                         ├─> utils.py (календарь), texts.py (частичная локализация)
-                         └─> booking_cache / search_cache / MemoryStorage  ← в оперативной памяти
+Telegram ──polling──> bot.py (106 строк)   точка входа: сборка и запуск
+                         │
+                         ├─> loader.py          bot, dp, storage, middleware
+                         ├─> handlers/          13 роутеров по доменам
+                         │     ├── client/      registration, search, stylist_card,
+                         │     │                booking, profile
+                         │     ├── stylist/     panel, bookings, schedule, special_dates,
+                         │     │                services, portfolio, stats
+                         │     └── fallback     ответ на всё нераспознанное (последний)
+                         ├─> guards.py          проверки доступа с ответом пользователю
+                         ├─> keyboards.py       разметка
+                         ├─> presenters.py      тексты
+                         ├─> services/          booking, access, rating
+                         ├─> database.py        модели, engine, async_session
+                         ├─> timeutils.py       зона, границы периодов, форматы
+                         └─> scheduler.py       напоминания, follow-up, тарифы
 
 Браузер ───HTTP────> admin_panel.py (FastAPI + sqladmin) ──> те же модели
                          └─> /dashboard (KPI), / (статус), /health, /admin (CRUD)
@@ -16,9 +26,12 @@ Telegram ──polling──> bot.py (2687 строк)
 launcher.py = admin-панель в потоке + бот в главном потоке (для Windows .exe)
 ```
 
-Слоёв нет. Хендлер напрямую открывает сессию БД, пишет SQL, форматирует HTML и отправляет
-сообщение. Бизнес-правила (свободен ли слот, активна ли подписка, кто имеет право
-подтвердить запись) продублированы в нескольких хендлерах и в шедулере.
+Что уже сделано: хендлеры отделены от бизнес-логики, расчёт слотов и права доступа
+живут в `services/` и покрыты тестами, тексты и клавиатуры вынесены.
+
+Что осталось: хендлеры всё ещё обращаются к `database` напрямую — слоя репозиториев
+нет. Локализация по-прежнему размазана между `texts.py` и инлайн-словарями.
+`admin_panel.py` (624 строки) не разбирался.
 
 ## 2. Модель данных
 
