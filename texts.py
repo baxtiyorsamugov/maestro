@@ -416,6 +416,182 @@ TEXTS = {
         "ru": "Визит уже отмечен как завершённый.",
         "uz": "Tashrif allaqachon yakunlangan deb belgilangan.",
     },
+    "stats_favorites_count": {
+        "ru": "Вас добавили в избранное {count} раз(а).",
+        "uz": "Sizni {count} marta sevimlilarga qo'shishdi.",
+    },
+    "stats_choose_period": {
+        "ru": "Выберите период для отчёта:",
+        "uz": "Hisobot uchun davrni tanlang:",
+    },
+    "stats_period_today": {
+        "ru": "За сегодня",
+        "uz": "Bugun uchun",
+    },
+    "stats_period_yesterday": {
+        "ru": "За вчера",
+        "uz": "Kecha uchun",
+    },
+    "stats_period_week": {
+        "ru": "За последние 7 дней",
+        "uz": "Oxirgi 7 kun uchun",
+    },
+    "stats_label_today": {
+        "ru": "сегодня",
+        "uz": "bugun",
+    },
+    "stats_label_yesterday": {
+        "ru": "вчера",
+        "uz": "kecha",
+    },
+    "stats_label_week": {
+        "ru": "последние 7 дней",
+        "uz": "oxirgi 7 kun",
+    },
+    "stats_unknown_period": {
+        "ru": "Неизвестный период.",
+        "uz": "Noma'lum davr.",
+    },
+    "stats_report_title": {
+        "ru": "Отчёт за {period}:",
+        "uz": "{period} uchun hisobot:",
+    },
+    "stats_total": {
+        "ru": "Всего записей",
+        "uz": "Jami yozuvlar",
+    },
+    "stats_pending": {
+        "ru": "Новые заявки",
+        "uz": "Yangi so'rovlar",
+    },
+    "stats_approved": {
+        "ru": "Подтверждённые",
+        "uz": "Tasdiqlangan",
+    },
+    "stats_completed": {
+        "ru": "Завершённые",
+        "uz": "Yakunlangan",
+    },
+    "stats_revenue": {
+        "ru": "Доход",
+        "uz": "Daromad",
+    },
+    "services_title": {
+        "ru": "Ваши услуги:",
+        "uz": "Sizning xizmatlaringiz:",
+    },
+    "services_subtitle": {
+        "ru": "Клиенты видят цену и длительность.",
+        "uz": "Mijozlar narx va davomiylikni ko'radi.",
+    },
+    "services_empty": {
+        "ru": "У вас пока нет добавленных услуг. Давайте создадим первую.",
+        "uz": "Sizda hozircha xizmatlar yo'q. Keling, birinchisini qo'shamiz.",
+    },
+    "services_minutes_short": {
+        "ru": "мин",
+        "uz": "daq",
+    },
+    "services_delete": {
+        "ru": "Удалить: {name}",
+        "uz": "O'chirish: {name}",
+    },
+    "services_add_new": {
+        "ru": "Добавить новую услугу",
+        "uz": "Yangi xizmat qo'shish",
+    },
+    "services_deleted": {
+        "ru": "✅ Услуга удалена",
+        "uz": "✅ Xizmat o'chirildi",
+    },
+    "services_not_found": {
+        "ru": "❌ Ошибка: услуга не найдена",
+        "uz": "❌ Xatolik: xizmat topilmadi",
+    },
+    "services_delete_blocked": {
+        "ru": "⚠️ Нельзя удалить услугу, на которую уже есть записи. Сначала отмените эти записи.",
+        "uz": "⚠️ Yozuvlari bor xizmatni o'chirib bo'lmaydi. Avval o'sha yozuvlarni bekor qiling.",
+    },
+    "services_choose_catalog": {
+        "ru": "Выберите тип услуги из каталога:",
+        "uz": "Katalogdan xizmat turini tanlang:",
+    },
+    "services_ask_price": {
+        "ru": "Теперь укажите вашу цену для этой услуги. Только цифры:",
+        "uz": "Endi ushbu xizmat uchun narxingizni kiriting. Faqat raqamlar:",
+    },
+    "services_price_invalid": {
+        "ru": "Ошибка. Введите цену только цифрами.",
+        "uz": "Xatolik. Narxni faqat raqamlar bilan kiriting.",
+    },
+    "services_ask_duration": {
+        "ru": "Цена принята. Теперь выберите длительность услуги:",
+        "uz": "Narx qabul qilindi. Endi xizmat davomiyligini tanlang:",
+    },
+    "services_duration_option": {
+        "ru": "{minutes} минут",
+        "uz": "{minutes} daqiqa",
+    },
+    "services_added": {
+        "ru": "Новая услуга «{name}» добавлена.",
+        "uz": "«{name}» yangi xizmati qo'shildi.",
+    },
+    "bookings_period_today": {
+        "ru": "☀️ На сегодня",
+        "uz": "☀️ Bugunga",
+    },
+    "bookings_period_week": {
+        "ru": "📅 На неделю",
+        "uz": "📅 Haftaga",
+    },
+    "bookings_period_all": {
+        "ru": "📚 Все записи",
+        "uz": "📚 Barcha yozuvlar",
+    },
+    "bookings_choose_period": {
+        "ru": "Выберите период для просмотра записей:",
+        "uz": "Yozuvlarni ko'rish uchun davrni tanlang:",
+    },
+    "bookings_title_today": {
+        "ru": "☀️ Записи на сегодня ({date})",
+        "uz": "☀️ Bugungi yozuvlar ({date})",
+    },
+    "bookings_title_week": {
+        "ru": "📅 Записи на неделю (до {date})",
+        "uz": "📅 Haftalik yozuvlar ({date} gacha)",
+    },
+    "bookings_title_all": {
+        "ru": "📚 Все предстоящие записи",
+        "uz": "📚 Barcha kelgusi yozuvlar",
+    },
+    "bookings_empty": {
+        "ru": "📭 Актуальных записей нет.",
+        "uz": "📭 Dolzarb yozuvlar yo'q.",
+    },
+    "bookings_found": {
+        "ru": "Найдено: {count}",
+        "uz": "Topildi: {count}",
+    },
+    "bookings_complete_visit": {
+        "ru": "🏁 Завершить визит",
+        "uz": "🏁 Tashrifni yakunlash",
+    },
+    "booking_approved_client": {
+        "ru": "✨ <b>Прекрасный выбор!</b>\n\nВаша запись подтверждена. Мастер уже готовится к вашему визиту.\n\n📅 Ждём вас: <b>{when}</b>\n\nДо встречи в Maestro! ✂️",
+        "uz": "✨ <b>Ajoyib tanlov!</b>\n\nYozuvingiz tasdiqlandi. Maestro tashrifingizga tayyorgarlik ko'rmoqda.\n\n📅 Sizni kutamiz: <b>{when}</b>\n\nMaestro'da ko'rishguncha! ✂️",
+    },
+    "booking_declined_client": {
+        "ru": "<b>Запись отклонена.</b>\n\nВремя {when} уже недоступно. Пожалуйста, выберите другое.",
+        "uz": "<b>Yozuv rad etildi.</b>\n\n{when} vaqti endi mavjud emas. Iltimos, boshqa vaqtni tanlang.",
+    },
+    "booking_rate_request": {
+        "ru": "Как вам сервис? Пожалуйста, оцените визит.",
+        "uz": "Xizmat sizga yoqdimi? Iltimos, baho bering.",
+    },
+    "toast_done": {
+        "ru": "Готово",
+        "uz": "Tayyor",
+    },
 }
 
 BUTTONS = {

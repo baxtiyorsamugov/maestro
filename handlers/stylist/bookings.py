@@ -48,13 +48,23 @@ async def show_bookings_menu(message: Message):
     if not (user and stylist):
         return
 
+    lang = user.language_code or "ru"
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="☀️ На сегодня", callback_data="view_bookings_today")],
-        [InlineKeyboardButton(text="📅 На неделю", callback_data="view_bookings_week")],
-        [InlineKeyboardButton(text="📚 Все записи", callback_data="view_bookings_all")]
+        [InlineKeyboardButton(
+            text=texts.get_text("bookings_period_today", lang),
+            callback_data="view_bookings_today",
+        )],
+        [InlineKeyboardButton(
+            text=texts.get_text("bookings_period_week", lang),
+            callback_data="view_bookings_week",
+        )],
+        [InlineKeyboardButton(
+            text=texts.get_text("bookings_period_all", lang),
+            callback_data="view_bookings_all",
+        )]
     ])
     
-    await message.answer("Выберите период для просмотра записей:", reply_markup=kb)
+    await message.answer(texts.get_text("bookings_choose_period", lang), reply_markup=kb)
 
 @router.callback_query(F.data.startswith("view_bookings_"))
 async def process_view_bookings(cb: CallbackQuery):
@@ -63,6 +73,7 @@ async def process_view_bookings(cb: CallbackQuery):
         return
 
     period = cb.data.split("_")[-1]
+    lang = user.language_code or "ru"
     today_dt = datetime.now()
     today_str = today_dt.strftime("%Y-%m-%d")
     
@@ -79,7 +90,7 @@ async def process_view_bookings(cb: CallbackQuery):
         if period == "today":
             day_start, day_end = timeutils.day_bounds(today_dt.date())
             query = query.where(db.Booking.starts_at >= day_start, db.Booking.starts_at < day_end)
-            title = f"☀️ Записи на сегодня ({today_str})"
+            title = texts.get_text("bookings_title_today", lang).format(date=today_str)
         
         elif period == "week":
             week_start, week_end = timeutils.range_bounds(
@@ -87,28 +98,39 @@ async def process_view_bookings(cb: CallbackQuery):
             )
             end_week = week_end.strftime("%Y-%m-%d")
             query = query.where(db.Booking.starts_at >= week_start, db.Booking.starts_at < week_end)
-            title = f"📅 Записи на неделю (до {end_week})"
+            title = texts.get_text("bookings_title_week", lang).format(date=end_week)
         
         else: # "all" — теперь это "Все будущие записи"
             query = query.where(db.Booking.starts_at >= timeutils.now())
-            title = "📚 Все предстоящие записи"
+            title = texts.get_text("bookings_title_all", lang)
 
         query = query.order_by(db.Booking.starts_at)
         result = await session.execute(query)
         bookings = result.scalars().all()
 
     if not bookings:
-        await cb.message.edit_text(f"<b>{title}</b>\n\n📭 Актуальных записей нет.", parse_mode="HTML")
+        await cb.message.edit_text(
+            f"<b>{title}</b>\n\n{texts.get_text('bookings_empty', lang)}", parse_mode="HTML"
+        )
         await cb.answer()
         return
 
-    await cb.message.edit_text(f"<b>{title}</b>\nНайдено: {len(bookings)}", parse_mode="HTML")
+    await cb.message.edit_text(
+        f"<b>{title}</b>\n{texts.get_text('bookings_found', lang).format(count=len(bookings))}",
+        parse_mode="HTML",
+    )
     
     for b in bookings:
         try:
-            client_name = b.user.first_name if b.user else "Клиент"
-            service_name = b.service.catalog_service.name if (b.service and b.service.catalog_service) else "Услуга"
-            display_date = timeutils.format_human(b.starts_at)
+            client_name = (
+                b.user.first_name if b.user else texts.get_text("booking_client", lang)
+            )
+            service_name = (
+                b.service.catalog_service.name
+                if (b.service and b.service.catalog_service)
+                else texts.get_text("booking_service", lang)
+            )
+            display_date = timeutils.format_human(b.starts_at, lang)
             
             status_emoji = "⏳" if b.status == BOOKING_PENDING else "✅"
             
@@ -116,18 +138,21 @@ async def process_view_bookings(cb: CallbackQuery):
                 f"{status_emoji} <b>{display_date}</b>\n"
                 f"👤 {client_name}\n"
                 f"✂️ {service_name}\n"
-                f"📞 <code>{b.user.phone_number if b.user else 'не указан'}</code>"
+                f"📞 <code>{escape(b.user.phone_number if b.user else texts.get_text('booking_phone_unknown', lang))}</code>"
             )
             
             kb = None
             if b.status == BOOKING_APPROVED:
                 kb = InlineKeyboardMarkup(inline_keyboard=[[
-                    InlineKeyboardButton(text="🏁 Завершить визит", callback_data=f"complete_{b.id}")
+                    InlineKeyboardButton(
+                        text=texts.get_text("bookings_complete_visit", lang),
+                        callback_data=f"complete_{b.id}",
+                    )
                 ]])
             
             await cb.message.answer(text, reply_markup=kb, parse_mode="HTML")
         except Exception as e:
-            logging.error(f"Error rendering booking {b.id}: {e}")
+            logging.warning("booking.render_failed booking_id=%s error=%s", b.id, e)
             continue
     
     await cb.answer()
@@ -156,27 +181,16 @@ async def approve_booking(cb: CallbackQuery):
     try:
         await bot.send_message(
             chat_id=client_telegram_id,
-            text={
-                "ru": (
-                    "✨ <b>Прекрасный выбор!</b>\n\n"
-                    "Ваша запись подтверждена. Мастер уже готовится к вашему визиту.\n\n"
-                    f"📅 Ждём вас: <b>{escape(booking_datetime)}</b>\n\n"
-                    "До встречи в Maestro! ✂️"
-                ),
-                "uz": (
-                    "✨ <b>Ajoyib tanlov!</b>\n\n"
-                    "Sizning yozuvingiz tasdiqlandi. Maestro tashrifingizga tayyorgarlik ko'rmoqda.\n\n"
-                    f"📅 Sizni kutamiz: <b>{escape(booking_datetime)}</b>\n\n"
-                    "Maestro'da ko'rishguncha! ✂️"
-                ),
-            }[client_lang],
+            text=texts.get_text("booking_approved_client", client_lang).format(
+                when=escape(booking_datetime)
+            ),
             parse_mode="HTML",
         )
     except Exception as e:
         logging.warning("notify.approve_failed booking_id=%s error=%s", booking_id, e)
 
     await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
+    await cb.answer(texts.get_text("toast_done", lang))
 
 @router.callback_query(F.data.startswith("decline_"))
 async def decline_booking(cb: CallbackQuery):
@@ -202,23 +216,16 @@ async def decline_booking(cb: CallbackQuery):
     try:
         await bot.send_message(
             chat_id=client_telegram_id,
-            text={
-                "ru": (
-                    "<b>Запись отклонена.</b>\n\n"
-                    f"Время {escape(booking_datetime)} уже недоступно. Пожалуйста, выберите другое."
-                ),
-                "uz": (
-                    "<b>Yozuv rad etildi.</b>\n\n"
-                    f"{escape(booking_datetime)} vaqti endi mavjud emas. Iltimos, boshqa vaqtni tanlang."
-                ),
-            }[client_lang],
+            text=texts.get_text("booking_declined_client", client_lang).format(
+                when=escape(booking_datetime)
+            ),
             parse_mode="HTML",
         )
     except Exception as e:
         logging.warning("notify.decline_failed booking_id=%s error=%s", booking_id, e)
 
     await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
+    await cb.answer(texts.get_text("toast_done", lang))
 
 @router.callback_query(F.data.startswith("complete_"))
 async def complete_booking(cb: CallbackQuery):
@@ -250,14 +257,11 @@ async def complete_booking(cb: CallbackQuery):
         ]])
         await bot.send_message(
             chat_id=client_telegram_id,
-            text={
-                "ru": "Как вам сервис? Пожалуйста, оцените визит.",
-                "uz": "Xizmat sizga yoqdimi? Iltimos, baho bering.",
-            }[client_lang],
+            text=texts.get_text("booking_rate_request", client_lang),
             reply_markup=kb,
         )
     except Exception as e:
         logging.warning("notify.rating_request_failed booking_id=%s error=%s", booking_id, e)
 
     await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
+    await cb.answer(texts.get_text("toast_done", lang))
