@@ -110,6 +110,29 @@ def test_reviews_count_column_added(scratch_db):
     assert "reviews_count" in _columns(scratch_db, "stylists")
 
 
+def test_timestamps_added_everywhere(scratch_db):
+    command.upgrade(_config(scratch_db), "head")
+    for table in ("users", "barbershops", "stylists", "services", "bookings"):
+        columns = _columns(scratch_db, table)
+        assert {"created_at", "updated_at"} <= columns, f"нет отметок времени в {table}"
+
+
+def test_slot_guard_survives_every_migration(scratch_db):
+    """
+    Частичный индекс задан только в миграции, в моделях его нет. Поэтому
+    alembic revision --autogenerate каждый раз предлагает его удалить,
+    и однажды этот шаг попадёт в миграцию незамеченным — вместе с ним
+    тихо исчезнет защита от двойной брони.
+    """
+    cfg = _config(scratch_db)
+    command.upgrade(cfg, "head")
+    assert "uq_active_booking_slot" in _objects(scratch_db, "index")
+
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
+    assert "uq_active_booking_slot" in _objects(scratch_db, "index")
+
+
 def test_booking_uses_timestamp_columns(scratch_db):
     """B-2: строковое поле datetime заменено на starts_at/ends_at."""
     command.upgrade(_config(scratch_db), "head")

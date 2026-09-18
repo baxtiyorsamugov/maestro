@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -22,12 +23,41 @@ from config import load_database_settings
 
 DATABASE_URL = load_database_settings().url
 
+
+def _now() -> datetime.datetime:
+    """
+    Локальное время для значений по умолчанию.
+
+    Импортировать timeutils здесь нельзя без риска цикла, а дублировать зону
+    в двух местах — верный способ получить расхождение. Поэтому импорт ленивый.
+    """
+    import timeutils
+
+    return timeutils.now()
+
 engine = create_async_engine(DATABASE_URL, echo=False, pool_recycle=60)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
+
+
+class TimestampMixin:
+    """
+    Когда строка появилась и когда менялась в последний раз.
+
+    Без этих полей невозможен ни разбор инцидента («когда запись стала
+    отклонённой?»), ни аналитика («сколько времени мастер думает над заявкой»).
+    Время локальное Asia/Tashkent, как и везде в проекте — см. timeutils.
+    """
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=_now, server_default=func.now()
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=_now, onupdate=_now, server_default=func.now()
+    )
 
 
 # --- Статусы записи ---
@@ -57,7 +87,7 @@ class Favorite(Base):
     # Гарантирует, что одна и та же пара (юзер, стилист) не может быть добавлена дважды
     __table_args__ = (UniqueConstraint('user_id', 'stylist_id', name='_user_stylist_uc'),)
 
-class User(Base):
+class User(Base, TimestampMixin):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(primary_key=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True)
@@ -80,7 +110,7 @@ class User(Base):
         return f"{self.first_name}"
 
 
-class Barbershop(Base):
+class Barbershop(Base, TimestampMixin):
     __tablename__ = 'barbershops'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
@@ -96,7 +126,7 @@ class Barbershop(Base):
         return self.name
 
 
-class Stylist(Base):
+class Stylist(Base, TimestampMixin):
     __tablename__ = 'stylists'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
@@ -133,7 +163,7 @@ class CatalogService(Base):
         return self.name
 
 # НОВАЯ ТАБЛИЦА: Услуги
-class Service(Base):
+class Service(Base, TimestampMixin):
     __tablename__ = 'services'
     id: Mapped[int] = mapped_column(primary_key=True)
     catalog_service_id: Mapped[int] = mapped_column(ForeignKey("catalog_services.id"))
@@ -147,7 +177,7 @@ class Service(Base):
         return f"Service(price={self.price})"
 
 
-class Booking(Base):
+class Booking(Base, TimestampMixin):
     __tablename__ = 'bookings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
