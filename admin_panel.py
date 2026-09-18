@@ -1,3 +1,5 @@
+import logging
+import secrets
 from datetime import date, datetime, timedelta
 from html import escape
 
@@ -13,29 +15,69 @@ from starlette.middleware.sessions import SessionMiddleware
 from wtforms.fields import SelectField
 
 import database as db
+import security
 import timeutils
 from config import load_admin_settings
 
 ADMIN_SETTINGS = load_admin_settings()
 
+login_throttle = security.LoginThrottle()
+
+if not security.looks_like_hash(ADMIN_SETTINGS.password):
+    logging.warning(
+        "admin.plaintext_password ADMIN_PASSWORD хранится открытым текстом. "
+        "Сгенерируйте хеш: python scripts/hash_password.py"
+    )
+
+
+def _client_key(request: Request) -> str:
+    """Ключ для счётчика попыток. За прокси реальный адрес приходит в заголовке."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 
 class MyBackend(AuthenticationBackend):
     async def login(self, request: Request) -> bool:
         form = await request.form()
-        username = form.get("username", "")
-        password = form.get("password", "")
+        username = str(form.get("username", ""))
+        password = str(form.get("password", ""))
+        client = _client_key(request)
 
-        if username == ADMIN_SETTINGS.username and password == ADMIN_SETTINGS.password:
+        locked_for = login_throttle.is_locked(client)
+        if locked_for:
+            logging.warning("admin.login_blocked client=%s seconds_left=%s", client, locked_for)
+            return False
+
+        # Сравниваем оба поля константно по времени и всегда целиком:
+        # ранний выход по неверному логину выдал бы существование учётной записи.
+        username_ok = secrets.compare_digest(username, ADMIN_SETTINGS.username)
+        if security.looks_like_hash(ADMIN_SETTINGS.password):
+            password_ok = security.verify_password(password, ADMIN_SETTINGS.password)
+        else:
+            password_ok = secrets.compare_digest(password, ADMIN_SETTINGS.password)
+
+        if username_ok and password_ok:
+            login_throttle.reset(client)
             request.session.update({"token": ADMIN_SETTINGS.secret_key})
+            logging.info("admin.login_success client=%s user=%s", client, username)
             return True
+
+        left = login_throttle.register_failure(client)
+        logging.warning(
+            "admin.login_failed client=%s user=%s attempts_left=%s", client, username, left
+        )
         return False
 
     async def logout(self, request: Request) -> bool:
+        logging.info("admin.logout client=%s", _client_key(request))
         request.session.clear()
         return True
 
     async def authenticate(self, request: Request) -> bool:
-        return request.session.get("token") == ADMIN_SETTINGS.secret_key
+        token = request.session.get("token")
+        return bool(token) and secrets.compare_digest(str(token), ADMIN_SETTINGS.secret_key)
 
 
 authentication_backend = MyBackend(secret_key=ADMIN_SETTINGS.secret_key)
@@ -51,7 +93,8 @@ async def startup_create_tables():
 
 
 def _is_admin_authenticated(request: Request) -> bool:
-    return request.session.get("token") == ADMIN_SETTINGS.secret_key
+    token = request.session.get("token")
+    return bool(token) and secrets.compare_digest(str(token), ADMIN_SETTINGS.secret_key)
 
 
 def _format_money(value: float | int | None) -> str:
