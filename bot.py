@@ -1,14 +1,15 @@
 # Файл: bot.py
 import calendar
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 import sys
 import texts
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import scheduler
 import asyncio
 import logging
-import os
 import re
+from html import escape
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage # Хранилище состояний в памяти
@@ -17,6 +18,7 @@ from dotenv import load_dotenv
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
+from aiogram.types import ErrorEvent
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
@@ -26,23 +28,68 @@ from sqlalchemy.orm import joinedload  # Важный импорт
 
 import database as db
 import utils  # Наш файл календаря
+from config import get_optional_env, get_required_env
 
-storage = MemoryStorage()
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token=os.getenv("BOT_TOKEN"))
+
+
+def build_storage():
+    """
+    RedisStorage, если задан REDIS_URL, иначе MemoryStorage.
+
+    С MemoryStorage незавершённый сценарий записи теряется при каждом рестарте
+    бота — для прода нужен Redis (docs/AUDIT.md, A-6).
+    """
+    redis_url = get_optional_env("REDIS_URL")
+    if not redis_url:
+        logging.warning(
+            "storage.memory_fallback REDIS_URL не задан: состояние сценариев "
+            "будет теряться при рестарте бота"
+        )
+        return MemoryStorage()
+
+    from aiogram.fsm.storage.redis import RedisStorage
+
+    logging.info("storage.redis url=%s", redis_url.split("@")[-1])
+    return RedisStorage.from_url(redis_url)
+
+
+storage = build_storage()
+bot = Bot(token=get_required_env("BOT_TOKEN"))
 dp = Dispatcher(storage=storage)
 
-# --- Временное хранилище данных о записи (Кэш) ---
-booking_cache = {}
-search_cache = {}
+# --- Состояние сценария записи ---
+# Раньше здесь были глобальные словари booking_cache/search_cache. Они терялись
+# при каждом рестарте и не работали бы в нескольких процессах. Теперь данные
+# шага записи живут в FSM (docs/AUDIT.md, A-6).
+
+BOOKING_KEYS = ("stylist_id", "service_id", "date")
+
+
+async def get_booking_draft(state: FSMContext) -> dict:
+    """Черновик записи из FSM: stylist_id, service_id, date."""
+    data = await state.get_data()
+    return {key: data[key] for key in BOOKING_KEYS if data.get(key) is not None}
+
+
+async def update_booking_draft(state: FSMContext, **values) -> dict:
+    await state.update_data(**values)
+    return await get_booking_draft(state)
+
+
+async def clear_booking_draft(state: FSMContext) -> None:
+    data = await state.get_data()
+    for key in BOOKING_KEYS:
+        data.pop(key, None)
+    await state.set_data(data)
 
 
 async def clear_search_context(state: FSMContext, user_id: int):
     current_state = await state.get_state()
     if current_state == SearchForm.waiting_for_name.state:
         await state.clear()
-    search_cache.pop(user_id, None)
+    await state.update_data(search_type=None)
 
 
 def is_client_main_menu_button(text_value: str | None) -> bool:
@@ -374,6 +421,101 @@ async def ensure_active_stylist_callback(cb: CallbackQuery):
         return None, None
     return user, stylist
 
+ACCESS_DENIED_TEXT = {
+    "ru": "Это действие доступно только участнику записи.",
+    "uz": "Bu amal faqat yozuv ishtirokchisiga ochiq.",
+}
+
+BOOKING_CARD_OPTIONS = (
+    joinedload(db.Booking.user),
+    joinedload(db.Booking.stylist).joinedload(db.Stylist.user_account),
+    joinedload(db.Booking.service).joinedload(db.Service.catalog_service),
+)
+
+
+async def load_booking_for_stylist(session, booking_id: int, telegram_id: int) -> db.Booking | None:
+    """
+    Запись, доступная мастеру: только если она принадлежит его собственному профилю.
+    Идентификатор из callback_data — недоверенный ввод, владельца сверяем в самом запросе.
+    """
+    return await session.scalar(
+        select(db.Booking)
+        .join(db.Stylist, db.Stylist.id == db.Booking.stylist_id)
+        .join(db.User, db.User.id == db.Stylist.user_id)
+        .where(db.Booking.id == booking_id, db.User.telegram_id == telegram_id)
+        .options(*BOOKING_CARD_OPTIONS)
+    )
+
+
+async def load_booking_for_client(session, booking_id: int, telegram_id: int) -> db.Booking | None:
+    """Запись, доступная клиенту: только его собственная."""
+    return await session.scalar(
+        select(db.Booking)
+        .join(db.User, db.User.id == db.Booking.user_id)
+        .where(db.Booking.id == booking_id, db.User.telegram_id == telegram_id)
+        .options(*BOOKING_CARD_OPTIONS)
+    )
+
+
+async def deny_access(cb: CallbackQuery) -> None:
+    lang = await get_user_lang(cb.from_user.id)
+    logging.warning(
+        "access.denied user_id=%s callback=%s", cb.from_user.id, cb.data
+    )
+    await cb.answer(ACCESS_DENIED_TEXT[lang], show_alert=True)
+
+
+def build_booking_card(booking: db.Booking, footer: str | None = None) -> str:
+    """
+    Карточка заявки для мастера. Данные берём из базы, а не из текста сообщения:
+    текст сообщения — ненадёжный источник, он ломается при любой смене шаблона.
+    """
+    service_name = (
+        booking.service.catalog_service.name
+        if booking.service and booking.service.catalog_service
+        else "Услуга не указана"
+    )
+    card = (
+        "<b>Новая заявка</b>\n\n"
+        f"Клиент: {escape(booking.user.first_name or 'Клиент')}\n"
+        f"Контакт: {escape(booking.user.phone_number or 'не указан')}\n"
+        f'<a href="tg://user?id={booking.user.telegram_id}">Написать в Telegram</a>\n'
+        f"Услуга: {escape(service_name)}\n"
+        f"Дата и время: {escape(booking.datetime or '-')}"
+    )
+    if footer:
+        card += f"\n\n<b>{footer}</b>"
+    return card
+
+
+async def recalculate_stylist_rating(session, stylist_id: int) -> float:
+    """
+    Пересчитывает средний рейтинг мастера по завершённым визитам с оценкой.
+    Вызывается после каждой новой оценки: денормализованное поле Stylist.avg_rating
+    читают карточка мастера, поиск и дашборд.
+    """
+    row = (
+        await session.execute(
+            select(func.avg(db.Booking.rating), func.count(db.Booking.rating)).where(
+                db.Booking.stylist_id == stylist_id,
+                db.Booking.rating.isnot(None),
+            )
+        )
+    ).one()
+    average, count = row
+    value = round(float(average), 2) if average is not None else 0.0
+
+    stylist = await session.get(db.Stylist, stylist_id)
+    if stylist:
+        stylist.avg_rating = value
+        stylist.reviews_count = int(count or 0)
+        await session.commit()
+        logging.info(
+            "rating.recalculated stylist_id=%s value=%s count=%s", stylist_id, value, count
+        )
+    return value
+
+
 def get_time_bounds(start_time: str, end_time: str):
     return datetime.strptime(start_time, "%H:%M"), datetime.strptime(end_time, "%H:%M")
 
@@ -632,30 +774,31 @@ async def ensure_registered_callback(cb: CallbackQuery) -> db.User | None:
 # --- Клавиатуры ---
 async def get_main_keyboard(user_id: int):
     """
-    ????????? ???? ???????????? ? ?????????? ??????????????? ??????????:
-    - ??? ???????? -> ?????-????
-    - ??? ??????? -> ?????????? ????
+    Возвращает главное меню в зависимости от роли пользователя:
+    - клиенту -> меню поиска и записи
+    - мастеру -> панель управления
     """
     async with db.async_session() as session:
         user = await session.scalar(select(db.User).where(db.User.telegram_id == user_id))
+
+    lang = user.language_code if user and user.language_code else "ru"
+    buttons = texts.get_buttons(lang)
 
     if user and user.role == "stylist":
         if is_stylist_subscription_active(user):
             kb = [
                 [KeyboardButton(text="📓 Мои записи"), KeyboardButton(text="📊 Моя статистика")],
                 [KeyboardButton(text="🕒 Управление расписанием"), KeyboardButton(text="✂️ Мои услуги")],
-                [KeyboardButton(text="💳 Срок тарифа")],
+                [KeyboardButton(text="🖼 Мое портфолио"), KeyboardButton(text="💳 Срок тарифа")],
             ]
             return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, row_width=2)
 
         limited_kb = [
             [KeyboardButton(text="💳 Срок тарифа")],
-            [KeyboardButton(text="🌐 Til")],
+            [KeyboardButton(text=buttons["change_language"])],
         ]
         return ReplyKeyboardMarkup(keyboard=limited_kb, resize_keyboard=True)
 
-    lang = user.language_code if user and user.language_code else "ru"
-    buttons = texts.get_buttons(lang)
     kb = [
         [KeyboardButton(text=buttons["search_menu"])],
         [KeyboardButton(text=buttons["my_masters"])],
@@ -705,7 +848,6 @@ async def lang_choice(cb: CallbackQuery, state: FSMContext):
 async def open_language_menu(message: Message, state: FSMContext):
     # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
     await state.clear()
-    search_cache.pop(message.from_user.id, None)
     
     user = await ensure_registered_message(message)
     if not user:
@@ -886,7 +1028,7 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
                 .where(db.Stylist.name.ilike(f"%{message.text}%"))
                 .options(joinedload(db.Stylist.user_account))
             )).scalars().all()
-            title = {"ru": "?????????? ?????? ?? ?????:", "uz": "Ism bo'yicha qidiruv natijalari:"}[lang]
+            title = {"ru": "Результаты поиска по имени:", "uz": "Ism bo'yicha qidiruv natijalari:"}[lang]
         elif search_type == "id":
             if not (message.text or "").isdigit():
                 await message.answer({
@@ -915,7 +1057,7 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
             stylists = [stylist] if stylist else []
             title = {"ru": "Результат поиска по ID:", "uz": "ID bo'yicha qidiruv natijasi:"}[lang]
         else:
-            await message.answer({"ru": "????????? ?????? ??????.", "uz": "Qidiruvda xatolik yuz berdi."}[lang])
+            await message.answer({"ru": "Не удалось выполнить поиск. Попробуйте ещё раз.", "uz": "Qidiruvda xatolik yuz berdi."}[lang])
             return False
 
     stylists = [stylist for stylist in stylists if stylist and is_stylist_subscription_active(stylist.user_account)]
@@ -923,11 +1065,11 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
     if not stylists:
         retry_prompt = {
             "id": {
-                "ru": "?????? ?? ??????. ????????? ?????? ID ??? ????????? ? ?????.",
+                "ru": "Мастер не найден. Отправьте другой ID или вернитесь в меню поиска.",
                 "uz": "Maestro topilmadi. Boshqa ID yuboring yoki qidiruv menyusiga qayting.",
             },
             "name": {
-                "ru": "?? ?????? ??????? ????? ?? ??????. ?????????? ?????? ???.",
+                "ru": "По вашему запросу никого не нашли. Попробуйте другое имя.",
                 "uz": "So'rovingiz bo'yicha hech kim topilmadi. Boshqa ism bilan urinib ko'ring.",
             },
         }
@@ -943,7 +1085,6 @@ async def search_start(cb: CallbackQuery, state: FSMContext):
         return
 
     search_type = cb.data.split("_")[1]
-    search_cache[cb.from_user.id] = search_type
     await state.update_data(search_type=search_type)
     await state.set_state(SearchForm.waiting_for_name)
 
@@ -962,11 +1103,11 @@ async def process_search_input(message: Message, state: FSMContext):
     # Проверка: если нажата кнопка главного меню - просто сбрасываем состояние и выходим
     if is_client_main_menu_button(message.text):
         await state.clear()
-        search_cache.pop(message.from_user.id, None)
+        await state.update_data(search_type=None)
         return # Бот увидит нажатие кнопки меню следующим хендлером
 
     data = await state.get_data()
-    search_type = data.get("search_type") or search_cache.get(message.from_user.id)
+    search_type = data.get("search_type")
 
     if not search_type:
         await state.clear()
@@ -975,7 +1116,7 @@ async def process_search_input(message: Message, state: FSMContext):
     success = await run_search_input_flow(message, search_type)
     if success:
         await state.clear()
-        search_cache.pop(message.from_user.id, None)
+        await state.update_data(search_type=None)
 
 
 
@@ -991,7 +1132,7 @@ async def booking_start_menu(message: Message, state: FSMContext):
 
     # 3. СРАЗУ ставим бота в режим ожидания ID
     await state.set_state(SearchForm.waiting_for_name)
-    search_cache[message.from_user.id] = "id" # Указываем, что ждем именно ID мастера
+    await state.update_data(search_type="id")  # ждём именно ID мастера
     
     lang = user.language_code or "ru"
 
@@ -1043,20 +1184,20 @@ async def show_shops(cb: CallbackQuery):
                     stylist_counts[stylist.barbershop_id] = stylist_counts.get(stylist.barbershop_id, 0) + 1
 
     if not shops:
-        await cb.answer({"ru": "? ???? ?????? ???? ??? ???????????.", "uz": "Bu tumanda hozircha barbershoplarimiz yo'q."}[lang], show_alert=True)
+        await cb.answer({"ru": "В этом районе пока нет барбершопов.", "uz": "Bu tumanda hozircha barbershoplarimiz yo'q."}[lang], show_alert=True)
         return
 
     visible_shops = [shop for shop in shops if stylist_counts.get(shop.id, 0) > 0]
     if not visible_shops:
-        await cb.answer({"ru": "? ???? ?????? ???? ??? ????????? ????????.", "uz": "Bu tumanda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
+        await cb.answer({"ru": "В этом районе пока нет активных мастеров.", "uz": "Bu tumanda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
         return
 
     btns = [[InlineKeyboardButton(text=f"{shop.name} - {stylist_counts.get(shop.id, 0)}", callback_data=f"shop_{shop.id}")] for shop in visible_shops]
-    btns.append([InlineKeyboardButton(text={"ru": "?????", "uz": "Ortga"}[lang], callback_data="search_district")])
+    btns.append([InlineKeyboardButton(text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data="search_district")])
 
     await cb.message.edit_text(
         {
-            "ru": f"???????? ????????? ? ?????? <b>{dist}</b>.\n????? ????? ??????? ? ???????? ???????.",
+            "ru": f"Выберите барбершоп в районе <b>{dist}</b>.\nКарту можно открыть в карточке мастера.",
             "uz": f"<b>{dist}</b> tumanidagi barbershopni tanlang.\nXaritani usta kartasidan ochishingiz mumkin.",
         }[lang],
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
@@ -1078,16 +1219,16 @@ async def show_stylists(cb: CallbackQuery):
         shop = await session.get(db.Barbershop, shop_id)
 
     if not stylists:
-        await cb.answer({"ru": "? ???? ?????? ???? ??? ????????? ????????.", "uz": "Bu salonda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
+        await cb.answer({"ru": "В этом салоне пока нет активных мастеров.", "uz": "Bu salonda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
         return
 
-    btns = [[InlineKeyboardButton(text=f"{({'ru': '??????', 'uz': 'Maestro'})[lang]} {s.name}", callback_data=f"maestro_{s.id}")] for s in stylists]
-    btns.append([InlineKeyboardButton(text={"ru": "?????", "uz": "Ortga"}[lang], callback_data=f"dist_{shop.district}")])
+    btns = [[InlineKeyboardButton(text=f"{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]} {s.name}", callback_data=f"maestro_{s.id}")] for s in stylists]
+    btns.append([InlineKeyboardButton(text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data=f"dist_{shop.district}")])
 
     await cb.message.edit_text(
         {
-            "ru": f"???????? ??????? ? ?????? <b>{shop.name}</b>.",
-            "uz": f"<b>{shop.name}</b> salonidagi maestroni tanlang.",
+            "ru": f"Выберите мастера в салоне <b>{escape(shop.name)}</b>.",
+            "uz": f"<b>{escape(shop.name)}</b> salonidagi maestroni tanlang.",
         }[lang],
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML",
@@ -1098,33 +1239,33 @@ async def show_stylists(cb: CallbackQuery):
 async def show_maestro_card(cb: CallbackQuery):
     lang = await get_user_lang(cb.from_user.id)
     stylist_id = int(cb.data.split("_")[1])
-    await cb.message.edit_text({'ru': '??????? ??????? ???????????...', 'uz': 'Maestro profili yuklanmoqda...'}[lang])
+    await cb.message.edit_text({'ru': 'Профиль мастера загружается...', 'uz': 'Maestro profili yuklanmoqda...'}[lang])
 
     async with db.async_session() as session:
         query = select(db.Stylist).where(db.Stylist.id == stylist_id).options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
         stylist = await session.scalar(query)
         if not stylist:
-            await cb.answer({'ru': '?????? ?? ??????.', 'uz': 'Maestro topilmadi.'}[lang], show_alert=True)
+            await cb.answer({'ru': 'Мастер не найден.', 'uz': 'Maestro topilmadi.'}[lang], show_alert=True)
             return
         if not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({'ru': '???? ?????? ???????? ?????????? ??? ??????.', 'uz': 'Bu maestro hozircha yozuv uchun yopiq.'}[lang], show_alert=True)
+            await cb.answer({'ru': 'Этот мастер временно недоступен для записи.', 'uz': 'Bu maestro hozircha yozuv uchun yopiq.'}[lang], show_alert=True)
             return
         photos = (await session.execute(
             select(db.Portfolio).where(db.Portfolio.stylist_id == stylist.id).order_by(db.Portfolio.id.desc()).limit(3)
         )).scalars().all()
 
-    rating_text = ("? " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': '??? ??????', 'uz': "Baholar yo'q"}[lang])
+    rating_text = ("★ " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang])
     caption = (
-        f"<b>{({'ru': '??????', 'uz': 'Maestro'})[lang]}: {stylist.name}</b>\n"
-        f"{({'ru': '???????', 'uz': 'Reyting'})[lang]}: {rating_text}\n\n"
-        f"<b>{({'ru': '?????', 'uz': 'Salon'})[lang]}:</b> {stylist.barbershop.name}\n"
-        f"<b>{({'ru': '?????', 'uz': 'Tuman'})[lang]}:</b> {stylist.barbershop.district}\n"
-        f"<b>{({'ru': '?????', 'uz': 'Manzil'})[lang]}:</b> {stylist.barbershop.address}"
+        f"<b>{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]}: {escape(stylist.name)}</b>\n"
+        f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n\n"
+        f"<b>{({'ru': 'Салон', 'uz': 'Salon'})[lang]}:</b> {stylist.barbershop.name}\n"
+        f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {stylist.barbershop.district}\n"
+        f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {stylist.barbershop.address}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text={'ru': '?????????? ? ???????', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
-        [InlineKeyboardButton(text={'ru': '???????? ?? ?????', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
-        [InlineKeyboardButton(text={'ru': '????? ? ?????? ????????', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
+        [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
+        [InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
+        [InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
     ])
 
     if photos:
@@ -1156,13 +1297,20 @@ async def back_to_stylist_card(cb: CallbackQuery):
             select(db.Portfolio).where(db.Portfolio.stylist_id == stylist.id).order_by(db.Portfolio.id.desc()).limit(3)
         )).scalars().all()
 
-    rating_text = ("? " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': '\u041d\u0435\u0442 \u043e\u0446\u0435\u043d\u043e\u043a', 'uz': "Baholar yo'q"}[lang])
+    rating_text = ("★ " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang])
+    labels = {
+        "master": {"ru": "Мастер", "uz": "Maestro"}[lang],
+        "rating": {"ru": "Рейтинг", "uz": "Reyting"}[lang],
+        "salon": {"ru": "Салон", "uz": "Salon"}[lang],
+        "district": {"ru": "Район", "uz": "Tuman"}[lang],
+        "address": {"ru": "Адрес", "uz": "Manzil"}[lang],
+    }
     caption = (
-        f"<b>{({'ru': '\u041c\u0430\u0441\u0442\u0435\u0440', 'uz': 'Maestro'})[lang]}: {stylist.name}</b>\\n"
-        f"{({'ru': '\u0420\u0435\u0439\u0442\u0438\u043d\u0433', 'uz': 'Reyting'})[lang]}: {rating_text}\\n\\n"
-        f"<b>{({'ru': '\u0421\u0430\u043b\u043e\u043d', 'uz': 'Salon'})[lang]}:</b> {stylist.barbershop.name}\\n"
-        f"<b>{({'ru': '\u0420\u0430\u0439\u043e\u043d', 'uz': 'Tuman'})[lang]}:</b> {stylist.barbershop.district}\\n"
-        f"<b>{({'ru': '\u0410\u0434\u0440\u0435\u0441', 'uz': 'Manzil'})[lang]}:</b> {stylist.barbershop.address}"
+        f"<b>{labels['master']}: {escape(stylist.name)}</b>\n"
+        f"{labels['rating']}: {rating_text}\n\n"
+        f"<b>{labels['salon']}:</b> {stylist.barbershop.name}\n"
+        f"<b>{labels['district']}:</b> {stylist.barbershop.district}\n"
+        f"<b>{labels['address']}:</b> {stylist.barbershop.address}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text={'ru': '\u0417\u0430\u043f\u0438\u0441\u0430\u0442\u044c\u0441\u044f \u043a \u043c\u0430\u0441\u0442\u0435\u0440\u0443', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
@@ -1194,15 +1342,13 @@ async def show_map(cb: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith(("book_", "maestro_", "stylist_")))
-async def show_services(cb: CallbackQuery):
+async def show_services(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
         return
 
     lang = await get_user_lang(cb.from_user.id)
     maestro_id = int(cb.data.split("_")[-1])
-    if cb.from_user.id not in booking_cache:
-        booking_cache[cb.from_user.id] = {}
-    booking_cache[cb.from_user.id]["stylist_id"] = maestro_id
+    await update_booking_draft(state, stylist_id=maestro_id)
 
     async with db.async_session() as session:
         services_query = select(db.Service).where(db.Service.stylist_id == maestro_id).options(joinedload(db.Service.catalog_service))
@@ -1210,10 +1356,10 @@ async def show_services(cb: CallbackQuery):
         stylist_query = select(db.Stylist).where(db.Stylist.id == maestro_id).options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
         stylist = await session.scalar(stylist_query)
         if not stylist:
-            await cb.answer({"ru": "?????? ?? ??????.", "uz": "Maestro topilmadi."}[lang], show_alert=True)
+            await cb.answer({"ru": "Мастер не найден.", "uz": "Maestro topilmadi."}[lang], show_alert=True)
             return
         if not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({"ru": "? ????? ??????? ?????????? ?????. ???????? ??????? ???????.", "uz": "Bu maestroning tarifi tugagan. Boshqa maestroni tanlang."}[lang], show_alert=True)
+            await cb.answer({"ru": "У этого мастера истёк срок тарифа. Выберите другого мастера.", "uz": "Bu maestroning tarifi tugagan. Boshqa maestroni tanlang."}[lang], show_alert=True)
             return
         user = await session.scalar(select(db.User).where(db.User.telegram_id == cb.from_user.id))
         is_favorite = await session.scalar(
@@ -1223,7 +1369,7 @@ async def show_services(cb: CallbackQuery):
     btns = []
     for srv in services:
         price = "{:,.0f}".format(srv.price).replace(",", " ")
-        duration_label = {"ru": "???", "uz": "daq"}[lang]
+        duration_label = {"ru": "мин", "uz": "daq"}[lang]
         btns.append([
             InlineKeyboardButton(
                 text=f"{srv.catalog_service.name} - {price} so'm - {srv.duration_min} {duration_label}",
@@ -1234,14 +1380,14 @@ async def show_services(cb: CallbackQuery):
     if not services:
         btns.append([
             InlineKeyboardButton(
-                text={"ru": "????? ? ???????", "uz": "Maestroga qaytish"}[lang],
+                text={"ru": "Назад к мастеру", "uz": "Maestroga qaytish"}[lang],
                 callback_data=f"back_to_stylist_{stylist.id}",
             )
         ])
         await cb.message.edit_text(
             {
-                "ru": f"? <b>{stylist.name}</b> ???? ??? ????????? ?????.\n???????? ??????? ??????? ??? ????????? ?????.",
-                "uz": f"<b>{stylist.name}</b> uchun hozircha xizmatlar mavjud emas.\nBoshqa maestroni tanlang yoki keyinroq qayting.",
+                "ru": f"У <b>{escape(stylist.name)}</b> пока нет добавленных услуг.\nВыберите другого мастера или загляните позже.",
+                "uz": f"<b>{escape(stylist.name)}</b> uchun hozircha xizmatlar mavjud emas.\nBoshqa maestroni tanlang yoki keyinroq qayting.",
             }[lang],
             reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
             parse_mode="HTML",
@@ -1252,17 +1398,17 @@ async def show_services(cb: CallbackQuery):
     if not is_favorite:
         btns.append([
             InlineKeyboardButton(
-                text={"ru": "???????? ? ?????????", "uz": "Sevimlilarga qo'shish"}[lang],
+                text={"ru": "Добавить в избранное", "uz": "Sevimlilarga qo'shish"}[lang],
                 callback_data=f"fav_add_{stylist.id}",
             )
         ])
     btns.append([
-        InlineKeyboardButton(text={"ru": "????? ? ???????", "uz": "Maestroga qaytish"}[lang], callback_data=f"back_to_stylist_{stylist.id}")
+        InlineKeyboardButton(text={"ru": "Назад к мастеру", "uz": "Maestroga qaytish"}[lang], callback_data=f"back_to_stylist_{stylist.id}")
     ])
     await cb.message.edit_text(
         {
-            "ru": f"<b>{stylist.name}</b>\n???????? ?????? ??? ??????.",
-            "uz": f"<b>{stylist.name}</b>\nYozilish uchun xizmatni tanlang.",
+            "ru": f"<b>{escape(stylist.name)}</b>\nВыберите услугу для записи.",
+            "uz": f"<b>{escape(stylist.name)}</b>\nYozilish uchun xizmatni tanlang.",
         }[lang],
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML",
@@ -1270,20 +1416,19 @@ async def show_services(cb: CallbackQuery):
     await cb.answer()
 
 @dp.callback_query(F.data.startswith("srv_"))
-async def choose_service_and_show_calendar(cb: CallbackQuery):
+async def choose_service_and_show_calendar(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
         return
 
     lang = await get_user_lang(cb.from_user.id)
     service_id = int(cb.data.split("_")[1])
-    user_id = cb.from_user.id
-    user_cache = booking_cache.setdefault(user_id, {})
-    stylist_id = user_cache.get("stylist_id")
+    draft = await get_booking_draft(state)
+    stylist_id = draft.get("stylist_id")
     if not stylist_id:
-        await cb.answer({"ru": "?????? ?????? ???????. ??????? ?????? ??????.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
         return
 
-    user_cache["service_id"] = service_id
+    await update_booking_draft(state, service_id=service_id)
     current_dt = datetime.now()
 
     async with db.async_session() as session:
@@ -1293,17 +1438,17 @@ async def choose_service_and_show_calendar(cb: CallbackQuery):
             .options(joinedload(db.Stylist.user_account))
         )
         if not stylist or not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({"ru": "?????? ? ????? ??????? ???????? ??????????.", "uz": "Bu maestroga yozilish vaqtincha yopiq."}[lang], show_alert=True)
+            await cb.answer({"ru": "Запись к этому мастеру временно закрыта.", "uz": "Bu maestroga yozilish vaqtincha yopiq."}[lang], show_alert=True)
             return
         available_dates = await get_available_dates_for_month(session, stylist_id, service_id, current_dt.year, current_dt.month)
 
     if not available_dates:
-        await cb.answer({"ru": "? ??????? ?????? ??? ????????? ??? ??? ???? ??????.", "uz": "Bu xizmat uchun hozircha bo'sh sanalar yo'q."}[lang], show_alert=True)
+        await cb.answer({"ru": "Для этой услуги пока нет свободных дат.", "uz": "Bu xizmat uchun hozircha bo'sh sanalar yo'q."}[lang], show_alert=True)
         return
 
     kb = utils.generate_calendar(current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates)
     await cb.message.edit_text(
-        {"ru": "???????? ????. ??????? ?????? ???, ??? ???? ????????? ?????.", "uz": "Sanani tanlang. Faqat bo'sh vaqti bor kunlar faol."}[lang],
+        {"ru": "Выберите дату. Активны только дни со свободным временем.", "uz": "Sanani tanlang. Faqat bo'sh vaqti bor kunlar faol."}[lang],
         reply_markup=kb,
     )
     await cb.answer()
@@ -1325,7 +1470,7 @@ async def show_dayoff_notice(cb: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith("cal_"))
-async def switch_calendar_month(cb: CallbackQuery):
+async def switch_calendar_month(cb: CallbackQuery, state: FSMContext):
     lang = await get_user_lang(cb.from_user.id)
     payload = cb.data[len("cal_"):]
     try:
@@ -1338,10 +1483,10 @@ async def switch_calendar_month(cb: CallbackQuery):
         await cb.answer({"ru": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043a\u0440\u044b\u0442\u044c \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c.", "uz": "Kalendarni ochib bo'lmadi."}[lang], show_alert=True)
         return
 
-    user_cache = booking_cache.get(cb.from_user.id)
-    service_id = user_cache.get("service_id") if user_cache else None
+    draft = await get_booking_draft(state)
+    service_id = draft.get("service_id")
     if not service_id:
-        await cb.answer({"ru": "?????? ?????? ???????. ??????? ?????? ??????.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
         return
 
     async with db.async_session() as session:
@@ -1356,21 +1501,21 @@ async def switch_calendar_month(cb: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith("date_"))
-async def pick_time(cb: CallbackQuery):
+async def pick_time(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
         return
 
     lang = await get_user_lang(cb.from_user.id)
     selected_date_str = cb.data.split("_")[1]
     selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
-    user_id = cb.from_user.id
-    if user_id not in booking_cache:
-        await cb.answer({"ru": "\u0421\u0435\u0441\u0441\u0438\u044f \u0438\u0441\u0442\u0435\u043a\u043b\u0430, \u043d\u0430\u0447\u043d\u0438\u0442\u0435 \u0437\u0430\u043d\u043e\u0432\u043e.", "uz": "Sessiya tugadi, qaytadan boshlang."}[lang], show_alert=True)
+    draft = await get_booking_draft(state)
+    if not {"stylist_id", "service_id"} <= draft.keys():
+        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Sessiya tugadi, qaytadan boshlang."}[lang], show_alert=True)
         return
 
-    stylist_id = booking_cache[user_id]["stylist_id"]
-    service_id = booking_cache[user_id]["service_id"]
-    booking_cache[user_id]["date"] = selected_date_str
+    stylist_id = draft["stylist_id"]
+    service_id = draft["service_id"]
+    await update_booking_draft(state, date=selected_date_str)
     async with db.async_session() as session:
         schedule, available_slots = await get_available_slots_for_date(session, stylist_id, service_id, selected_date)
 
@@ -1411,16 +1556,16 @@ async def pick_time(cb: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith("back_to_calendar_"))
-async def back_to_calendar(cb: CallbackQuery):
+async def back_to_calendar(cb: CallbackQuery, state: FSMContext):
     lang = await get_user_lang(cb.from_user.id)
     stylist_id = int(cb.data.split("_")[-1])
-    user_cache = booking_cache.get(cb.from_user.id)
-    service_id = user_cache.get("service_id") if user_cache else None
+    draft = await get_booking_draft(state)
+    service_id = draft.get("service_id")
     if not service_id:
         await cb.answer({"ru": "\u0421\u0435\u0441\u0441\u0438\u044f \u0432\u044b\u0431\u043e\u0440\u0430 \u0438\u0441\u0442\u0435\u043a\u043b\u0430. \u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u0437\u0430\u043f\u0438\u0441\u044c \u0437\u0430\u043d\u043e\u0432\u043e.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
         return
 
-    current_dt = datetime.strptime(user_cache.get("date", datetime.now().strftime("%Y-%m-%d")), "%Y-%m-%d")
+    current_dt = datetime.strptime(draft.get("date") or datetime.now().strftime("%Y-%m-%d"), "%Y-%m-%d")
     async with db.async_session() as session:
         available_dates = await get_available_dates_for_month(session, stylist_id, service_id, current_dt.year, current_dt.month)
 
@@ -1433,16 +1578,16 @@ async def back_to_calendar(cb: CallbackQuery):
 
 
 @dp.callback_query(F.data.startswith("time_"))
-async def finalize_booking(cb: CallbackQuery):
+async def finalize_booking(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
         return
 
     lang = await get_user_lang(cb.from_user.id)
     selected_time = cb.data.split("_")[1]
     user_id = cb.from_user.id
-    data = booking_cache.get(user_id)
-    if not data:
-        await cb.answer({"ru": "?????? ??????. ??????? ??????.", "uz": "Sessiya xatosi. Qaytadan boshlang."}[lang], show_alert=True)
+    data = await get_booking_draft(state)
+    if not {"stylist_id", "service_id", "date"} <= data.keys():
+        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Sessiya xatosi. Qaytadan boshlang."}[lang], show_alert=True)
         return
 
     full_datetime = f"{data['date']} {selected_time}"
@@ -1450,7 +1595,7 @@ async def finalize_booking(cb: CallbackQuery):
     async with db.async_session() as session:
         user_db = await session.scalar(select(db.User).where(db.User.telegram_id == user_id))
         if not user_db or not is_registration_complete(user_db):
-            await cb.answer({"ru": "??????? ????????? ??????????? ????? /start.", "uz": "Avval /start orqali ro'yxatdan o'tishni tugating."}[lang], show_alert=True)
+            await cb.answer({"ru": "Сначала завершите регистрацию через /start.", "uz": "Avval /start orqali ro'yxatdan o'tishni tugating."}[lang], show_alert=True)
             return
         stylist_profile = await session.scalar(
             select(db.Stylist)
@@ -1458,51 +1603,68 @@ async def finalize_booking(cb: CallbackQuery):
             .options(joinedload(db.Stylist.user_account))
         )
         if not stylist_profile or not is_stylist_subscription_active(stylist_profile.user_account):
-            await cb.answer({"ru": "?????? ? ????? ??????? ???????? ??????????. ???????? ??????? ???????.", "uz": "Bu maestroga yozilish vaqtincha yopiq. Boshqa maestroni tanlang."}[lang], show_alert=True)
+            await cb.answer({"ru": "Запись к этому мастеру временно закрыта. Выберите другого мастера.", "uz": "Bu maestroga yozilish vaqtincha yopiq. Boshqa maestroni tanlang."}[lang], show_alert=True)
             return
         _, available_slots = await get_available_slots_for_date(session, data['stylist_id'], data['service_id'], selected_date)
         if selected_time not in available_slots:
-            await cb.answer({"ru": "???? ???? ??? ?????. ???????? ?????? ?????.", "uz": "Bu slot endi mavjud emas. Boshqa vaqtni tanlang."}[lang], show_alert=True)
+            await cb.answer({"ru": "Это время уже заняли. Выберите другое.", "uz": "Bu slot endi mavjud emas. Boshqa vaqtni tanlang."}[lang], show_alert=True)
             return
         service = await session.scalar(select(db.Service).where(db.Service.id == data['service_id']).options(joinedload(db.Service.catalog_service)))
         new_booking = db.Booking(user_id=user_db.id, stylist_id=data['stylist_id'], service_id=data['service_id'], datetime=full_datetime, status="pending")
         session.add(new_booking)
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            # Частичный уникальный индекс uq_active_booking_slot: слот заняли
+            # между проверкой свободных слотов и вставкой.
+            await session.rollback()
+            logging.info(
+                "booking.slot_race stylist_id=%s datetime=%s user_id=%s",
+                data["stylist_id"], full_datetime, user_id,
+            )
+            await cb.answer(
+                {
+                    "ru": "Это время только что заняли. Выберите другое.",
+                    "uz": "Bu vaqtni hozirgina band qilishdi. Boshqa vaqtni tanlang.",
+                }[lang],
+                show_alert=True,
+            )
+            return
         booking_db_id = new_booking.id
         stylist_user_query = select(db.User.telegram_id).join(db.Stylist, db.Stylist.user_id == db.User.id).where(db.Stylist.id == data['stylist_id'])
         stylist_telegram_id = await session.scalar(stylist_user_query)
-        client_name = user_db.first_name or cb.from_user.first_name or "??????"
-        client_username = f"@{cb.from_user.username}" if cb.from_user.username else "??? username"
-        client_phone = user_db.phone_number or "?? ??????"
-        service_name = service.catalog_service.name if service and service.catalog_service else "?????? ?? ???????"
+        client_name = user_db.first_name or cb.from_user.first_name or "Клиент"
+        client_telegram_id = user_db.telegram_id
+        client_phone = user_db.phone_number or "не указан"
+        service_name = service.catalog_service.name if service and service.catalog_service else "Услуга не указана"
 
-    del booking_cache[user_id]
+    await clear_booking_draft(state)
     await cb.message.edit_text(
         {
-            "ru": f"?????? ??????????.\n{full_datetime}\n\n?????? ??????? ?????? ? ?????????? ??? ???????? ??????.",
+            "ru": f"Заявка отправлена.\n{full_datetime}\n\nМастер посмотрит заявку и ответит в ближайшее время.",
             "uz": f"So'rovingiz yuborildi.\n{full_datetime}\n\nMaestro so'rovni ko'rib chiqadi va tez orada javob beradi.",
         }[lang]
     )
 
     if stylist_telegram_id:
         admin_text = (
-            f"<b>\u041d\u043e\u0432\u0430\u044f \u0437\u0430\u044f\u0432\u043a\u0430</b>\n\n"
-            f"\u041a\u043b\u0438\u0435\u043d\u0442: {client_name}\n"
-            f"Username: {client_username}\n"
-            f"\u041a\u043e\u043d\u0442\u0430\u043a\u0442: {client_phone}\n"
-            f"\u0423\u0441\u043b\u0443\u0433\u0430: {service_name}\n"
-            f"\u0414\u0430\u0442\u0430 \u0438 \u0432\u0440\u0435\u043c\u044f: {full_datetime}"
+            "<b>Новая заявка</b>\n\n"
+            f"Клиент: {escape(client_name)}\n"
+            f"Контакт: {escape(client_phone)}\n"
+            f'<a href="tg://user?id={client_telegram_id}">Написать в Telegram</a>\n'
+            f"Услуга: {escape(service_name)}\n"
+            f"Дата и время: {escape(full_datetime)}"
         )
         admin_kb = InlineKeyboardMarkup(
             inline_keyboard=[[
-                InlineKeyboardButton(text="\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c", callback_data=f"approve_{booking_db_id}"),
-                InlineKeyboardButton(text="\u041e\u0442\u043a\u043b\u043e\u043d\u0438\u0442\u044c", callback_data=f"decline_{booking_db_id}"),
+                InlineKeyboardButton(text="Подтвердить", callback_data=f"approve_{booking_db_id}"),
+                InlineKeyboardButton(text="Отклонить", callback_data=f"decline_{booking_db_id}"),
             ]]
         )
         try:
             await bot.send_message(chat_id=stylist_telegram_id, text=admin_text, reply_markup=admin_kb, parse_mode="HTML")
         except Exception as e:
-            print(f"\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043c\u0430\u0441\u0442\u0435\u0440\u0443: {e}")
+            logging.warning("notify.new_booking_failed booking_id=%s error=%s", booking_db_id, e)
 
     await cb.answer()
 
@@ -1511,68 +1673,45 @@ async def approve_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[-1])
 
     async with db.async_session() as session:
-        booking = await session.get(
-            db.Booking,
-            booking_id,
-            options=[
-                joinedload(db.Booking.user),
-                joinedload(db.Booking.service).joinedload(db.Service.catalog_service),
-            ],
-        )
+        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
         if not booking:
-            await cb.answer("\u0417\u0430\u043f\u0438\u0441\u044c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430.", show_alert=True)
+            await deny_access(cb)
             return
+        if booking.status != "pending":
+            await cb.answer("Эта заявка уже обработана.", show_alert=True)
+            return
+
         booking.status = "approved"
         await session.commit()
         client_lang = booking.user.language_code or "ru"
-        try:
-            await bot.send_message(
-            chat_id=booking.user.telegram_id,
+        client_telegram_id = booking.user.telegram_id
+        booking_datetime = booking.datetime or "-"
+        card = build_booking_card(booking, footer="Запись подтверждена")
+
+    try:
+        await bot.send_message(
+            chat_id=client_telegram_id,
             text={
                 "ru": (
                     "✨ <b>Прекрасный выбор!</b>\n\n"
-                    "Ваша запись успешно подтверждена. Мастер уже готовится к вашему визиту, "
-                    "чтобы создать ваш безупречный образ.\n\n"
-                    "📅 Мы ждем вас: <b>{booking.datetime}</b>\n\n"
+                    "Ваша запись подтверждена. Мастер уже готовится к вашему визиту.\n\n"
+                    f"📅 Ждём вас: <b>{escape(booking_datetime)}</b>\n\n"
                     "До встречи в Maestro! ✂️"
-                ).format(booking=booking),
+                ),
                 "uz": (
                     "✨ <b>Ajoyib tanlov!</b>\n\n"
-                    "Sizning yozuvingiz muvaffaqiyatli tasdiqlandi. Maestro siz uchun "
-                    "betakror uslub yaratishga tayyorgarlik ko'rmoqda.\n\n"
-                    "📅 Sizni kutamiz: <b>{booking.datetime}</b>\n\n"
-                    "Maestro’da ko'rishguncha! ✂️"
-                ).format(booking=booking),
+                    "Sizning yozuvingiz tasdiqlandi. Maestro tashrifingizga tayyorgarlik ko'rmoqda.\n\n"
+                    f"📅 Sizni kutamiz: <b>{escape(booking_datetime)}</b>\n\n"
+                    "Maestro'da ko'rishguncha! ✂️"
+                ),
             }[client_lang],
             parse_mode="HTML",
         )
-        except Exception:
-            pass
+    except Exception as e:
+        logging.warning("notify.approve_failed booking_id=%s error=%s", booking_id, e)
 
-    non_empty_lines = [line.strip() for line in (cb.message.text or "").splitlines() if line.strip()]
-    client_name = booking.user.first_name or "Клиент"
-    username_line = "-"
-    client_phone = booking.user.phone_number or "Не указан"
-    service_name = booking.service.catalog_service.name if booking.service and booking.service.catalog_service else "Услуга не указана"
-    booking_datetime = booking.datetime or "-"
-    if len(non_empty_lines) >= 6:
-        client_name = non_empty_lines[1].split(":", 1)[-1].strip() or client_name
-        username_line = non_empty_lines[2].split(":", 1)[-1].strip() or username_line
-        client_phone = non_empty_lines[3].split(":", 1)[-1].strip() or client_phone
-        service_name = non_empty_lines[4].split(":", 1)[-1].strip() or service_name
-        booking_datetime = non_empty_lines[5].split(":", 1)[-1].strip() or booking_datetime
-
-    approved_text = (
-        f"<b>\u041d\u043e\u0432\u0430\u044f \u0437\u0430\u044f\u0432\u043a\u0430</b>\n\n"
-        f"\u041a\u043b\u0438\u0435\u043d\u0442: {client_name}\n"
-        f"Username: {username_line}\n"
-        f"\u041a\u043e\u043d\u0442\u0430\u043a\u0442: {client_phone}\n"
-        f"\u0423\u0441\u043b\u0443\u0433\u0430: {service_name}\n"
-        f"\u0414\u0430\u0442\u0430 \u0438 \u0432\u0440\u0435\u043c\u044f: {booking_datetime}\n\n"
-        f"<b>\u0417\u0430\u043f\u0438\u0441\u044c \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0430</b>"
-    )
-    await cb.message.edit_text(approved_text, reply_markup=None, parse_mode="HTML")
-    await cb.answer("\u0413\u043e\u0442\u043e\u0432\u043e")
+    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
+    await cb.answer("Готово")
 
 
 @dp.callback_query(F.data.startswith("decline_"))
@@ -1580,56 +1719,41 @@ async def decline_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[-1])
 
     async with db.async_session() as session:
-        booking = await session.get(
-            db.Booking,
-            booking_id,
-            options=[
-                joinedload(db.Booking.user),
-                joinedload(db.Booking.service).joinedload(db.Service.catalog_service),
-            ],
-        )
+        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
         if not booking:
-            await cb.answer("\u0417\u0430\u043f\u0438\u0441\u044c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430.", show_alert=True)
+            await deny_access(cb)
             return
+        if booking.status != "pending":
+            await cb.answer("Эта заявка уже обработана.", show_alert=True)
+            return
+
         booking.status = "declined"
         await session.commit()
         client_lang = booking.user.language_code or "ru"
-        try:
-            await bot.send_message(
-                chat_id=booking.user.telegram_id,
-                text={
-                    "ru": f"<b>\u0417\u0430\u043f\u0438\u0441\u044c \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u0430.</b>\n\n\u0412\u0440\u0435\u043c\u044f {booking.datetime} \u0443\u0436\u0435 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e. \u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0440\u0443\u0433\u043e\u0435.",
-                    "uz": f"<b>Yozuv rad etildi.</b>\n\n{booking.datetime} vaqti endi mavjud emas. Iltimos, boshqa vaqtni tanlang.",
-                }[client_lang],
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
+        client_telegram_id = booking.user.telegram_id
+        booking_datetime = booking.datetime or "-"
+        card = build_booking_card(booking, footer="Запись отклонена")
 
-    non_empty_lines = [line.strip() for line in (cb.message.text or "").splitlines() if line.strip()]
-    client_name = booking.user.first_name or "Клиент"
-    username_line = "-"
-    client_phone = booking.user.phone_number or "Не указан"
-    service_name = booking.service.catalog_service.name if booking.service and booking.service.catalog_service else "Услуга не указана"
-    booking_datetime = booking.datetime or "-"
-    if len(non_empty_lines) >= 6:
-        client_name = non_empty_lines[1].split(":", 1)[-1].strip() or client_name
-        username_line = non_empty_lines[2].split(":", 1)[-1].strip() or username_line
-        client_phone = non_empty_lines[3].split(":", 1)[-1].strip() or client_phone
-        service_name = non_empty_lines[4].split(":", 1)[-1].strip() or service_name
-        booking_datetime = non_empty_lines[5].split(":", 1)[-1].strip() or booking_datetime
+    try:
+        await bot.send_message(
+            chat_id=client_telegram_id,
+            text={
+                "ru": (
+                    "<b>Запись отклонена.</b>\n\n"
+                    f"Время {escape(booking_datetime)} уже недоступно. Пожалуйста, выберите другое."
+                ),
+                "uz": (
+                    "<b>Yozuv rad etildi.</b>\n\n"
+                    f"{escape(booking_datetime)} vaqti endi mavjud emas. Iltimos, boshqa vaqtni tanlang."
+                ),
+            }[client_lang],
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logging.warning("notify.decline_failed booking_id=%s error=%s", booking_id, e)
 
-    declined_text = (
-        f"<b>\u041d\u043e\u0432\u0430\u044f \u0437\u0430\u044f\u0432\u043a\u0430</b>\n\n"
-        f"\u041a\u043b\u0438\u0435\u043d\u0442: {client_name}\n"
-        f"Username: {username_line}\n"
-        f"\u041a\u043e\u043d\u0442\u0430\u043a\u0442: {client_phone}\n"
-        f"\u0423\u0441\u043b\u0443\u0433\u0430: {service_name}\n"
-        f"\u0414\u0430\u0442\u0430 \u0438 \u0432\u0440\u0435\u043c\u044f: {booking_datetime}\n\n"
-        f"<b>\u0417\u0430\u043f\u0438\u0441\u044c \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043dа</b>"
-    )
-    await cb.message.edit_text(declined_text, reply_markup=None, parse_mode="HTML")
-    await cb.answer("\u0413\u043e\u0442\u043e\u0432\u043e")
+    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
+    await cb.answer("Готово")
 
 
 @dp.callback_query(F.data.startswith("complete_"))
@@ -1637,43 +1761,47 @@ async def complete_booking(cb: CallbackQuery):
     booking_id = int(cb.data.split("_")[1])
 
     async with db.async_session() as session:
-        booking = await session.get(db.Booking, booking_id, options=[joinedload(db.Booking.user)])
+        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
         if not booking:
-            await cb.answer("\u0417\u0430\u043f\u0438\u0441\u044c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430.", show_alert=True)
+            await deny_access(cb)
+            return
+        if booking.status == "completed":
+            await cb.answer("Визит уже отмечен как завершённый.", show_alert=True)
             return
 
         booking.status = "completed"
         await session.commit()
         client_lang = booking.user.language_code or "ru"
+        client_telegram_id = booking.user.telegram_id
+        card = build_booking_card(booking, footer="Визит завершён")
 
-        try:
-            kb = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="\u2605", callback_data=f"rate_{booking.id}_1"),
-                InlineKeyboardButton(text="\u2605\u2605", callback_data=f"rate_{booking.id}_2"),
-                InlineKeyboardButton(text="\u2605\u2605\u2605", callback_data=f"rate_{booking.id}_3"),
-                InlineKeyboardButton(text="\u2605\u2605\u2605\u2605", callback_data=f"rate_{booking.id}_4"),
-                InlineKeyboardButton(text="\u2605\u2605\u2605\u2605\u2605", callback_data=f"rate_{booking.id}_5"),
-            ]])
-            await bot.send_message(
-                chat_id=booking.user.telegram_id,
-                text={
-                    "ru": "\u041a\u0430\u043a \u0432\u0430\u043c \u0441\u0435\u0440\u0432\u0438\u0441? \u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043e\u0446\u0435\u043d\u0438\u0442\u0435 \u0432\u0438\u0437\u0438\u0442.",
-                    "uz": "Xizmat sizga yoqdimi? Iltimos, baho bering.",
-                }[client_lang],
-                reply_markup=kb,
-            )
-        except Exception:
-            pass
+    try:
+        kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="★", callback_data=f"rate_{booking_id}_1"),
+            InlineKeyboardButton(text="★★", callback_data=f"rate_{booking_id}_2"),
+            InlineKeyboardButton(text="★★★", callback_data=f"rate_{booking_id}_3"),
+            InlineKeyboardButton(text="★★★★", callback_data=f"rate_{booking_id}_4"),
+            InlineKeyboardButton(text="★★★★★", callback_data=f"rate_{booking_id}_5"),
+        ]])
+        await bot.send_message(
+            chat_id=client_telegram_id,
+            text={
+                "ru": "Как вам сервис? Пожалуйста, оцените визит.",
+                "uz": "Xizmat sizga yoqdimi? Iltimos, baho bering.",
+            }[client_lang],
+            reply_markup=kb,
+        )
+    except Exception as e:
+        logging.warning("notify.rating_request_failed booking_id=%s error=%s", booking_id, e)
 
-    await cb.message.edit_text(f"{cb.message.text}\n\n<b>\u0412\u0438\u0437\u0438\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d</b>", reply_markup=None, parse_mode="HTML")
-    await cb.answer("\u0413\u043e\u0442\u043e\u0432\u043e")
+    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
+    await cb.answer("Готово")
 
 
 @dp.message(F.text.in_([texts.get_buttons("ru")["my_profile"], texts.get_buttons("uz")["my_profile"]]))
 async def show_profile(message: Message, state: FSMContext):
     # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
     await state.clear()
-    search_cache.pop(message.from_user.id, None)
     
     user = await ensure_registered_message(message)
     if not user:
@@ -1697,7 +1825,7 @@ async def show_profile(message: Message, state: FSMContext):
 
     lang_label = texts.get_text("profile_lang_ru", lang) if user.language_code == "ru" else texts.get_text("profile_lang_uz", lang)
     profile_header = (
-        f"👤 <b>{user.first_name}</b>\n"
+        f"👤 <b>{escape(user.first_name or '')}</b>\n"
         f"📞 <code>{user.phone_number}</code>\n"
         f"🌐 {lang_label}\n\n"
     )
@@ -1717,12 +1845,14 @@ async def show_profile(message: Message, state: FSMContext):
             status_icon = texts.get_text("status_declined", lang)
         elif booking.status == "completed":
             status_icon = texts.get_text("status_completed", lang)
+        elif booking.status == "cancelled":
+            status_icon = texts.get_text("status_cancelled", lang)
 
         response_text += (
             f"\n<b>{booking.datetime}</b>\n"
-            f"\u0411\u0430\u0440\u0431\u0435\u0440\u0448\u043e\u043f: {booking.stylist.barbershop.name}\n"
-            f"{texts.get_text('master_label', lang)}: {booking.stylist.name}\n"
-            f"\u0423\u0441\u043b\u0443\u0433\u0430: {booking.service.catalog_service.name} ({booking.service.price:,.0f} so'm)\n"
+            f"Барбершоп: {escape(booking.stylist.barbershop.name)}\n"
+            f"{texts.get_text('master_label', lang)}: {escape(booking.stylist.name)}\n"
+            f"\u0423\u0441\u043b\u0443\u0433\u0430: {escape(booking.service.catalog_service.name)} ({booking.service.price:,.0f} so'm)\n"
             f"{texts.get_text('status_label', lang)}: <b>{status_icon}</b>\n"
             f"{'-' * 20}\n"
         )
@@ -1739,43 +1869,47 @@ async def cancel_booking(cb: CallbackQuery):
     lang = await get_user_lang(cb.from_user.id)
 
     async with db.async_session() as session:
-        query = (
-            select(db.Booking)
-                .where(db.Booking.id == booking_id)
-                .options(
-                    joinedload(db.Booking.stylist).joinedload(db.Stylist.user_account),
-                    joinedload(db.Booking.user)
-                )
-        )
-        booking = await session.scalar(query)
-
+        # Отменить запись может только сам клиент — владельца сверяем в запросе.
+        booking = await load_booking_for_client(session, booking_id, cb.from_user.id)
         if not booking:
-            await cb.answer({"ru": "\u0417\u0430\u043f\u0438\u0441\u044c \u0443\u0436\u0435 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430.", "uz": "Yozuv endi mavjud emas."}[lang], show_alert=True)
+            await deny_access(cb)
+            return
+        if booking.status in ("declined", "completed"):
+            await cb.answer(
+                {"ru": "Эту запись уже нельзя отменить.", "uz": "Bu yozuvni endi bekor qilib bo'lmaydi."}[lang],
+                show_alert=True,
+            )
             return
 
-        stylist_telegram_id = booking.stylist.user_account.telegram_id if booking.stylist.user_account else None
-        client_name = booking.user.first_name or "\u041a\u043b\u0438\u0435\u043d\u0442"
-        booking_datetime = booking.datetime
+        stylist_telegram_id = (
+            booking.stylist.user_account.telegram_id
+            if booking.stylist and booking.stylist.user_account
+            else None
+        )
+        client_name = booking.user.first_name or "Клиент"
+        booking_datetime = booking.datetime or "-"
 
-        await session.delete(booking)
+        # Статус вместо удаления: история визитов нужна для статистики и follow-up.
+        booking.status = "cancelled"
         await session.commit()
 
     if stylist_telegram_id:
         notification_text = (
-            f"<b>\u0417\u0430\u043f\u0438\u0441\u044c \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u0430</b>\n\n"
-            f"\u041a\u043b\u0438\u0435\u043d\u0442: {client_name}\n"
-            f"\u0414\u0430\u0442\u0430 \u0438 \u0432\u0440\u0435\u043c\u044f: {booking_datetime}\n\n"
-            f"\u042d\u0442\u043e \u043e\u043a\u043d\u043e \u0441\u043d\u043e\u0432\u0430 \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u043e \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438."
+            "<b>Запись отменена</b>\n\n"
+            f"Клиент: {escape(client_name)}\n"
+            f"Дата и время: {escape(booking_datetime)}\n\n"
+            "Это окно снова свободно для записи."
         )
         try:
             await bot.send_message(chat_id=stylist_telegram_id, text=notification_text, parse_mode="HTML")
         except Exception as e:
-            print(f"\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043c\u0430\u0441\u0442\u0435\u0440\u0443 \u043e\u0431 \u043e\u0442\u043c\u0435\u043d\u0435: {e}")
+            logging.warning("notify.cancel_failed booking_id=%s error=%s", booking_id, e)
 
-    await cb.answer({"ru": "\u0417\u0430\u043f\u0438\u0441\u044c \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u0430.", "uz": "Yozuv bekor qilindi."}[lang], show_alert=True)
+    await cb.answer({"ru": "Запись отменена.", "uz": "Yozuv bekor qilindi."}[lang], show_alert=True)
     await cb.message.delete()
-    await cb.message.answer({"ru": "\u0412\u0430\u0448\u0430 \u0437\u0430\u043f\u0438\u0441\u044c \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u0430.", "uz": "Yozuvingiz muvaffaqiyatli bekor qilindi."}[lang])
-
+    await cb.message.answer(
+        {"ru": "Ваша запись успешно отменена.", "uz": "Yozuvingiz muvaffaqiyatli bekor qilindi."}[lang]
+    )
 
 
 # --- ИЗБРАННЫЕ МАСТЕРА ---
@@ -1785,7 +1919,6 @@ async def cancel_booking(cb: CallbackQuery):
 async def show_favorites(message: Message, state: FSMContext):
     # ПЕРВЫМ ДЕЛОМ ЧИСТИМ ВСЁ
     await state.clear()
-    search_cache.pop(message.from_user.id, None)
     
     user = await ensure_registered_message(message)
     if not user:
@@ -1850,7 +1983,7 @@ async def remove_favorite(cb: CallbackQuery):
 
 # --- УПРАВЛЕНИЕ ПОРТФОЛИО ---
 
-@dp.message(F.text == "?? ??? ?????????")
+@dp.message(F.text == "🖼 Мое портфолио")
 async def manage_portfolio(message: Message, state: FSMContext):
     user, stylist = await ensure_active_stylist_message(message)
     if not (user and stylist):
@@ -1870,9 +2003,9 @@ async def manage_portfolio(message: Message, state: FSMContext):
 
     await state.set_state(PortfolioForm.waiting_for_photo)
     await message.answer(
-        f"?????? ? ????? ?????????: <b>{len(photos)}</b> ????.\n"
-        "??????????? ????? ?????????? ?? ?????. ????? ?????????, ??????? ?????? ????.",
-        reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="??????")]], resize_keyboard=True),
+        f"Сейчас в вашем портфолио: <b>{len(photos)}</b> фото.\n"
+        "Отправьте новое фото сообщением в чат. Когда закончите, нажмите кнопку ниже.",
+        reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Готово")]], resize_keyboard=True),
         parse_mode="HTML",
     )
 
@@ -1892,12 +2025,12 @@ async def process_portfolio_photo(message: Message, state: FSMContext):
         session.add(new_photo)
         await session.commit()
 
-    await message.answer("\n Фото добавлено в портфолио!")
+    await message.answer("Фото добавлено в портфолио.")
 
 
 # Вы
 # од из режима добавления фото
-@dp.message(PortfolioForm.waiting_for_photo, F.text == "\n Готово")
+@dp.message(PortfolioForm.waiting_for_photo, F.text == "Готово")
 async def done_adding_photos(message: Message, state: FSMContext):
     await state.clear()
     await message.answer("Вы вышли из режима добавления фото.", reply_markup=await get_main_keyboard(message.from_user.id))
@@ -1916,13 +2049,13 @@ async def admin_panel(message: Message):
 
     await message.answer(
         " Boshqaruv paneliga xush kelibsiz! Ishlaringizga rivoj!\n\n"
-        " ????? ?????????? ? ???? ??????? ??????! ????????? ??? ? ???????????? ??????!",
+        "Добро пожаловать в панель управления! Успехов в работе!",
         reply_markup=keyboard,
     )
 
 @dp.message(F.text == "↩️ Выйти из админ-панели")
 async def exit_admin_panel(message: Message):
-    await message.answer("?? ????????? ? ??????? ????.", reply_markup=await get_main_keyboard(message.from_user.id))
+    await message.answer("Вы вернулись в главное меню.", reply_markup=await get_main_keyboard(message.from_user.id))
 
 
 @dp.message(F.text == "💳 Срок тарифа")
@@ -2644,22 +2777,103 @@ async def get_statistics(cb: CallbackQuery):
 @dp.callback_query(F.data.startswith("rate_"))
 async def handle_rating(cb: CallbackQuery):
     booking_id, rating = map(int, cb.data.split("_")[1:])
+    if not 1 <= rating <= 5:
+        await cb.answer("Некорректная оценка.", show_alert=True)
+        return
 
     async with db.async_session() as session:
-        booking = await session.get(db.Booking, booking_id)
-        if booking and booking.rating is None:
-            booking.rating = rating
-            await session.commit()
-            await cb.message.edit_text(f"\u0421\u043f\u0430\u0441\u0438\u0431\u043e \u0437\u0430 \u0432\u0430\u0448\u0443 \u043e\u0446\u0435\u043d\u043a\u0443: {rating} \u2605")
-        else:
-            await cb.message.edit_text("\u0412\u044b \u0443\u0436\u0435 \u043e\u0441\u0442\u0430\u0432\u0438\u043b\u0438 \u043e\u0446\u0435\u043d\u043a\u0443.")
+        # Оценить визит может только клиент этой записи.
+        booking = await load_booking_for_client(session, booking_id, cb.from_user.id)
+        if not booking:
+            await deny_access(cb)
+            return
+        if booking.status != "completed":
+            await cb.answer("Оценить можно только завершённый визит.", show_alert=True)
+            return
+        if booking.rating is not None:
+            await cb.message.edit_text("Вы уже оставили оценку.")
+            await cb.answer()
+            return
+
+        booking.rating = rating
+        await session.commit()
+        await recalculate_stylist_rating(session, booking.stylist_id)
+
+        await cb.message.edit_text(f"Спасибо за вашу оценку: {rating} ★")
 
     await cb.answer()
 
 
+# --- Обработка ошибок и нераспознанных сообщений ---
+
+@dp.errors()
+async def handle_unexpected_error(event: ErrorEvent) -> bool:
+    """
+    Последний рубеж: любое необработанное исключение в хендлере.
+    Пользователь не должен оставаться перед «зависшим» экраном без ответа.
+    """
+    logging.exception(
+        "handler.unhandled_error update_id=%s error=%s",
+        getattr(event.update, "update_id", None),
+        event.exception,
+    )
+
+    update = event.update
+    try:
+        if update.callback_query:
+            lang = await get_user_lang(update.callback_query.from_user.id)
+            await update.callback_query.answer(
+                {
+                    "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
+                    "uz": "Nimadir xato ketdi. Biz tekshiryapmiz, bir daqiqadan so'ng urinib ko'ring.",
+                }[lang],
+                show_alert=True,
+            )
+        elif update.message:
+            lang = await get_user_lang(update.message.from_user.id)
+            await update.message.answer(
+                {
+                    "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
+                    "uz": "Nimadir xato ketdi. Biz tekshiryapmiz, bir daqiqadan so'ng urinib ko'ring.",
+                }[lang],
+                reply_markup=await get_main_keyboard(update.message.from_user.id),
+            )
+    except Exception as e:
+        logging.warning("handler.error_reply_failed error=%s", e)
+
+    return True
+
+
+@dp.message()
+async def fallback_message(message: Message, state: FSMContext):
+    """
+    Всё, что не подошло ни одному хендлеру выше. Без этого бот молчит
+    в ответ на произвольный текст, и пользователь не понимает, что делать.
+    """
+    if await state.get_state() is not None:
+        # Мы внутри сценария — подсказываем, что ожидается, и не сбрасываем состояние.
+        lang = await get_user_lang(message.from_user.id)
+        await message.answer(
+            {
+                "ru": "Не понял ответ. Воспользуйтесь кнопками выше или отправьте /start, чтобы начать заново.",
+                "uz": "Javobni tushunmadim. Yuqoridagi tugmalardan foydalaning yoki qaytadan boshlash uchun /start yuboring.",
+            }[lang]
+        )
+        return
+
+    lang = await get_user_lang(message.from_user.id)
+    await message.answer(
+        {
+            "ru": "Я понимаю только кнопки меню. Выберите действие ниже.",
+            "uz": "Men faqat menyu tugmalarini tushunaman. Quyidan amalni tanlang.",
+        }[lang],
+        reply_markup=await get_main_keyboard(message.from_user.id),
+    )
+
+
 # --- start ---
 async def main():
-    await db.create_tables()
+    await db.run_migrations()
 
     scheduler_tasks = AsyncIOScheduler(timezone="Asia/Tashkent")
     scheduler_tasks.add_job(scheduler.check_reminders, 'cron', hour='*', minute=0, args=(bot,))

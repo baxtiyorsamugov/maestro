@@ -60,6 +60,10 @@ def get_text(key, lang='ru'):
             'ru': '\U0001f3c1 \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e',
             'uz': '\U0001f3c1 Yakunlangan',
         },
+        'status_cancelled': {
+            'ru': '\ud83d\udeab \u041e\u0442\u043c\u0435\u043d\u0435\u043d\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u043c',
+            'uz': '\ud83d\udeab Mijoz bekor qildi',
+        },
         'cancel_booking': {
             'ru': '\u274c \u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c',
             'uz': '\u274c Bekor qilish',

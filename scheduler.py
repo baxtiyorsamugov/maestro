@@ -12,8 +12,11 @@ async def check_reminders(bot: Bot):
     
     async with db.async_session() as session:
         # Берем только одобренные записи
+        # joinedload(stylist) обязателен: без него обращение к b.stylist.name ниже
+        # бросает MissingGreenlet и часовое напоминание не отправляется (docs/AUDIT.md, A-5).
         query = select(db.Booking).where(db.Booking.status == "approved").options(
             joinedload(db.Booking.user),
+            joinedload(db.Booking.stylist),
             joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
         )
         bookings = (await session.execute(query)).scalars().all()
@@ -27,7 +30,7 @@ async def check_reminders(bot: Bot):
                 # Уведомление за 1 день (если осталось от 23 до 25 часов)
                 if timedelta(hours=23) <= diff <= timedelta(hours=25) and not b.reminder_day_sent:
                     text = {
-                        "uz": f"👋 Salom! Ertaga soat {b_time.strftime('%H:%M')} da sizni kutamiz.\nУслуга: {b.service.catalog_service.name}",
+                        "uz": f"👋 Salom! Ertaga soat {b_time.strftime('%H:%M')} da sizni kutamiz.\nXizmat: {b.service.catalog_service.name}",
                         "ru": f"👋 Привет! Напоминаем о вашей завтрашней записи в {b_time.strftime('%H:%M')}.\nУслуга: {b.service.catalog_service.name}"
                     }[lang]
                     await bot.send_message(b.user.telegram_id, text)
@@ -54,8 +57,8 @@ async def check_reminders(bot: Bot):
                     b.reminder_hour_sent = True
                 
             except Exception as e:
-                logging.error(f"Ошибка в напоминании {b.id}: {e}")
-        
+                logging.exception("reminder.failed booking_id=%s error=%s", b.id, e)
+
         await session.commit()
 
 # 2. Напоминание через 20 дней (Пора стричься)
