@@ -7,9 +7,9 @@
 """
 from datetime import date, timedelta
 
-import bot
 import database as db
 import timeutils
+from services import booking as booking_service
 
 
 def _future_month() -> tuple[int, int]:
@@ -34,7 +34,7 @@ async def _add_weekly_schedule(session, stylist_id: int, start="09:00", end="18:
 class TestAvailableDates:
     async def test_no_schedule_means_no_dates(self, fixture_data):
         year, month = _future_month()
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             fixture_data["session"], fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert dates == []
@@ -44,7 +44,7 @@ class TestAvailableDates:
         await _add_weekly_schedule(session, fixture_data["stylist"].id)
 
         year, month = _future_month()
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert len(dates) >= 28
@@ -65,7 +65,7 @@ class TestAvailableDates:
         )
         await session.commit()
 
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert day_off not in dates
@@ -89,7 +89,7 @@ class TestAvailableDates:
         await session.commit()
 
         # Услуга длится 60 минут — ровно один слот 10:00 помещается.
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert short_day in dates
@@ -112,7 +112,7 @@ class TestAvailableDates:
         )
         await session.commit()
 
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert busy_day not in dates
@@ -135,7 +135,7 @@ class TestAvailableDates:
         )
         await session.commit()
 
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, year, month
         )
         assert day in dates
@@ -145,14 +145,14 @@ class TestAvailableDates:
         await _add_weekly_schedule(session, fixture_data["stylist"].id)
 
         today = date.today()
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, today.year, today.month
         )
         assert all(d >= today for d in dates)
 
     async def test_missing_service_returns_empty(self, fixture_data):
         year, month = _future_month()
-        dates = await bot.get_available_dates_for_month(
+        dates = await booking_service.get_available_dates_for_month(
             fixture_data["session"], fixture_data["stylist"].id, 999999, year, month
         )
         assert dates == []
@@ -164,20 +164,20 @@ class TestResolveSchedule:
         day = date(2099, 1, 5)  # понедельник
         special = {day: db.SpecialSchedule(work_date=day, is_day_off=True)}
 
-        assert bot.resolve_schedule_for_date(day, weekly, special) is None
+        assert booking_service.resolve_schedule_for_date(day, weekly, special) is None
 
     def test_special_without_hours_is_treated_as_day_off(self):
         day = date(2099, 1, 5)
         weekly = {1: db.Schedule(day_of_week=1, start_time="09:00", end_time="18:00")}
         special = {day: db.SpecialSchedule(work_date=day, is_day_off=False, start_time=None, end_time=None)}
 
-        assert bot.resolve_schedule_for_date(day, weekly, special) is None
+        assert booking_service.resolve_schedule_for_date(day, weekly, special) is None
 
     def test_falls_back_to_weekly(self):
         day = date(2099, 1, 5)
         weekly_schedule = db.Schedule(day_of_week=1, start_time="09:00", end_time="18:00")
 
-        assert bot.resolve_schedule_for_date(day, {1: weekly_schedule}, {}) is weekly_schedule
+        assert booking_service.resolve_schedule_for_date(day, {1: weekly_schedule}, {}) is weekly_schedule
 
     def test_no_schedule_at_all(self):
-        assert bot.resolve_schedule_for_date(date(2099, 1, 5), {}, {}) is None
+        assert booking_service.resolve_schedule_for_date(date(2099, 1, 5), {}, {}) is None
