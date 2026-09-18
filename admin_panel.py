@@ -1,6 +1,6 @@
 import logging
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from html import escape
 
 import uvicorn
@@ -613,7 +613,7 @@ async def healthcheck():
     db_status, db_error = await _check_database()
     return {
         "status": "ok",
-        "date": date.today().isoformat(),
+        "date": timeutils.today().isoformat(),
         "admin": "configured",
         "database": db_status,
         "database_error": db_error,

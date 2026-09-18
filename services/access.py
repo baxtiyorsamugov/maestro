@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 import database as db
+import timeutils
 
 
 async def get_stylist_profile_by_telegram(session, telegram_id: int):
@@ -26,13 +27,13 @@ async def get_stylist_profile_by_telegram(session, telegram_id: int):
 def is_stylist_subscription_active(user: db.User | None, today: date | None = None) -> bool:
     if not user or user.role != "stylist" or not user.is_active:
         return False
-    today = today or date.today()
+    today = today or timeutils.today()
     return user.subscription_until is None or user.subscription_until >= today
 
 def get_subscription_days_left(user: db.User | None, today: date | None = None) -> int | None:
     if not user or user.subscription_until is None:
         return None
-    today = today or date.today()
+    today = today or timeutils.today()
     return (user.subscription_until - today).days
 
 def is_registration_complete(user: db.User | None) -> bool:

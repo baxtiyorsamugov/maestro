@@ -3,6 +3,8 @@ from datetime import date
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+import timeutils
+
 
 def generate_calendar(year: int, month: int, maestro_id: int, available_dates=None):
     cal = calendar.Calendar()
@@ -14,7 +16,7 @@ def generate_calendar(year: int, month: int, maestro_id: int, available_dates=No
     kb.append([InlineKeyboardButton(text=f"{month_name} {year}", callback_data="ignore")])
     kb.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in days])
 
-    today = date.today()
+    today = timeutils.today()
 
     for week in cal.monthdayscalendar(year, month):
         row = []
