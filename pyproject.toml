@@ -7,6 +7,16 @@ requires-python = ">=3.11"
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+extend-exclude = '''
+/(
+    \.venv
+  | \.venv_old310
+  | venv
+  | build
+  | dist
+  | migrations/versions
+)/
+'''
 
 [tool.ruff]
 line-length = 100
@@ -32,8 +42,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"seed_db.py" = ["S"]
-"tests/*" = ["S101"]  # assert в тестах разрешён
+"scripts/seed_db.py" = ["S"]
+"tests/*" = ["S101", "S105", "S106"]  # assert и тестовые «секреты» разрешены
+# sqladmin описывает представления списками на уровне класса — это его API, не ошибка.
+"admin_panel.py" = ["RUF012"]
+# Служебные скрипты вызывают git фиксированной командой — подстановки нет.
+"scripts/check_encoding.py" = ["S603", "S607"]
+# Миграции пишут SQL строками по определению, и Alembic сам генерирует их шаблон.
+"migrations/*" = ["S608", "E501", "I001"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -45,4 +61,5 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]

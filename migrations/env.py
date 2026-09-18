@@ -17,8 +17,8 @@ from alembic import context
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import database as db  # noqa: E402
-from config import load_database_settings  # noqa: E402
+import database as db
+from config import load_database_settings
 
 config = context.config
 

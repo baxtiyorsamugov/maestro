@@ -1,5 +1,6 @@
 import asyncio
 
+
 async def minimal_test():
     print("1. Внутри асинхронной функции.")
     await asyncio.sleep(0.1)  # Это простейшая await-операция

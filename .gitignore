@@ -4,6 +4,7 @@
 # Virtual environments
 venv/
 .venv/
+.venv_*/
 
 # Python
 __pycache__/
@@ -28,3 +29,6 @@ dist/
 
 # Alembic
 migrations/versions/__pycache__/
+
+# Runtime
+tmp/

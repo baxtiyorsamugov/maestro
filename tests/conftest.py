@@ -27,14 +27,14 @@ os.environ["ADMIN_USERNAME"] = "test"
 os.environ["ADMIN_PASSWORD"] = "test"
 os.environ["ADMIN_SECRET_KEY"] = "test-secret-key-for-tests-only-32ch"
 
-import pytest  # noqa: E402
-import timeutils  # noqa: E402
-import pytest_asyncio  # noqa: E402
 from datetime import timedelta  # noqa: E402
 
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
 from sqlalchemy import delete  # noqa: E402
 
 import database as db  # noqa: E402
+import timeutils  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)

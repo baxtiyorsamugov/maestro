@@ -1,0 +1,103 @@
+"""
+Проверка кодировки исходников. Запускается в CI.
+
+Два класса багов, которые не видно глазами и которые проект уже ловил:
+
+1. Повреждённая кириллица — 35 строк интерфейса однажды схлопнулись в "?????"
+   после записи файла в однобайтовой кодировке (docs/AUDIT.md, A-1).
+   Текст тогда был утрачен безвозвратно.
+
+2. Суррогатные пары — эмодзи, записанное как "\\ud83d\\udeab" вместо символа.
+   Такая строка компилируется и выглядит правдоподобно, но в UTF-8 не кодируется
+   и уходит в Telegram мусором.
+
+Проверяем не текст файла, а разобранные строковые литералы: иначе проверка
+спотыкается о собственную документацию, где эти примеры упомянуты.
+
+Локально: python scripts/check_encoding.py
+"""
+import ast
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+# Три подряд знака вопроса в пользовательском тексте — почти наверняка
+# схлопнувшаяся кириллица, а не осмысленная строка.
+# Собирается из частей намеренно: иначе проверка находит саму себя.
+MOJIBAKE_MARKER = "?" * 3
+
+
+def tracked_python_files() -> list[Path]:
+    # Список файлов берём у git: фиксированная команда без пользовательского ввода.
+    result = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [ROOT / line for line in result.stdout.splitlines() if line.strip()]
+
+
+def string_literals(tree: ast.AST):
+    """Все строковые литералы, кроме докстрингов: в них примеры багов законны."""
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            doc = ast.get_docstring(node, clean=False)
+            if doc is not None:
+                docstrings.add(doc)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.value in docstrings:
+                continue
+            yield node.lineno, node.value
+
+
+def check_file(path: Path) -> list[str]:
+    problems = []
+    source = path.read_text(encoding="utf-8")
+
+    try:
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError as e:
+        return [f"{path.relative_to(ROOT)}: не разбирается — {e}"]
+
+    for lineno, value in string_literals(tree):
+        rel = path.relative_to(ROOT)
+
+        if MOJIBAKE_MARKER in value:
+            problems.append(f"{rel}:{lineno}: повреждённая кириллица — {value[:50]!r}")
+
+        surrogates = [hex(ord(ch)) for ch in value if 0xD800 <= ord(ch) <= 0xDFFF]
+        if surrogates:
+            problems.append(f"{rel}:{lineno}: суррогатные пары {surrogates} — {value[:40]!r}")
+
+    return problems
+
+
+def main() -> int:
+    files = tracked_python_files()
+    print(f"Проверка кодировки: {len(files)} файлов под контролем версий")
+
+    problems = []
+    for path in files:
+        if not path.exists():
+            continue
+        problems.extend(check_file(path))
+
+    if problems:
+        print("\nНАЙДЕНЫ ПРОБЛЕМЫ:")
+        for problem in problems:
+            print("  ", problem)
+        print("\nТекст пишется как есть, в UTF-8. Подробности — docs/CONVENTIONS.md.")
+        return 1
+
+    print("Кодировка в порядке")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

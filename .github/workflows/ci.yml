@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feat/**", "fix/**", "chore/**"]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: Быстрые проверки
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      # Проект однажды потерял 35 строк интерфейса из-за записи файла
+      # в неверной кодировке (docs/AUDIT.md, A-1). Проверяются разобранные
+      # строковые литералы, а не текст файла: иначе проверка спотыкается
+      # о собственную документацию, где эти примеры упомянуты.
+      - name: Кодировка исходников
+        run: python scripts/check_encoding.py
+
+      - name: Мусор в индексе
+        run: |
+          FOUND=$(git ls-files | grep -E '(^|/)\.env$|\.log$|\.db$|\.zip$|(^|/)nohup(\.out)?$' || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::В индексе файлы, которых там быть не должно:"
+            echo "$FOUND"
+            echo "Уберите их: git rm --cached <файл>"
+            exit 1
+          fi
+          echo "Индекс чистый"
+
+      # Ключи ru и uz должны совпадать: без этого узбекоязычный пользователь
+      # молча получает русский текст или «Text not found».
+      - name: Полнота локализации
+        run: python scripts/check_locales.py
+
+  lint:
+    name: Линтер
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff==0.8.4
+      - run: ruff check .
+
+  tests:
+    name: Тесты (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 — заявленный минимум, 3.12 стоит на боевом хостинге.
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: pytest
+        env:
+          BOT_TOKEN: "123456789:CIFakeTokenNotARealSecret"
+          DB_DRIVER: sqlite
+          ADMIN_USERNAME: ci
+          ADMIN_PASSWORD: ci
+          ADMIN_SECRET_KEY: ci-secret-key-for-tests-only-32chars
+        run: pytest tests/ -q

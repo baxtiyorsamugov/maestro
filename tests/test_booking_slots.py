@@ -1,10 +1,11 @@
 """
 Тесты защиты слота от двойной брони (docs/AUDIT.md, A-4) и расчёта свободного времени.
 """
-import pytest
-from sqlalchemy.exc import IntegrityError
-
 from datetime import timedelta
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 import database as db
 import timeutils
@@ -94,7 +95,7 @@ class TestReviewsCount:
         await session.flush()
 
         second = await session.scalar(
-            db.select(db.Booking).where(
+            select(db.Booking).where(
                 db.Booking.starts_at == timeutils.parse_slot("2099-02-01 12:00")
             )
         )
