@@ -21,6 +21,21 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
+# --- Статусы записи ---
+# Строковые литералы разъезжаются по коду и молча ломают выборки, поэтому
+# имя статуса задаётся здесь в одном месте. Модули bot и scheduler берут их отсюда:
+# импортировать из bot нельзя — bot сам импортирует scheduler.
+BOOKING_PENDING = "pending"
+BOOKING_APPROVED = "approved"
+BOOKING_DECLINED = "declined"
+BOOKING_COMPLETED = "completed"
+BOOKING_CANCELLED = "cancelled"
+
+# Статусы, занимающие слот в расписании. Должны совпадать с условием частичного
+# индекса uq_active_booking_slot в миграции c1a7e4b92f10.
+ACTIVE_BOOKING_STATUSES = (BOOKING_PENDING, BOOKING_APPROVED)
+
+
 # --- Таблицы ---
 
 class Favorite(Base):

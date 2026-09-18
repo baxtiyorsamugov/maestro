@@ -14,7 +14,7 @@ async def check_reminders(bot: Bot):
         # Берем только одобренные записи
         # joinedload(stylist) обязателен: без него обращение к b.stylist.name ниже
         # бросает MissingGreenlet и часовое напоминание не отправляется (docs/AUDIT.md, A-5).
-        query = select(db.Booking).where(db.Booking.status == "approved").options(
+        query = select(db.Booking).where(db.Booking.status == db.BOOKING_APPROVED).options(
             joinedload(db.Booking.user),
             joinedload(db.Booking.stylist),
             joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
@@ -69,7 +69,7 @@ async def check_follow_ups(bot: Bot):
 
     async with db.async_session() as session:
         query = select(db.Booking).where(
-            db.Booking.status == "completed",
+            db.Booking.status == db.BOOKING_COMPLETED,
             db.Booking.datetime.like(f"{target_date}%"),
             db.Booking.follow_up_sent == False
         ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
