@@ -3,7 +3,7 @@
 """
 from datetime import timedelta
 
-import bot
+import presenters
 import timeutils
 from services import access, rating
 
@@ -127,7 +127,7 @@ class TestBookingCard:
         booking = await access.load_booking_for_stylist(
             session, fixture_data["booking"].id, fixture_data["stylist_user"].telegram_id
         )
-        card = bot.build_booking_card(booking)
+        card = presenters.build_booking_card(booking)
 
         assert "<b>Взлом</b>" not in card.replace("<b>Новая заявка</b>", "")
         assert "&lt;b&gt;Взлом&lt;/b&gt;" in card
@@ -138,7 +138,7 @@ class TestBookingCard:
             fixture_data["booking"].id,
             fixture_data["stylist_user"].telegram_id,
         )
-        card = bot.build_booking_card(booking, footer="Запись подтверждена")
+        card = presenters.build_booking_card(booking, footer="Запись подтверждена")
 
         assert "+998901234567" in card
         assert "Стрижка" in card

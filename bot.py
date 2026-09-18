@@ -15,27 +15,23 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaPhoto,
-    KeyboardButton,
     Message,
-    ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload  # Важный импорт
 
 import database as db
+import handlers
 import scheduler
 import texts
 import timeutils
 import utils  # Наш файл календаря
-from constants import DAY_LABELS
 from guards import (
     deny_access,
-    ensure_active_stylist_callback,
-    ensure_active_stylist_message,
     ensure_registered_callback,
     ensure_registered_message,
     get_user_lang,
@@ -45,40 +41,24 @@ from keyboards import (
     get_language_keyboard,
     get_language_switch_kb,
     get_main_keyboard,
-    get_schedule_management_kb,
-    get_schedule_time_kb,
-    get_special_date_actions_kb,
-    get_special_dates_calendar_kb,
-    get_special_schedule_time_kb,
 )
 from loader import bot, dp
 from presenters import (
-    build_booking_card,
-    build_schedule_overview_text,
-    build_special_date_detail_text,
-    build_special_dates_text,
     get_registration_text,
-    get_subscription_menu_text,
 )
 from services.access import (
     is_registration_complete,
     is_stylist_subscription_active,
     load_booking_for_client,
-    load_booking_for_stylist,
 )
 from services.booking import (
     get_available_dates_for_month,
     get_available_slots_for_date,
-    load_special_dates,
 )
 from services.rating import recalculate_stylist_rating
 from states import (
-    PortfolioForm,
     RegistrationForm,
-    ScheduleForm,
     SearchForm,
-    ServiceForm,
-    SpecialDateForm,
 )
 
 load_dotenv()
@@ -169,10 +149,6 @@ def is_client_main_menu_button(text_value: str | None) -> bool:
 
 
 
-def parse_special_callback_parts(data: str, prefix: str):
-    payload = data[len(prefix):]
-    target_date, remainder = payload.split("_", 1)
-    return target_date, remainder
 
 
 
@@ -1240,134 +1216,10 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
 
     await cb.answer()
 
-@dp.callback_query(F.data.startswith("approve_"))
-async def approve_booking(cb: CallbackQuery):
-    booking_id = int(cb.data.split("_")[-1])
-
-    async with db.async_session() as session:
-        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
-        if not booking:
-            await deny_access(cb)
-            return
-        if booking.status != BOOKING_PENDING:
-            await cb.answer("Эта заявка уже обработана.", show_alert=True)
-            return
-
-        booking.status = BOOKING_APPROVED
-        await session.commit()
-        client_lang = booking.user.language_code or "ru"
-        client_telegram_id = booking.user.telegram_id
-        booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
-        card = build_booking_card(booking, footer="Запись подтверждена")
-
-    try:
-        await bot.send_message(
-            chat_id=client_telegram_id,
-            text={
-                "ru": (
-                    "✨ <b>Прекрасный выбор!</b>\n\n"
-                    "Ваша запись подтверждена. Мастер уже готовится к вашему визиту.\n\n"
-                    f"📅 Ждём вас: <b>{escape(booking_datetime)}</b>\n\n"
-                    "До встречи в Maestro! ✂️"
-                ),
-                "uz": (
-                    "✨ <b>Ajoyib tanlov!</b>\n\n"
-                    "Sizning yozuvingiz tasdiqlandi. Maestro tashrifingizga tayyorgarlik ko'rmoqda.\n\n"
-                    f"📅 Sizni kutamiz: <b>{escape(booking_datetime)}</b>\n\n"
-                    "Maestro'da ko'rishguncha! ✂️"
-                ),
-            }[client_lang],
-            parse_mode="HTML",
-        )
-    except Exception as e:
-        logging.warning("notify.approve_failed booking_id=%s error=%s", booking_id, e)
-
-    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
 
 
-@dp.callback_query(F.data.startswith("decline_"))
-async def decline_booking(cb: CallbackQuery):
-    booking_id = int(cb.data.split("_")[-1])
-
-    async with db.async_session() as session:
-        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
-        if not booking:
-            await deny_access(cb)
-            return
-        if booking.status != BOOKING_PENDING:
-            await cb.answer("Эта заявка уже обработана.", show_alert=True)
-            return
-
-        booking.status = BOOKING_DECLINED
-        await session.commit()
-        client_lang = booking.user.language_code or "ru"
-        client_telegram_id = booking.user.telegram_id
-        booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
-        card = build_booking_card(booking, footer="Запись отклонена")
-
-    try:
-        await bot.send_message(
-            chat_id=client_telegram_id,
-            text={
-                "ru": (
-                    "<b>Запись отклонена.</b>\n\n"
-                    f"Время {escape(booking_datetime)} уже недоступно. Пожалуйста, выберите другое."
-                ),
-                "uz": (
-                    "<b>Yozuv rad etildi.</b>\n\n"
-                    f"{escape(booking_datetime)} vaqti endi mavjud emas. Iltimos, boshqa vaqtni tanlang."
-                ),
-            }[client_lang],
-            parse_mode="HTML",
-        )
-    except Exception as e:
-        logging.warning("notify.decline_failed booking_id=%s error=%s", booking_id, e)
-
-    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
 
 
-@dp.callback_query(F.data.startswith("complete_"))
-async def complete_booking(cb: CallbackQuery):
-    booking_id = int(cb.data.split("_")[1])
-
-    async with db.async_session() as session:
-        booking = await load_booking_for_stylist(session, booking_id, cb.from_user.id)
-        if not booking:
-            await deny_access(cb)
-            return
-        if booking.status == BOOKING_COMPLETED:
-            await cb.answer("Визит уже отмечен как завершённый.", show_alert=True)
-            return
-
-        booking.status = BOOKING_COMPLETED
-        await session.commit()
-        client_lang = booking.user.language_code or "ru"
-        client_telegram_id = booking.user.telegram_id
-        card = build_booking_card(booking, footer="Визит завершён")
-
-    try:
-        kb = InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="★", callback_data=f"rate_{booking_id}_1"),
-            InlineKeyboardButton(text="★★", callback_data=f"rate_{booking_id}_2"),
-            InlineKeyboardButton(text="★★★", callback_data=f"rate_{booking_id}_3"),
-            InlineKeyboardButton(text="★★★★", callback_data=f"rate_{booking_id}_4"),
-            InlineKeyboardButton(text="★★★★★", callback_data=f"rate_{booking_id}_5"),
-        ]])
-        await bot.send_message(
-            chat_id=client_telegram_id,
-            text={
-                "ru": "Как вам сервис? Пожалуйста, оцените визит.",
-                "uz": "Xizmat sizga yoqdimi? Iltimos, baho bering.",
-            }[client_lang],
-            reply_markup=kb,
-        )
-    except Exception as e:
-        logging.warning("notify.rating_request_failed booking_id=%s error=%s", booking_id, e)
-
-    await cb.message.edit_text(card, reply_markup=None, parse_mode="HTML")
-    await cb.answer("Готово")
 
 
 @dp.message(F.text.in_([texts.get_buttons("ru")["my_profile"], texts.get_buttons("uz")["my_profile"]]))
@@ -1555,801 +1407,69 @@ async def remove_favorite(cb: CallbackQuery):
 
 # --- УПРАВЛЕНИЕ ПОРТФОЛИО ---
 
-@dp.message(F.text == "🖼 Мое портфолио")
-async def manage_portfolio(message: Message, state: FSMContext):
-    user, stylist = await ensure_active_stylist_message(message)
-    if not (user and stylist):
-        return
-
-    async with db.async_session() as session:
-        photos = (await session.execute(
-            select(db.Portfolio)
-            .where(db.Portfolio.stylist_id == stylist.id)
-            .order_by(db.Portfolio.id.desc())
-            .limit(3)
-        )).scalars().all()
-
-    if photos:
-        media_group = [InputMediaPhoto(media=photo.telegram_photo_file_id) for photo in photos]
-        await message.answer_media_group(media=media_group)
-
-    await state.set_state(PortfolioForm.waiting_for_photo)
-    await message.answer(
-        f"Сейчас в вашем портфолио: <b>{len(photos)}</b> фото.\n"
-        "Отправьте новое фото сообщением в чат. Когда закончите, нажмите кнопку ниже.",
-        reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Готово")]], resize_keyboard=True),
-        parse_mode="HTML",
-    )
-
-@dp.message(PortfolioForm.waiting_for_photo, F.photo)
-async def process_portfolio_photo(message: Message, state: FSMContext):
-    # Берем самое качественное фото из предложенны
-
-    file_id = message.photo[-1].file_id
-
-    async with db.async_session() as session:
-        user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
-        stylist = await session.scalar(select(db.Stylist).where(db.Stylist.user_id == user.id))
-
-        # Со
-# раняем file_id в базу
-        new_photo = db.Portfolio(stylist_id=stylist.id, telegram_photo_file_id=file_id)
-        session.add(new_photo)
-        await session.commit()
-
-    await message.answer("Фото добавлено в портфолио.")
 
 
-# Вы
-# од из режима добавления фото
-@dp.message(PortfolioForm.waiting_for_photo, F.text == "Готово")
-async def done_adding_photos(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Вы вышли из режима добавления фото.", reply_markup=await get_main_keyboard(message.from_user.id))
-
-# В
-# од в админ-панель
-@dp.message(Command("admin"))
-async def admin_panel(message: Message):
-    async with db.async_session() as session:
-        user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
-
-    keyboard = await get_main_keyboard(message.from_user.id)
-    if user and user.role == "stylist" and not is_stylist_subscription_active(user):
-        await message.answer(get_subscription_menu_text(user), parse_mode="HTML", reply_markup=keyboard)
-        return
-
-    await message.answer(
-        " Boshqaruv paneliga xush kelibsiz! Ishlaringizga rivoj!\n\n"
-        "Добро пожаловать в панель управления! Успехов в работе!",
-        reply_markup=keyboard,
-    )
-
-@dp.message(F.text == "↩️ Выйти из админ-панели")
-async def exit_admin_panel(message: Message):
-    await message.answer("Вы вернулись в главное меню.", reply_markup=await get_main_keyboard(message.from_user.id))
 
 
-@dp.message(F.text == "💳 Срок тарифа")
-async def show_tariff_status(message: Message):
-    async with db.async_session() as session:
-        user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
-    await message.answer(get_subscription_menu_text(user), parse_mode="HTML", reply_markup=await get_main_keyboard(message.from_user.id))
 
-@dp.message(F.text == "📓 Мои записи")
-async def show_bookings_menu(message: Message):
-    user, stylist = await ensure_active_stylist_message(message)
-    if not (user and stylist):
-        return
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="☀️ На сегодня", callback_data="view_bookings_today")],
-        [InlineKeyboardButton(text="📅 На неделю", callback_data="view_bookings_week")],
-        [InlineKeyboardButton(text="📚 Все записи", callback_data="view_bookings_all")]
-    ])
+
+
     
-    await message.answer("Выберите период для просмотра записей:", reply_markup=kb)
-    
-@dp.callback_query(F.data.startswith("view_bookings_"))
-async def process_view_bookings(cb: CallbackQuery):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        return
-
-    period = cb.data.split("_")[-1]
-    today_dt = datetime.now()
-    today_str = today_dt.strftime("%Y-%m-%d")
-    
-    async with db.async_session() as session:
-        # Базовый запрос: только активные и завершенные будущие записи
-        query = select(db.Booking).where(
-            db.Booking.stylist_id == stylist.id,
-            db.Booking.status.in_(ACTIVE_BOOKING_STATUSES)  # не показываем отклонённые и старые
-        ).options(
-            joinedload(db.Booking.user), 
-            joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
-        )
-
-        if period == "today":
-            day_start, day_end = timeutils.day_bounds(today_dt.date())
-            query = query.where(db.Booking.starts_at >= day_start, db.Booking.starts_at < day_end)
-            title = f"☀️ Записи на сегодня ({today_str})"
-        
-        elif period == "week":
-            week_start, week_end = timeutils.range_bounds(
-                today_dt.date(), today_dt.date() + timedelta(days=6)
-            )
-            end_week = week_end.strftime("%Y-%m-%d")
-            query = query.where(db.Booking.starts_at >= week_start, db.Booking.starts_at < week_end)
-            title = f"📅 Записи на неделю (до {end_week})"
-        
-        else: # "all" — теперь это "Все будущие записи"
-            query = query.where(db.Booking.starts_at >= timeutils.now())
-            title = "📚 Все предстоящие записи"
-
-        query = query.order_by(db.Booking.starts_at)
-        result = await session.execute(query)
-        bookings = result.scalars().all()
-
-    if not bookings:
-        await cb.message.edit_text(f"<b>{title}</b>\n\n📭 Актуальных записей нет.", parse_mode="HTML")
-        await cb.answer()
-        return
-
-    await cb.message.edit_text(f"<b>{title}</b>\nНайдено: {len(bookings)}", parse_mode="HTML")
-    
-    for b in bookings:
-        try:
-            client_name = b.user.first_name if b.user else "Клиент"
-            service_name = b.service.catalog_service.name if (b.service and b.service.catalog_service) else "Услуга"
-            display_date = timeutils.format_human(b.starts_at)
-            
-            status_emoji = "⏳" if b.status == BOOKING_PENDING else "✅"
-            
-            text = (
-                f"{status_emoji} <b>{display_date}</b>\n"
-                f"👤 {client_name}\n"
-                f"✂️ {service_name}\n"
-                f"📞 <code>{b.user.phone_number if b.user else 'не указан'}</code>"
-            )
-            
-            kb = None
-            if b.status == BOOKING_APPROVED:
-                kb = InlineKeyboardMarkup(inline_keyboard=[[
-                    InlineKeyboardButton(text="🏁 Завершить визит", callback_data=f"complete_{b.id}")
-                ]])
-            
-            await cb.message.answer(text, reply_markup=kb, parse_mode="HTML")
-        except Exception as e:
-            logging.error(f"Error rendering booking {b.id}: {e}")
-            continue
-    
-    await cb.answer()
-
-@dp.callback_query(F.data == "schedule_close")
-async def schedule_close(cb: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await cb.message.edit_text("Управление расписанием закрыто.")
-    await cb.answer()
-
-
-@dp.callback_query(F.data == "cancel_fsm")
-async def cancel_fsm_handler(cb: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await cb.message.edit_text("Действие отменено.", reply_markup=None)
-    await cb.answer()
-
-
-async def render_schedule_overview(target, stylist: db.Stylist):
-    async with db.async_session() as session:
-        schedules = (await session.execute(
-            select(db.Schedule)
-            .where(db.Schedule.stylist_id == stylist.id)
-            .order_by(db.Schedule.day_of_week)
-        )).scalars().all()
-        special_dates = (await session.execute(
-            select(db.SpecialSchedule)
-            .where(db.SpecialSchedule.stylist_id == stylist.id, db.SpecialSchedule.work_date >= timeutils.today())
-            .order_by(db.SpecialSchedule.work_date)
-        )).scalars().all()
-        schedule_map = {item.day_of_week: item for item in schedules}
-    await target.edit_text(
-        build_schedule_overview_text(stylist.name, schedule_map, special_dates),
-        reply_markup=get_schedule_management_kb(schedule_map),
-        parse_mode="HTML",
-    )
-
-
-async def render_special_dates_calendar(target, stylist: db.Stylist, year: int, month: int):
-    async with db.async_session() as session:
-        special_dates = await load_special_dates(session, stylist.id)
-    await target.edit_text(
-        build_special_dates_text(stylist.name, year, month, special_dates),
-        reply_markup=get_special_dates_calendar_kb(year, month, stylist.id),
-        parse_mode="HTML",
-    )
-
-
-@dp.message(F.text == "🕒 Управление расписанием")
-async def manage_schedule(message: Message):
-    user, stylist = await ensure_active_stylist_message(message)
-    if not (user and stylist):
-        return
-
-    async with db.async_session() as session:
-        schedules = (await session.execute(
-            select(db.Schedule)
-            .where(db.Schedule.stylist_id == stylist.id)
-            .order_by(db.Schedule.day_of_week)
-        )).scalars().all()
-        special_dates = (await session.execute(
-            select(db.SpecialSchedule)
-            .where(db.SpecialSchedule.stylist_id == stylist.id, db.SpecialSchedule.work_date >= timeutils.today())
-            .order_by(db.SpecialSchedule.work_date)
-        )).scalars().all()
-        schedule_map = {item.day_of_week: item for item in schedules}
-
-    await message.answer(
-        build_schedule_overview_text(stylist.name, schedule_map, special_dates),
-        reply_markup=get_schedule_management_kb(schedule_map),
-        parse_mode="HTML",
-    )
-
-
-@dp.callback_query(F.data == "schedule_weekly")
-async def back_to_weekly_schedule(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    await state.clear()
-    await render_schedule_overview(cb.message, stylist)
-    await cb.answer()
-
-
-@dp.callback_query(F.data == "schedule_special_dates")
-async def open_special_dates(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    await state.clear()
-    today = timeutils.today()
-    await render_special_dates_calendar(cb.message, stylist, today.year, today.month)
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("spec_cal_"))
-async def switch_special_dates_month(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    payload = cb.data[len("spec_cal_"):]
-    ym_part, _ = payload.rsplit("_", 1)
-    year_str, month_str = ym_part.split("-", 1)
-    await render_special_dates_calendar(cb.message, stylist, int(year_str), int(month_str))
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("specdate_"))
-async def open_special_date_details(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    payload = cb.data[len("specdate_"):]
-    target_date, _ = payload.rsplit("_", 1)
-    work_date = datetime.strptime(target_date, "%Y-%m-%d").date()
-
-    async with db.async_session() as session:
-        weekly_schedule = await session.scalar(
-            select(db.Schedule).where(
-                db.Schedule.stylist_id == stylist.id,
-                db.Schedule.day_of_week == work_date.isoweekday(),
-            )
-        )
-        special_schedule = await session.scalar(
-            select(db.SpecialSchedule).where(
-                db.SpecialSchedule.stylist_id == stylist.id,
-                db.SpecialSchedule.work_date == work_date,
-            )
-        )
-
-    await state.clear()
-    await cb.message.edit_text(
-        build_special_date_detail_text(target_date, weekly_schedule, special_schedule),
-        reply_markup=get_special_date_actions_kb(target_date, stylist.id, bool(special_schedule)),
-        parse_mode="HTML",
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("special_day_off_"))
-async def set_special_day_off(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    payload = cb.data[len("special_day_off_"):]
-    target_date, _ = payload.rsplit("_", 1)
-    work_date = datetime.strptime(target_date, "%Y-%m-%d").date()
-
-    async with db.async_session() as session:
-        special_schedule = await session.scalar(
-            select(db.SpecialSchedule).where(
-                db.SpecialSchedule.stylist_id == stylist.id,
-                db.SpecialSchedule.work_date == work_date,
-            )
-        )
-        if special_schedule:
-            special_schedule.is_day_off = True
-            special_schedule.start_time = None
-            special_schedule.end_time = None
-        else:
-            session.add(db.SpecialSchedule(stylist_id=stylist.id, work_date=work_date, is_day_off=True))
-        await session.commit()
-        weekly_schedule = await session.scalar(
-            select(db.Schedule).where(
-                db.Schedule.stylist_id == stylist.id,
-                db.Schedule.day_of_week == work_date.isoweekday(),
-            )
-        )
-
-    await state.clear()
-    await cb.message.edit_text(
-        build_special_date_detail_text(target_date, weekly_schedule, db.SpecialSchedule(work_date=work_date, is_day_off=True)),
-        reply_markup=get_special_date_actions_kb(target_date, stylist.id, True),
-        parse_mode="HTML",
-    )
-    await cb.answer("День отмечен как выходной.")
-
-
-@dp.callback_query(F.data.startswith("special_delete_"))
-async def delete_special_schedule(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    payload = cb.data[len("special_delete_"):]
-    target_date, stylist_id = payload.rsplit("_", 1)
-    work_date = datetime.strptime(target_date, "%Y-%m-%d").date()
-
-    async with db.async_session() as session:
-        special_schedule = await session.scalar(
-            select(db.SpecialSchedule).where(
-                db.SpecialSchedule.stylist_id == stylist.id,
-                db.SpecialSchedule.work_date == work_date,
-            )
-        )
-        if special_schedule:
-            await session.delete(special_schedule)
-            await session.commit()
-
-    await state.clear()
-    await cb.message.edit_text(
-        "Исключение удалено. Для этой даты снова работает недельный шаблон.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="⬅️ К календарю", callback_data=f"spec_cal_{target_date[:7]}_{stylist_id}"),
-        ]]),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("special_set_hours_"))
-async def start_special_hours_setup(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-    payload = cb.data[len("special_set_hours_"):]
-    target_date, _ = payload.rsplit("_", 1)
-    await state.update_data(target_date=target_date)
-    await state.set_state(SpecialDateForm.start_time)
-    await cb.message.edit_text(
-        f"{target_date}: выберите время начала работы.",
-        reply_markup=get_special_schedule_time_kb(target_date, "start"),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("special_back_start_"))
-async def special_back_to_start(cb: CallbackQuery, state: FSMContext):
-    target_date = cb.data[len("special_back_start_"):]
-    await state.update_data(target_date=target_date)
-    await state.set_state(SpecialDateForm.start_time)
-    await cb.message.edit_text(
-        f"{target_date}: выберите время начала работы.",
-        reply_markup=get_special_schedule_time_kb(target_date, "start"),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("special_start_"))
-async def process_special_start_time_choice(cb: CallbackQuery, state: FSMContext):
-    target_date, start_t = parse_special_callback_parts(cb.data, "special_start_")
-    await state.update_data(target_date=target_date, start_time=start_t)
-    await state.set_state(SpecialDateForm.end_time)
-    await cb.message.edit_text(
-        f"{target_date}: выберите время окончания работы.",
-        reply_markup=get_special_schedule_time_kb(target_date, "end", start_t),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("special_end_"))
-async def process_special_end_time_choice(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-
-    target_date, end_t = parse_special_callback_parts(cb.data, "special_end_")
-    data = await state.get_data()
-    start_t = data.get("start_time")
-
-    if not start_t or target_date != data.get("target_date"):
-        await state.clear()
-        await cb.answer("Сессия выбора времени истекла. Начните заново.", show_alert=True)
-        return
-
-    work_date = datetime.strptime(target_date, "%Y-%m-%d").date()
-    async with db.async_session() as session:
-        special_schedule = await session.scalar(
-            select(db.SpecialSchedule).where(
-                db.SpecialSchedule.stylist_id == stylist.id,
-                db.SpecialSchedule.work_date == work_date,
-            )
-        )
-        if special_schedule:
-            special_schedule.is_day_off = False
-            special_schedule.start_time = start_t
-            special_schedule.end_time = end_t
-        else:
-            session.add(db.SpecialSchedule(
-                stylist_id=stylist.id,
-                work_date=work_date,
-                start_time=start_t,
-                end_time=end_t,
-                is_day_off=False,
-            ))
-        await session.commit()
-
-        weekly_schedule = await session.scalar(
-            select(db.Schedule).where(
-                db.Schedule.stylist_id == stylist.id,
-                db.Schedule.day_of_week == work_date.isoweekday(),
-            )
-        )
-        saved_special = await session.scalar(
-            select(db.SpecialSchedule).where(
-                db.SpecialSchedule.stylist_id == stylist.id,
-                db.SpecialSchedule.work_date == work_date,
-            )
-        )
-
-    await state.clear()
-    await cb.message.edit_text(
-        build_special_date_detail_text(target_date, weekly_schedule, saved_special),
-        reply_markup=get_special_date_actions_kb(target_date, stylist.id, True),
-        parse_mode="HTML",
-    )
-    await cb.answer(f"На {target_date} сохранены часы: {start_t}-{end_t}")
-
-
-@dp.callback_query(F.data.startswith("set_day_off_"))
-async def set_day_off(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-
-    day_of_week = int(cb.data.split("_")[-1])
-    async with db.async_session() as session:
-        existing_schedule = await session.scalar(select(db.Schedule).where(db.Schedule.stylist_id == stylist.id, db.Schedule.day_of_week == day_of_week))
-        if existing_schedule:
-            await session.delete(existing_schedule)
-            await session.commit()
-    await state.clear()
-    await render_schedule_overview(cb.message, stylist)
-    await cb.answer(f"{DAY_LABELS[day_of_week]} теперь выходной")
-
-
-@dp.callback_query(F.data.startswith("set_day_"))
-async def process_day_of_week(cb: CallbackQuery, state: FSMContext):
-    day_of_week = int(cb.data.split("_")[-1])
-    await state.update_data(day_of_week=day_of_week)
-    await state.set_state(ScheduleForm.start_time)
-    await cb.message.edit_text(
-        f"{DAY_LABELS[day_of_week]}: выберите время начала работы.",
-        reply_markup=get_schedule_time_kb(day_of_week, "start"),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("schedule_back_start_"))
-async def schedule_back_to_start(cb: CallbackQuery, state: FSMContext):
-    day_of_week = int(cb.data.split("_")[-1])
-    await state.update_data(day_of_week=day_of_week)
-    await state.set_state(ScheduleForm.start_time)
-    await cb.message.edit_text(
-        f"{DAY_LABELS[day_of_week]}: выберите время начала работы.",
-        reply_markup=get_schedule_time_kb(day_of_week, "start"),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("schedule_start_"))
-async def process_start_time_choice(cb: CallbackQuery, state: FSMContext):
-    _, _, day_str, start_t = cb.data.split("_", 3)
-    day_of_week = int(day_str)
-    await state.update_data(day_of_week=day_of_week, start_time=start_t)
-    await state.set_state(ScheduleForm.end_time)
-    await cb.message.edit_text(
-        f"{DAY_LABELS[day_of_week]}: выберите время окончания работы.",
-        reply_markup=get_schedule_time_kb(day_of_week, "end", start_t),
-    )
-    await cb.answer()
-
-
-@dp.callback_query(F.data.startswith("schedule_end_"))
-async def process_end_time_choice(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-
-    _, _, day_str, end_t = cb.data.split("_", 3)
-    data = await state.get_data()
-    day = int(day_str)
-    start_t = data.get("start_time")
-
-    if not start_t or day != data.get("day_of_week"):
-        await state.clear()
-        await cb.answer("Сессия выбора времени истекла. Начните заново.", show_alert=True)
-        return
-
-    async with db.async_session() as session:
-        existing_schedule = await session.scalar(select(db.Schedule).where(db.Schedule.stylist_id == stylist.id, db.Schedule.day_of_week == day))
-        if existing_schedule:
-            existing_schedule.start_time = start_t
-            existing_schedule.end_time = end_t
-        else:
-            session.add(db.Schedule(stylist_id=stylist.id, day_of_week=day, start_time=start_t, end_time=end_t))
-        await session.commit()
-
-    await state.clear()
-    await render_schedule_overview(cb.message, stylist)
-    await cb.answer(f"График на {DAY_LABELS[day]} сохранён: {start_t}-{end_t}")
-
-
-@dp.message(ScheduleForm.start_time)
-async def process_start_time(message: Message, state: FSMContext):
-    data = await state.get_data()
-    day = data.get("day_of_week")
-    if not day:
-        await state.clear()
-        await message.answer("\u0421\u0435\u0441\u0441\u0438\u044f \u0432\u044b\u0431\u043e\u0440\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u0438\u0441\u0442\u0435\u043a\u043b\u0430. \u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u0437\u0430\u043d\u043e\u0432\u043e.")
-        return
-    await message.answer(
-        f"{DAY_LABELS[day]}: \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0440\u0435\u043c\u044f \u043d\u0430\u0447\u0430\u043b\u0430 \u0440\u0430\u0431\u043e\u0442\u044b \u043a\u043d\u043e\u043f\u043a\u0430\u043c\u0438 \u043d\u0438\u0436\u0435.",
-        reply_markup=get_schedule_time_kb(day, "start"),
-    )
-
-
-@dp.message(ScheduleForm.end_time)
-async def process_end_time(message: Message, state: FSMContext):
-    data = await state.get_data()
-    day = data.get("day_of_week")
-    start_t = data.get("start_time")
-    if not day or not start_t:
-        await state.clear()
-        await message.answer("\u0421\u0435\u0441\u0441\u0438\u044f \u0432\u044b\u0431\u043e\u0440\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u0438 \u0438\u0441\u0442\u0435\u043a\u043b\u0430. \u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u0437\u0430\u043d\u043e\u0432\u043e.")
-        return
-    await message.answer(
-        f"{DAY_LABELS[day]}: \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0440\u0435\u043c\u044f \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f \u0440\u0430\u0431\u043e\u0442\u044b \u043a\u043d\u043e\u043f\u043a\u0430\u043c\u0438 \u043d\u0438\u0436\u0435.",
-        reply_markup=get_schedule_time_kb(day, "end", start_t),
-    )
-
-
-@dp.message(F.text == "✂️ Мои услуги")
-async def manage_services(message: Message):
-    user, stylist = await ensure_active_stylist_message(message)
-    if not (user and stylist):
-        return
-
-    async with db.async_session() as session:
-        query = select(db.Service).where(db.Service.stylist_id == stylist.id).options(joinedload(db.Service.catalog_service))
-        services = (await session.execute(query)).scalars().all()
-    if services:
-        response_text = "<b>\u0412\u0430\u0448\u0438 \u0443\u0441\u043b\u0443\u0433\u0438:</b>\n\u041a\u043b\u0438\u0435\u043d\u0442\u044b \u0432\u0438\u0434\u044f\u0442 \u0446\u0435\u043d\u0443 \u0438 \u0434\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c.\n\n"
-    else:
-        response_text = "\u0423 \u0432\u0430\u0441 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0443\u0441\u043b\u0443\u0433. \u0414\u0430\u0432\u0430\u0439\u0442\u0435 \u0441\u043e\u0437\u0434\u0430\u0434\u0438\u043c \u043f\u0435\u0440\u0432\u0443\u044e.\n\n"
-    for s in services:
-        response_text += f"\u2022 {s.catalog_service.name} - {s.price:,.0f} so'm ({s.duration_min} \u043c\u0438\u043d)\n"
-    kb_builder = []
-    for s in services:
-        kb_builder.append([InlineKeyboardButton(text=f"\u0423\u0434\u0430\u043b\u0438\u0442\u044c: {s.catalog_service.name}", callback_data=f"del_srv_{s.id}")])
-    kb_builder.append([InlineKeyboardButton(text="\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u0432\u0443\u044e \u0443\u0441\u043b\u0443\u0433\u0443", callback_data="add_service")])
-    keyboard = InlineKeyboardMarkup(inline_keyboard=kb_builder)
-    await message.answer(response_text, reply_markup=keyboard, parse_mode="HTML")
-
-@dp.callback_query(F.data.startswith("del_srv_"))
-async def delete_service(cb: CallbackQuery):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        return
-
-    service_id = int(cb.data.split("_")[2])
-    async with db.async_session() as session:
-        try:
-            service = await session.get(db.Service, service_id)
-            if service and service.stylist_id == stylist.id:
-                await session.delete(service)
-                await session.commit()
-                await cb.answer("✅ Услуга успешно удалена", show_alert=True)
-                # Обновляем список услуг
-                await manage_services(cb.message) 
-            else:
-                await cb.answer("❌ Ошибка: услуга не найдена", show_alert=True)
-        except Exception as e:
-            await session.rollback()
-            # Если есть связанные записи, выскочит ошибка
-            await cb.answer("⚠️ Нельзя удалить услугу, на которую уже есть записи! Сначала удалите записи в профиле.", show_alert=True)
-            logging.error(f"Ошибка удаления услуги: {e}")
-
-@dp.callback_query(F.data == "add_service")
-async def add_service_start(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-
-    async with db.async_session() as session:
-        catalog_services = (await session.execute(select(db.CatalogService))).scalars().all()
-    btns = [[InlineKeyboardButton(text=s.name, callback_data=f"cat_srv_{s.id}")] for s in catalog_services]
-    btns.append([InlineKeyboardButton(text="Отмена", callback_data="cancel_fsm")])
-    await state.set_state(ServiceForm.name)
-    await cb.message.edit_text("Выберите тип услуги из каталога:", reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
-    await cb.answer()
-
-@dp.callback_query(ServiceForm.name, F.data.startswith("cat_srv_"))
-async def process_service_catalog_choice(cb: CallbackQuery, state: FSMContext):
-    catalog_id = int(cb.data.split("_")[2])
-    await state.update_data(catalog_id=catalog_id)
-    await state.set_state(ServiceForm.price)
-    await cb.message.edit_text("\u0422\u0435\u043f\u0435\u0440\u044c \u0443\u043a\u0430\u0436\u0438\u0442\u0435 \u0432\u0430\u0448\u0443 \u0446\u0435\u043d\u0443 \u0434\u043b\u044f \u044d\u0442\u043e\u0439 \u0443\u0441\u043b\u0443\u0433\u0438. \u0422\u043e\u043b\u044c\u043a\u043e \u0446\u0438\u0444\u0440\u044b:")
-    await cb.answer()
-
-
-@dp.message(ServiceForm.price)
-async def process_service_price(message: Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer("\u041e\u0448\u0438\u0431\u043a\u0430. \u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0446\u0435\u043d\u0443 \u0442\u043e\u043b\u044c\u043a\u043e \u0446\u0438\u0444\u0440\u0430\u043c\u0438.")
-        return
-    await state.update_data(price=int(message.text))
-    await state.set_state(ServiceForm.duration)
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="30 \u043c\u0438\u043d\u0443\u0442", callback_data="dur_30"), InlineKeyboardButton(text="45 \u043c\u0438\u043d\u0443\u0442", callback_data="dur_45")],
-        [InlineKeyboardButton(text="60 \u043c\u0438\u043d\u0443\u0442", callback_data="dur_60"), InlineKeyboardButton(text="90 \u043c\u0438\u043d\u0443\u0442", callback_data="dur_90")],
-    ])
-    await message.answer("\u0426\u0435\u043d\u0430 \u043f\u0440\u0438\u043d\u044f\u0442\u0430. \u0422\u0435\u043f\u0435\u0440\u044c \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c \u0443\u0441\u043b\u0443\u0433\u0438:", reply_markup=kb)
-
-
-@dp.callback_query(ServiceForm.duration, F.data.startswith("dur_"))
-async def process_service_duration_choice(cb: CallbackQuery, state: FSMContext):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        await state.clear()
-        return
-
-    duration = int(cb.data.split("_")[1])
-    data = await state.get_data()
-    async with db.async_session() as session:
-        catalog_service = await session.get(db.CatalogService, data["catalog_id"])
-        new_service = db.Service(catalog_service_id=data["catalog_id"], price=data["price"], duration_min=duration, stylist_id=stylist.id)
-        session.add(new_service)
-        await session.commit()
-    await cb.message.delete()
-    keyboard = await get_main_keyboard(cb.from_user.id)
-    await cb.message.answer(f"Новая услуга '{catalog_service.name}' успешно добавлена.", reply_markup=keyboard)
-    await state.clear()
-    await cb.answer()
-
-@dp.message(F.text == "📊 Моя статистика")
-async def show_stats_menu(message: Message):
-    user, stylist = await ensure_active_stylist_message(message)
-    if not (user and stylist):
-        return
-
-    async with db.async_session() as session:
-        fav_count = await session.scalar(select(func.count(db.Favorite.id)).where(db.Favorite.stylist_id == stylist.id))
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="\u0417\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f", callback_data="stats_today")],
-        [InlineKeyboardButton(text="\u0417\u0430 \u0432\u0447\u0435\u0440\u0430", callback_data="stats_yesterday")],
-        [InlineKeyboardButton(text="\u0417\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 7 \u0434\u043d\u0435\u0439", callback_data="stats_7_days")],
-    ])
-    await message.answer(
-        f"<b>\u0412\u0430\u0441 \u0434\u043e\u0431\u0430\u0432\u0438\u043b\u0438 \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435 {fav_count} \u0440\u0430\u0437(\u0430).</b>\n\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043f\u0435\u0440\u0438\u043e\u0434 \u0434\u043b\u044f \u043e\u0442\u0447\u0451\u0442\u0430:",
-        reply_markup=kb,
-        parse_mode="HTML",
-    )
-
-@dp.callback_query(F.data.startswith("stats_"))
-async def get_statistics(cb: CallbackQuery):
-    user, stylist = await ensure_active_stylist_callback(cb)
-    if not (user and stylist):
-        return
-
-    period = cb.data.split("_")[1]
-    today = timeutils.today()
-    if period == "today":
-        start_date = today
-        end_date = today + timedelta(days=1)
-        period_text = "\u0441\u0435\u0433\u043e\u0434\u043d\u044f"
-    elif period == "yesterday":
-        start_date = today - timedelta(days=1)
-        end_date = today
-        period_text = "\u0432\u0447\u0435\u0440\u0430"
-    elif period == "7":
-        start_date = today - timedelta(days=7)
-        end_date = today + timedelta(days=1)
-        period_text = "\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 7 \u0434\u043d\u0435\u0439"
-    else:
-        await cb.answer("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0439 \u043f\u0435\u0440\u0438\u043e\u0434.")
-        return
-
-    # start_date/end_date заданы в днях, а запросы сравнивают моменты времени.
-    period_start, period_end = timeutils.range_bounds(start_date, end_date - timedelta(days=1))
-
-    async with db.async_session() as session:
-        pending_count = await session.scalar(
-            select(func.count(db.Booking.id)).where(
-                db.Booking.stylist_id == stylist.id,
-                db.Booking.status == BOOKING_PENDING,
-                db.Booking.starts_at >= period_start,
-                db.Booking.starts_at < period_end,
-            )
-        ) or 0
-        approved_count = await session.scalar(
-            select(func.count(db.Booking.id)).where(
-                db.Booking.stylist_id == stylist.id,
-                db.Booking.status == BOOKING_APPROVED,
-                db.Booking.starts_at >= period_start,
-                db.Booking.starts_at < period_end,
-            )
-        ) or 0
-        completed_count = await session.scalar(
-            select(func.count(db.Booking.id)).where(
-                db.Booking.stylist_id == stylist.id,
-                db.Booking.status == BOOKING_COMPLETED,
-                db.Booking.starts_at >= period_start,
-                db.Booking.starts_at < period_end,
-            )
-        ) or 0
-        revenue = await session.scalar(
-            select(func.coalesce(func.sum(db.Service.price), 0))
-            .select_from(db.Booking)
-            .join(db.Service, db.Service.id == db.Booking.service_id)
-            .where(
-                db.Booking.stylist_id == stylist.id,
-                db.Booking.status.in_((BOOKING_APPROVED, BOOKING_COMPLETED)),
-                db.Booking.starts_at >= period_start,
-                db.Booking.starts_at < period_end,
-            )
-        ) or 0
-
-    total_count = pending_count + approved_count + completed_count
-    await cb.message.edit_text(
-        f"<b>\u041e\u0442\u0447\u0451\u0442 \u0437\u0430 {period_text}:</b>\n\n"
-        f"\u0412\u0441\u0435\u0433\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439: {total_count}\n"
-        f"\u041d\u043e\u0432\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438: {pending_count}\n"
-        f"\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043d\u043d\u044b\u0435: {approved_count}\n"
-        f"\u0417\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u044b\u0435: {completed_count}\n"
-        f"\u0414\u043e\u0445\u043e\u0434: {revenue:,.0f} so'm",
-        parse_mode="HTML",
-    )
-    await cb.answer()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @dp.callback_query(F.data.startswith("rate_"))
 async def handle_rating(cb: CallbackQuery):
@@ -2421,34 +1541,18 @@ async def handle_unexpected_error(event: ErrorEvent) -> bool:
     return True
 
 
-@dp.message()
-async def fallback_message(message: Message, state: FSMContext):
-    """
-    Всё, что не подошло ни одному хендлеру выше. Без этого бот молчит
-    в ответ на произвольный текст, и пользователь не понимает, что делать.
-    """
-    if await state.get_state() is not None:
-        # Мы внутри сценария — подсказываем, что ожидается, и не сбрасываем состояние.
-        lang = await get_user_lang(message.from_user.id)
-        await message.answer(
-            {
-                "ru": "Не понял ответ. Воспользуйтесь кнопками выше или отправьте /start, чтобы начать заново.",
-                "uz": "Javobni tushunmadim. Yuqoridagi tugmalardan foydalaning yoki qaytadan boshlash uchun /start yuboring.",
-            }[lang]
-        )
-        return
-
-    lang = await get_user_lang(message.from_user.id)
-    await message.answer(
-        {
-            "ru": "Я понимаю только кнопки меню. Выберите действие ниже.",
-            "uz": "Men faqat menyu tugmalarini tushunaman. Quyidan amalni tanlang.",
-        }[lang],
-        reply_markup=await get_main_keyboard(message.from_user.id),
-    )
 
 
 # --- start ---
+def register_routers() -> None:
+    """Порядок подключения = порядок проверки фильтров."""
+    for router in handlers.ROUTERS:
+        dp.include_router(router)
+
+
+register_routers()
+
+
 async def main():
     await db.run_migrations()
 
