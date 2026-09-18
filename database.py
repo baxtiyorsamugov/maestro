@@ -1,25 +1,17 @@
 # Файл: database.py
+import asyncio
 import datetime
-import os
-from dotenv import load_dotenv
-from sqlalchemy import DateTime, Date, Boolean, select, func, UniqueConstraint
+from pathlib import Path
 
-load_dotenv()
+from sqlalchemy import DateTime, Date, Boolean, Index, select, func, UniqueConstraint
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import BigInteger, String, ForeignKey, Float, Integer
 
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_USER = os.getenv("DB_USER")
-DB_PASS = os.getenv("DB_PASS")
-DB_NAME = os.getenv("DB_NAME")
+from config import load_database_settings
 
-if DB_PASS is None:
-    DB_PASS = ""
-
-DATABASE_URL = f"mysql+aiomysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = load_database_settings().url
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_recycle=60)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -90,6 +82,8 @@ class Stylist(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True, unique=True)
 
     avg_rating: Mapped[float] = mapped_column(Float, default=0.0)
+    # Денормализация: число оценок нужно и в карточке, и в сортировке поиска.
+    reviews_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     # --- ИСПРАВЛЕНИЯ ЗДЕСЬ ---
     # Связь №1: Обратная прямая связь с аккаунтом User
@@ -152,6 +146,14 @@ class Booking(Base):
     stylist = relationship("Stylist")
     service = relationship("Service")
 
+    # Индексы под самые частые запросы: расписание мастера на дату, записи клиента,
+    # выборки по статусу в шедулере и на дашборде.
+    __table_args__ = (
+        Index("ix_bookings_stylist_datetime", "stylist_id", "datetime"),
+        Index("ix_bookings_user_datetime", "user_id", "datetime"),
+        Index("ix_bookings_status", "status"),
+    )
+
 
 # Таблица Расписания Мастеров
 class Schedule(Base):
@@ -166,6 +168,8 @@ class Schedule(Base):
     end_time: Mapped[str] = mapped_column(String(5))
 
     stylist = relationship("Stylist")
+
+    __table_args__ = (Index("ix_schedules_stylist_day", "stylist_id", "day_of_week"),)
 
 
 class SpecialSchedule(Base):
@@ -194,6 +198,30 @@ class Portfolio(Base):
     telegram_photo_file_id: Mapped[str] = mapped_column(String(255))
 
 
+def _run_alembic_upgrade() -> None:
+    """Синхронный прогон миграций. Вызывается из потока, чтобы не блокировать loop."""
+    from alembic import command
+    from alembic.config import Config
+
+    root = Path(__file__).resolve().parent
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(root / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    command.upgrade(cfg, "head")
+
+
+async def run_migrations() -> None:
+    """
+    Приводит схему к последней миграции. Источник правды по схеме — Alembic,
+    а не create_all(): create_all не умеет добавлять колонки к существующим таблицам.
+    """
+    await asyncio.to_thread(_run_alembic_upgrade)
+
+
 async def create_tables():
+    """
+    Устаревшее: оставлено для тестов и локальных скриптов.
+    В приложении используйте run_migrations().
+    """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
