@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from html import escape
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage  # Хранилище состояний в памяти
@@ -790,13 +790,27 @@ def get_language_switch_kb(current_lang: str, prefix: str = "change_lang") -> In
     ])
 
 
-async def finish_registration(message: Message, user: db.User):
+async def finish_registration(
+    message: Message, user: db.User, pending_stylist_id: int | None = None
+):
+    """
+    Завершение регистрации. Если пользователь пришёл по ссылке на мастера,
+    сразу показываем его карточку — иначе переход из рассылки теряется
+    и человек оказывается в общем меню, не понимая, зачем нажимал.
+    """
     keyboard = await get_main_keyboard(message.from_user.id)
     lang = user.language_code or "ru"
     await message.answer(
         get_registration_text("registration_done", lang),
         reply_markup=keyboard,
     )
+
+    if pending_stylist_id:
+        logging.info(
+            "deeplink.resumed user_id=%s stylist_id=%s",
+            message.from_user.id, pending_stylist_id,
+        )
+        await send_stylist_card(message, pending_stylist_id, lang)
 
 
 async def prompt_registration_step(message: Message, user: db.User | None, state: FSMContext):
@@ -892,11 +906,49 @@ async def get_main_keyboard(user_id: int):
 
 
 # --- Start / Registration ---
+def parse_start_payload(raw: str | None) -> int | None:
+    """
+    Параметр диплинка https://t.me/<bot>?start=<payload>.
+
+    Поддерживаются "12" и "stylist_12": второй вид оставляет место
+    для других типов ссылок в будущем. Мусор игнорируется молча —
+    пользователь просто попадёт в обычное меню.
+    """
+    if not raw:
+        return None
+    value = raw.strip()
+    if value.startswith("stylist_"):
+        value = value[len("stylist_"):]
+    if not value.isdigit():
+        return None
+    stylist_id = int(value)
+    return stylist_id if stylist_id > 0 else None
+
+
 @dp.message(Command("start"))
-async def start(message: Message, state: FSMContext):
-    await state.clear() # ДОБАВЬ ЭТУ СТРОКУ
+async def start(message: Message, state: FSMContext, command: CommandObject | None = None):
+    await state.clear()
     async with db.async_session() as session:
         user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
+
+    stylist_id = parse_start_payload(command.args if command else None)
+
+    # Незарегистрированного сначала проводим через регистрацию, но мастера
+    # запоминаем: иначе переход по ссылке из рассылки теряется.
+    if stylist_id and not (user and (user.role == "stylist" or is_registration_complete(user))):
+        await state.update_data(pending_stylist_id=stylist_id)
+        await prompt_registration_step(message, user, state)
+        return
+
+    if stylist_id:
+        lang = user.language_code if user and user.language_code else "ru"
+        logging.info("deeplink.stylist user_id=%s stylist_id=%s", message.from_user.id, stylist_id)
+        await message.answer(
+            {"ru": "Открываю карточку мастера...", "uz": "Maestro kartasi ochilmoqda..."}[lang],
+            reply_markup=await get_main_keyboard(message.from_user.id),
+        )
+        if await send_stylist_card(message, stylist_id, lang):
+            return
 
     await prompt_registration_step(message, user, state)
 
@@ -1005,8 +1057,10 @@ async def process_registration_contact(message: Message, state: FSMContext):
 
         user.phone_number = normalize_phone_number(message.contact.phone_number) or message.contact.phone_number
         await session.commit()
-        await state.clear()
-        await finish_registration(message, user)
+
+    pending_stylist_id = (await state.get_data()).get("pending_stylist_id")
+    await state.clear()
+    await finish_registration(message, user, pending_stylist_id)
 
 
 @dp.message(RegistrationForm.phone_number, F.text)
@@ -1049,8 +1103,10 @@ async def process_registration_phone_text(message: Message, state: FSMContext):
 
         user.phone_number = normalized_phone
         await session.commit()
-        await state.clear()
-        await finish_registration(message, user)
+
+    pending_stylist_id = (await state.get_data()).get("pending_stylist_id")
+    await state.clear()
+    await finish_registration(message, user, pending_stylist_id)
 
 
 # --- ПОИСК И ФИЛЬТРЫ (ВЕРСИЯ 3.0 - ФИНАЛЬНАЯ) ---
@@ -1319,45 +1375,86 @@ async def show_stylists(cb: CallbackQuery):
     )
     await cb.answer()
 
+async def load_stylist_card(stylist_id: int, lang: str):
+    """
+    Данные карточки мастера: сама карточка, клавиатура и фото портфолио.
+    Возвращает (None, причина) если мастера нет или он закрыт для записи.
+    """
+    async with db.async_session() as session:
+        stylist = await session.scalar(
+            select(db.Stylist)
+            .where(db.Stylist.id == stylist_id)
+            .options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
+        )
+        if not stylist:
+            return None, {'ru': 'Мастер не найден.', 'uz': 'Maestro topilmadi.'}[lang]
+        if not is_stylist_subscription_active(stylist.user_account):
+            return None, {
+                'ru': 'Этот мастер временно недоступен для записи.',
+                'uz': 'Bu maestro hozircha yozuv uchun yopiq.',
+            }[lang]
+
+        photos = (await session.execute(
+            select(db.Portfolio)
+            .where(db.Portfolio.stylist_id == stylist.id)
+            .order_by(db.Portfolio.id.desc())
+            .limit(3)
+        )).scalars().all()
+
+        rating_text = (
+            ("★ " * int(round(stylist.avg_rating)))
+            if stylist.avg_rating > 0
+            else {'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang]
+        )
+        if stylist.reviews_count:
+            rating_text += f" ({stylist.reviews_count})"
+
+        caption = (
+            f"<b>{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]}: {escape(stylist.name)}</b>\n"
+            f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n\n"
+            f"<b>{({'ru': 'Салон', 'uz': 'Salon'})[lang]}:</b> {escape(stylist.barbershop.name)}\n"
+            f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {escape(stylist.barbershop.district)}\n"
+            f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {escape(stylist.barbershop.address)}"
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
+            [InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
+            [InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
+        ])
+
+    return {"caption": caption, "keyboard": kb, "photos": photos}, None
+
+
+async def send_stylist_card(message: Message, stylist_id: int, lang: str) -> bool:
+    """Отправляет карточку мастера новым сообщением. False — если показать нечего."""
+    card, error = await load_stylist_card(stylist_id, lang)
+    if not card:
+        await message.answer(error)
+        return False
+
+    if card["photos"]:
+        await message.answer_media_group(
+            media=[InputMediaPhoto(media=p.telegram_photo_file_id) for p in card["photos"]]
+        )
+    await message.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
+    return True
+
+
 @dp.callback_query(F.data.startswith("stylist_"))
 async def show_maestro_card(cb: CallbackQuery):
     lang = await get_user_lang(cb.from_user.id)
     stylist_id = int(cb.data.split("_")[1])
-    await cb.message.edit_text({'ru': 'Профиль мастера загружается...', 'uz': 'Maestro profili yuklanmoqda...'}[lang])
 
-    async with db.async_session() as session:
-        query = select(db.Stylist).where(db.Stylist.id == stylist_id).options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
-        stylist = await session.scalar(query)
-        if not stylist:
-            await cb.answer({'ru': 'Мастер не найден.', 'uz': 'Maestro topilmadi.'}[lang], show_alert=True)
-            return
-        if not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({'ru': 'Этот мастер временно недоступен для записи.', 'uz': 'Bu maestro hozircha yozuv uchun yopiq.'}[lang], show_alert=True)
-            return
-        photos = (await session.execute(
-            select(db.Portfolio).where(db.Portfolio.stylist_id == stylist.id).order_by(db.Portfolio.id.desc()).limit(3)
-        )).scalars().all()
+    card, error = await load_stylist_card(stylist_id, lang)
+    if not card:
+        await cb.answer(error, show_alert=True)
+        return
 
-    rating_text = ("★ " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang])
-    caption = (
-        f"<b>{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]}: {escape(stylist.name)}</b>\n"
-        f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n\n"
-        f"<b>{({'ru': 'Салон', 'uz': 'Salon'})[lang]}:</b> {stylist.barbershop.name}\n"
-        f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {stylist.barbershop.district}\n"
-        f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {stylist.barbershop.address}"
-    )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
-        [InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
-        [InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
-    ])
-
-    if photos:
-        media_group = [InputMediaPhoto(media=p.telegram_photo_file_id) for p in photos]
-        await cb.message.answer_media_group(media=media_group)
-        await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
-    else:
-        await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
+    if card["photos"]:
+        await cb.message.answer_media_group(
+            media=[InputMediaPhoto(media=p.telegram_photo_file_id) for p in card["photos"]]
+        )
+    await cb.message.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
 
     await cb.message.delete()
     await cb.answer()

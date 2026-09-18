@@ -75,6 +75,7 @@ async def check_follow_ups(bot: Bot):
     # Ищем записи, которые были завершены ровно 20 дней назад
     target_day = (timeutils.now() - timedelta(days=20)).date()
     day_start, day_end = timeutils.day_bounds(target_day)
+    bot_username = (await bot.get_me()).username
 
     async with db.async_session() as session:
         query = select(db.Booking).where(
@@ -95,8 +96,9 @@ async def check_follow_ups(bot: Bot):
                 continue
 
             lang = b.user.language_code or "ru"
-            # Ссылка сразу на этого же мастера
-            link = f"https://t.me/maestro_bot?start={b.stylist_id}"
+            # Ссылка сразу на этого же мастера. Имя бота берём у самого бота:
+            # захардкоженное значение молча ломается при переименовании.
+            link = f"https://t.me/{bot_username}?start=stylist_{b.stylist_id}"
             
             text = {
                 "uz": f"Salom, {b.user.first_name}! 👋\nOxirgi marta {b.stylist.name} bilan ko'rishganingizdan beri 20 kun o'tdi. Balki yangilanish vaqti kelgandir?\n👉 Yozilish: {link}",
