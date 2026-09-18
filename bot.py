@@ -30,6 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload  # Важный импорт
 
 import database as db
+import middlewares
 import scheduler
 import texts
 import timeutils
@@ -64,6 +65,12 @@ def build_storage():
 storage = build_storage()
 bot = Bot(token=get_required_env("BOT_TOKEN"))
 dp = Dispatcher(storage=storage)
+
+# Антифлуд. Регистрируется на оба типа апдейтов: быстрые повторные нажатия
+# порождают параллельные запросы к базе и дублирующие уведомления.
+throttling = middlewares.ThrottlingMiddleware()
+dp.message.middleware(throttling)
+dp.callback_query.middleware(throttling)
 
 # --- Состояние сценария записи ---
 # Раньше здесь были глобальные словари booking_cache/search_cache. Они терялись
