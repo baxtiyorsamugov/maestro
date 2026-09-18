@@ -15,11 +15,13 @@ jobs:
     name: Быстрые проверки
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
 
       # Проект однажды потерял 35 строк интерфейса из-за записи файла
-      # в неверной кодировке (docs/AUDIT.md, A-1). Эта проверка не даёт повториться.
-      # Повреждённая кириллица и суррогатные пары. Проверяются разобранные
+      # в неверной кодировке (docs/AUDIT.md, A-1). Проверяются разобранные
       # строковые литералы, а не текст файла: иначе проверка спотыкается
       # о собственную документацию, где эти примеры упомянуты.
       - name: Кодировка исходников
@@ -45,8 +47,8 @@ jobs:
     name: Линтер
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -62,8 +64,8 @@ jobs:
         # 3.11 — заявленный минимум, 3.12 стоит на боевом хостинге.
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
