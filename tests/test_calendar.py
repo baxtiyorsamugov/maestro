@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 import bot
 import database as db
+import timeutils
 
 
 def _future_month() -> tuple[int, int]:
@@ -104,7 +105,8 @@ class TestAvailableDates:
                 user_id=fixture_data["client_user"].id,
                 stylist_id=fixture_data["stylist"].id,
                 service_id=fixture_data["service"].id,
-                datetime=f"{busy_day.strftime('%Y-%m-%d')} 10:00",
+                starts_at=timeutils.combine(busy_day, "10:00"),
+                ends_at=timeutils.combine(busy_day, "11:00"),
                 status=db.BOOKING_APPROVED,
             )
         )
@@ -126,7 +128,8 @@ class TestAvailableDates:
                 user_id=fixture_data["client_user"].id,
                 stylist_id=fixture_data["stylist"].id,
                 service_id=fixture_data["service"].id,
-                datetime=f"{day.strftime('%Y-%m-%d')} 10:00",
+                starts_at=timeutils.combine(day, "10:00"),
+                ends_at=timeutils.combine(day, "11:00"),
                 status=db.BOOKING_DECLINED,
             )
         )

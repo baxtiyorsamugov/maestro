@@ -4,15 +4,20 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from datetime import timedelta
+
 import database as db
+import timeutils
 
 
-def _booking(fixture_data, when: str, status: str = "pending") -> db.Booking:
+def _booking(fixture_data, when: str, status: str = db.BOOKING_PENDING) -> db.Booking:
+    starts_at = timeutils.parse_slot(when)
     return db.Booking(
         user_id=fixture_data["client_user"].id,
         stylist_id=fixture_data["stylist"].id,
         service_id=fixture_data["service"].id,
-        datetime=when,
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(minutes=fixture_data["service"].duration_min),
         status=status,
     )
 
@@ -29,7 +34,7 @@ class TestSlotUniqueness:
 
     async def test_approved_also_blocks_the_slot(self, fixture_data):
         session = fixture_data["session"]
-        session.add(_booking(fixture_data, "2099-01-01 12:00", status="approved"))
+        session.add(_booking(fixture_data, "2099-01-01 12:00", status=db.BOOKING_APPROVED))
 
         with pytest.raises(IntegrityError):
             await session.commit()
@@ -37,7 +42,7 @@ class TestSlotUniqueness:
 
     async def test_declined_slot_can_be_booked_again(self, fixture_data):
         session = fixture_data["session"]
-        fixture_data["booking"].status = "declined"
+        fixture_data["booking"].status = db.BOOKING_DECLINED
         await session.commit()
 
         session.add(_booking(fixture_data, "2099-01-01 12:00"))
@@ -45,7 +50,7 @@ class TestSlotUniqueness:
 
     async def test_cancelled_slot_can_be_booked_again(self, fixture_data):
         session = fixture_data["session"]
-        fixture_data["booking"].status = "cancelled"
+        fixture_data["booking"].status = db.BOOKING_CANCELLED
         await session.commit()
 
         session.add(_booking(fixture_data, "2099-01-01 12:00"))
@@ -65,13 +70,15 @@ class TestSlotUniqueness:
         session.add(other_stylist)
         await session.flush()
 
+        other_starts = timeutils.parse_slot("2099-01-01 12:00")
         session.add(
             db.Booking(
                 user_id=fixture_data["client_user"].id,
                 stylist_id=other_stylist.id,
                 service_id=fixture_data["service"].id,
-                datetime="2099-01-01 12:00",
-                status="pending",
+                starts_at=other_starts,
+                ends_at=other_starts + timedelta(minutes=60),
+                status=db.BOOKING_PENDING,
             )
         )
         await session.commit()
@@ -83,11 +90,13 @@ class TestReviewsCount:
 
         session = fixture_data["session"]
         fixture_data["booking"].rating = 5
-        session.add(_booking(fixture_data, "2099-02-01 12:00", status="completed"))
+        session.add(_booking(fixture_data, "2099-02-01 12:00", status=db.BOOKING_COMPLETED))
         await session.flush()
 
         second = await session.scalar(
-            db.select(db.Booking).where(db.Booking.datetime == "2099-02-01 12:00")
+            db.select(db.Booking).where(
+                db.Booking.starts_at == timeutils.parse_slot("2099-02-01 12:00")
+            )
         )
         second.rating = 3
         await session.commit()

@@ -1,7 +1,10 @@
 """
 Тесты правил доступа к записям (docs/AUDIT.md, A-2) и пересчёта рейтинга (A-3).
 """
+from datetime import timedelta
+
 import bot
+import timeutils
 
 
 class TestStylistAccess:
@@ -76,12 +79,14 @@ class TestRatingRecalculation:
         session = fixture_data["session"]
         fixture_data["booking"].rating = 5
 
+        second_starts = timeutils.parse_slot("2099-01-02 12:00")
         second = db.Booking(
             user_id=fixture_data["client_user"].id,
             stylist_id=fixture_data["stylist"].id,
             service_id=fixture_data["service"].id,
-            datetime="2099-01-02 12:00",
-            status="completed",
+            starts_at=second_starts,
+            ends_at=second_starts + timedelta(minutes=60),
+            status=db.BOOKING_COMPLETED,
             rating=4,
         )
         session.add(second)
@@ -100,8 +105,9 @@ class TestRatingRecalculation:
                 user_id=fixture_data["client_user"].id,
                 stylist_id=fixture_data["stylist"].id,
                 service_id=fixture_data["service"].id,
-                datetime="2099-01-03 12:00",
-                status="completed",
+                starts_at=timeutils.parse_slot("2099-01-03 12:00"),
+                ends_at=timeutils.parse_slot("2099-01-03 13:00"),
+                status=db.BOOKING_COMPLETED,
                 rating=None,
             )
         )

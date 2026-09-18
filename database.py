@@ -145,9 +145,14 @@ class Booking(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     stylist_id: Mapped[int] = mapped_column(ForeignKey("stylists.id"))
     service_id: Mapped[int] = mapped_column(ForeignKey("services.id"))
-    datetime: Mapped[str] = mapped_column(String(50))  # Храним как строку "2023-10-25 14:00" для простоты
-    # pending - ожидает, approved - подтверждено, declined - отклонено
-    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    # Наивное локальное время Asia/Tashkent — см. модуль timeutils, там же обоснование.
+    # Раньше здесь была строка "2023-10-25 14:00": сравнения шли лексикографически,
+    # выборки за день делались через LIKE и не могли использовать индекс.
+    starts_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+    ends_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+
+    status: Mapped[str] = mapped_column(String(20), default=BOOKING_PENDING)
 
     rating: Mapped[int] = mapped_column(Integer, nullable=True)  # Оценка от 1 до 5
     review_text: Mapped[str] = mapped_column(String(500), nullable=True)  # Текст отзыва
@@ -164,8 +169,8 @@ class Booking(Base):
     # Индексы под самые частые запросы: расписание мастера на дату, записи клиента,
     # выборки по статусу в шедулере и на дашборде.
     __table_args__ = (
-        Index("ix_bookings_stylist_datetime", "stylist_id", "datetime"),
-        Index("ix_bookings_user_datetime", "user_id", "datetime"),
+        Index("ix_bookings_stylist_starts_at", "stylist_id", "starts_at"),
+        Index("ix_bookings_user_starts_at", "user_id", "starts_at"),
         Index("ix_bookings_status", "status"),
     )
 

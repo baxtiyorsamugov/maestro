@@ -79,7 +79,7 @@ def test_slot_guard_index_exists(scratch_db):
     command.upgrade(_config(scratch_db), "head")
     indexes = _objects(scratch_db, "index")
     assert "uq_active_booking_slot" in indexes, "защита от двойной брони не создана"
-    assert "ix_bookings_stylist_datetime" in indexes
+    assert "ix_bookings_stylist_starts_at" in indexes
     assert "ix_schedules_stylist_day" in indexes
 
 
@@ -108,3 +108,11 @@ def test_downgrade_and_upgrade_again(scratch_db):
 def test_reviews_count_column_added(scratch_db):
     command.upgrade(_config(scratch_db), "head")
     assert "reviews_count" in _columns(scratch_db, "stylists")
+
+
+def test_booking_uses_timestamp_columns(scratch_db):
+    """B-2: строковое поле datetime заменено на starts_at/ends_at."""
+    command.upgrade(_config(scratch_db), "head")
+    columns = _columns(scratch_db, "bookings")
+    assert {"starts_at", "ends_at"} <= columns
+    assert "datetime" not in columns

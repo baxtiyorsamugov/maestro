@@ -31,20 +31,26 @@ Barbershop ──1:N──> Stylist ──1:N──> Service ──N:1──> Ca
                        ├──1:N──> Portfolio         (telegram file_id фотографий)
                        └──N:M──> User (через Favorite)
 
-Booking: user_id, stylist_id, service_id, datetime(строка!), status,
+Booking: user_id, stylist_id, service_id, starts_at, ends_at, status,
          rating, review_text, reminder_day_sent, reminder_hour_sent, follow_up_sent
 ```
 
 Замечания к модели:
-- `Booking.datetime` — строка `"YYYY-MM-DD HH:MM"`, см. `docs/AUDIT.md` B-2;
-- индексов нет ни одного;
-- `status` и `role` — свободные строки без ограничения значений;
+- `status` и `role` — свободные строки; для статусов есть константы `BOOKING_*`
+  в `database.py`, но ограничения на уровне схемы пока нет;
 - нет `created_at` / `updated_at`;
-- `Stylist.avg_rating` есть, но никогда не пересчитывается (A-3);
+- `Stylist.avg_rating` и `reviews_count` пересчитываются после каждой оценки;
 - флаги напоминаний живут в `Booking` — это нормально для текущего масштаба,
   при росте стоит вынести в отдельную таблицу `notifications`.
 
 ## 3. Ключевые процессы
+
+### Время
+
+Все моменты времени — наивные datetime в зоне Asia/Tashkent. Единственная точка
+работы со временем — `timeutils.py`, там же обоснование, почему не UTC.
+Переход на UTC потребуется при выходе за пределы одной часовой зоны, и менять
+придётся только этот модуль.
 
 ### Запись клиента
 ```

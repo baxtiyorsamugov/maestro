@@ -14,6 +14,7 @@ from sqlalchemy.orm import joinedload
 from wtforms.fields import SelectField
 
 import database as db
+import timeutils
 from config import load_admin_settings
 
 ADMIN_SETTINGS = load_admin_settings()
@@ -58,14 +59,14 @@ def _format_money(value: float | int | None) -> str:
     return f"{float(value or 0):,.0f}".replace(",", " ") + " so'm"
 
 
-def _booking_date_range(days: int) -> tuple[str, str]:
-    start = date.today()
-    end = start + timedelta(days=days)
-    return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+def _booking_date_range(days: int) -> tuple[datetime, datetime]:
+    """Полуинтервал [сегодня, сегодня + days) как моменты времени."""
+    start = timeutils.today()
+    return timeutils.range_bounds(start, start + timedelta(days=days - 1))
 
 
 async def _collect_dashboard_data() -> dict:
-    today = date.today().strftime("%Y-%m-%d")
+    today_start, today_end = timeutils.day_bounds(timeutils.today())
     week_start, week_end = _booking_date_range(7)
     month_start, month_end = _booking_date_range(30)
 
@@ -85,22 +86,28 @@ async def _collect_dashboard_data() -> dict:
         status_counts = {status or "unknown": count for status, count in status_rows}
 
         bookings_today = await session.scalar(
-            select(func.count(db.Booking.id)).where(db.Booking.datetime.like(f"{today}%"))
+            select(func.count(db.Booking.id)).where(
+                db.Booking.starts_at >= today_start, db.Booking.starts_at < today_end
+            )
         ) or 0
         bookings_week = await session.scalar(
-            select(func.count(db.Booking.id)).where(db.Booking.datetime >= week_start, db.Booking.datetime < week_end)
+            select(func.count(db.Booking.id)).where(
+                db.Booking.starts_at >= week_start, db.Booking.starts_at < week_end
+            )
         ) or 0
         bookings_month = await session.scalar(
-            select(func.count(db.Booking.id)).where(db.Booking.datetime >= month_start, db.Booking.datetime < month_end)
+            select(func.count(db.Booking.id)).where(
+                db.Booking.starts_at >= month_start, db.Booking.starts_at < month_end
+            )
         ) or 0
         revenue_month = await session.scalar(
             select(func.coalesce(func.sum(db.Service.price), 0))
             .select_from(db.Booking)
             .join(db.Service, db.Service.id == db.Booking.service_id)
             .where(
-                db.Booking.status.in_(["approved", "completed"]),
-                db.Booking.datetime >= month_start,
-                db.Booking.datetime < month_end,
+                db.Booking.status.in_((db.BOOKING_APPROVED, db.BOOKING_COMPLETED)),
+                db.Booking.starts_at >= month_start,
+                db.Booking.starts_at < month_end,
             )
         ) or 0
 
@@ -112,18 +119,18 @@ async def _collect_dashboard_data() -> dict:
         upcoming_bookings = (
             await session.execute(
                 select(db.Booking)
-                .where(db.Booking.datetime >= today, db.Booking.status.in_(["pending", "approved"]))
+                .where(db.Booking.starts_at >= today_start, db.Booking.status.in_(db.ACTIVE_BOOKING_STATUSES))
                 .options(*booking_options)
-                .order_by(db.Booking.datetime.asc())
+                .order_by(db.Booking.starts_at.asc())
                 .limit(8)
             )
         ).scalars().all()
         pending_bookings = (
             await session.execute(
                 select(db.Booking)
-                .where(db.Booking.status == "pending")
+                .where(db.Booking.status == db.BOOKING_PENDING)
                 .options(*booking_options)
-                .order_by(db.Booking.datetime.asc())
+                .order_by(db.Booking.starts_at.asc())
                 .limit(8)
             )
         ).scalars().all()
@@ -169,7 +176,7 @@ def _booking_rows(bookings: list[db.Booking]) -> str:
         status = escape(booking.status or "unknown")
         rows.append(
             "<tr>"
-            f"<td>{escape(booking.datetime or '-')}</td>"
+            f"<td>{escape(timeutils.format_slot(booking.starts_at))}</td>"
             f"<td>{client}</td>"
             f"<td>{stylist}</td>"
             f"<td>{service}</td>"
@@ -505,7 +512,7 @@ class BookingAdmin(ModelView, model=db.Booking):
         "user.first_name",
         "stylist.name",
         "service.catalog_service.name",
-        db.Booking.datetime,
+        db.Booking.starts_at,
         db.Booking.status,
         db.Booking.rating,
     ]
@@ -513,13 +520,13 @@ class BookingAdmin(ModelView, model=db.Booking):
         "user.first_name": "Клиент",
         "stylist.name": "Мастер",
         "service.catalog_service.name": "Услуга",
-        db.Booking.datetime: "Дата",
+        db.Booking.starts_at: "Дата и время",
         db.Booking.status: "Статус",
         db.Booking.rating: "Оценка",
     }
-    column_searchable_list = [db.Booking.datetime, db.Booking.status]
-    column_sortable_list = [db.Booking.id, db.Booking.datetime, db.Booking.status, db.Booking.rating]
-    column_default_sort = [(db.Booking.datetime, True)]
+    column_searchable_list = [db.Booking.starts_at, db.Booking.status]
+    column_sortable_list = [db.Booking.id, db.Booking.starts_at, db.Booking.status, db.Booking.rating]
+    column_default_sort = [(db.Booking.starts_at, True)]
 
 
 class PortfolioAdmin(ModelView, model=db.Portfolio):

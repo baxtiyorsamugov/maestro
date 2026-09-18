@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload  # Важный импорт
 
 import database as db
+import timeutils
 import utils  # Наш файл календаря
 from config import get_optional_env, get_required_env
 
@@ -491,7 +492,7 @@ def build_booking_card(booking: db.Booking, footer: str | None = None) -> str:
         f"Контакт: {escape(booking.user.phone_number or 'не указан')}\n"
         f'<a href="tg://user?id={booking.user.telegram_id}">Написать в Telegram</a>\n'
         f"Услуга: {escape(service_name)}\n"
-        f"Дата и время: {escape(booking.datetime or '-')}"
+        f"Дата и время: {escape(timeutils.format_slot(booking.starts_at))}"
     )
     if footer:
         card += f"\n\n<b>{footer}</b>"
@@ -535,10 +536,7 @@ def slot_overlaps_existing(slot_start: datetime, service_duration_min: int, book
     for booking in bookings:
         if booking.status == BOOKING_DECLINED:
             continue
-        booking_start = datetime.strptime(booking.datetime, "%Y-%m-%d %H:%M")
-        booking_duration = booking.service.duration_min if booking.service else service_duration_min
-        booking_end = booking_start + timedelta(minutes=booking_duration)
-        if slot_start < booking_end and slot_end > booking_start:
+        if slot_start < booking.ends_at and slot_end > booking.starts_at:
             return True
     return False
 
@@ -547,7 +545,7 @@ def calculate_available_slots(selected_date, schedule, service_duration_min: int
     available_slots = []
     start_time, end_time = get_time_bounds(schedule.start_time, schedule.end_time)
     current_time = start_time
-    now = datetime.now()
+    now = timeutils.now()
 
     while current_time < end_time:
         slot_datetime = datetime.combine(selected_date, current_time.time())
@@ -569,14 +567,15 @@ async def get_available_slots_for_date(session, stylist_id: int, service_id: int
     if not service:
         return schedule, []
 
+    day_start, day_end = timeutils.day_bounds(selected_date)
     bookings = (await session.execute(
         select(db.Booking)
         .where(
             db.Booking.stylist_id == stylist_id,
-            db.Booking.datetime.like(f"{selected_date.strftime('%Y-%m-%d')}%"),
+            db.Booking.starts_at >= day_start,
+            db.Booking.starts_at < day_end,
             db.Booking.status.in_(ACTIVE_BOOKING_STATUSES),
         )
-        .options(joinedload(db.Booking.service))
     )).scalars().all()
 
     return schedule, calculate_available_slots(selected_date, schedule, service.duration_min, bookings)
@@ -615,7 +614,7 @@ async def get_available_dates_for_month(session, stylist_id: int, service_id: in
 
     first_day = date(year, month, 1)
     last_day = date(year, month, calendar_module.monthrange(year, month)[1])
-    today = date.today()
+    today = timeutils.today()
 
     weekly_schedules = (await session.execute(
         select(db.Schedule).where(db.Schedule.stylist_id == stylist_id)
@@ -631,27 +630,20 @@ async def get_available_dates_for_month(session, stylist_id: int, service_id: in
     )).scalars().all()
     special_by_date = {schedule.work_date: schedule for schedule in special_schedules}
 
-    # Формат "YYYY-MM-DD HH:MM" сравнивается лексикографически, поэтому диапазон
-    # работает как обычное сравнение дат и попадает в индекс ix_bookings_stylist_datetime.
+    month_start, month_end = timeutils.range_bounds(first_day, last_day)
     month_bookings = (await session.execute(
         select(db.Booking)
         .where(
             db.Booking.stylist_id == stylist_id,
-            db.Booking.datetime >= first_day.strftime("%Y-%m-%d"),
-            db.Booking.datetime <= last_day.strftime("%Y-%m-%d 23:59"),
+            db.Booking.starts_at >= month_start,
+            db.Booking.starts_at < month_end,
             db.Booking.status.in_(ACTIVE_BOOKING_STATUSES),
         )
-        .options(joinedload(db.Booking.service))
     )).scalars().all()
 
     bookings_by_date: dict = {}
     for booking in month_bookings:
-        try:
-            booking_date = datetime.strptime(booking.datetime, "%Y-%m-%d %H:%M").date()
-        except (TypeError, ValueError):
-            logging.warning("booking.bad_datetime id=%s value=%r", booking.id, booking.datetime)
-            continue
-        bookings_by_date.setdefault(booking_date, []).append(booking)
+        bookings_by_date.setdefault(booking.starts_at.date(), []).append(booking)
 
     result = []
     for day in range(1, last_day.day + 1):
@@ -1697,7 +1689,15 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
             await cb.answer({"ru": "Это время уже заняли. Выберите другое.", "uz": "Bu slot endi mavjud emas. Boshqa vaqtni tanlang."}[lang], show_alert=True)
             return
         service = await session.scalar(select(db.Service).where(db.Service.id == data['service_id']).options(joinedload(db.Service.catalog_service)))
-        new_booking = db.Booking(user_id=user_db.id, stylist_id=data['stylist_id'], service_id=data['service_id'], datetime=full_datetime, status=BOOKING_PENDING)
+        starts_at = timeutils.parse_slot(full_datetime)
+        new_booking = db.Booking(
+            user_id=user_db.id,
+            stylist_id=data['stylist_id'],
+            service_id=data['service_id'],
+            starts_at=starts_at,
+            ends_at=starts_at + timedelta(minutes=service.duration_min),
+            status=BOOKING_PENDING,
+        )
         session.add(new_booking)
         try:
             await session.commit()
@@ -1772,7 +1772,7 @@ async def approve_booking(cb: CallbackQuery):
         await session.commit()
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
-        booking_datetime = booking.datetime or "-"
+        booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
         card = build_booking_card(booking, footer="Запись подтверждена")
 
     try:
@@ -1818,7 +1818,7 @@ async def decline_booking(cb: CallbackQuery):
         await session.commit()
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
-        booking_datetime = booking.datetime or "-"
+        booking_datetime = timeutils.format_human(booking.starts_at, client_lang)
         card = build_booking_card(booking, footer="Запись отклонена")
 
     try:
@@ -1906,7 +1906,7 @@ async def show_profile(message: Message, state: FSMContext):
                     joinedload(db.Booking.stylist).joinedload(db.Stylist.barbershop),
                     joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
                 )
-                .order_by(db.Booking.datetime.desc())
+                .order_by(db.Booking.starts_at.desc())
         )
         bookings = (await session.execute(query)).scalars().all()
 
@@ -1936,7 +1936,7 @@ async def show_profile(message: Message, state: FSMContext):
             status_icon = texts.get_text("status_cancelled", lang)
 
         response_text += (
-            f"\n<b>{booking.datetime}</b>\n"
+            f"\n<b>{timeutils.format_human(booking.starts_at, lang)}</b>\n"
             f"Барбершоп: {escape(booking.stylist.barbershop.name)}\n"
             f"{texts.get_text('master_label', lang)}: {escape(booking.stylist.name)}\n"
             f"\u0423\u0441\u043b\u0443\u0433\u0430: {escape(booking.service.catalog_service.name)} ({booking.service.price:,.0f} so'm)\n"
@@ -1944,7 +1944,7 @@ async def show_profile(message: Message, state: FSMContext):
             f"{'-' * 20}\n"
         )
         if booking.status in ACTIVE_BOOKING_STATUSES:
-            kb_builder.append([InlineKeyboardButton(text=f"{texts.get_text('cancel_booking', lang)}: {booking.datetime}", callback_data=f"booking_cancel_{booking.id}")])
+            kb_builder.append([InlineKeyboardButton(text=f"{texts.get_text('cancel_booking', lang)}: {timeutils.format_human(booking.starts_at, lang)}", callback_data=f"booking_cancel_{booking.id}")])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb_builder)
     await message.answer(response_text, reply_markup=keyboard, parse_mode="HTML")
@@ -1974,7 +1974,7 @@ async def cancel_booking(cb: CallbackQuery):
             else None
         )
         client_name = booking.user.first_name or "Клиент"
-        booking_datetime = booking.datetime or "-"
+        booking_datetime = timeutils.format_slot(booking.starts_at)
 
         # Статус вместо удаления: история визитов нужна для статистики и follow-up.
         booking.status = BOOKING_CANCELLED
@@ -2186,20 +2186,23 @@ async def process_view_bookings(cb: CallbackQuery):
         )
 
         if period == "today":
-            query = query.where(db.Booking.datetime.like(f"{today_str}%"))
+            day_start, day_end = timeutils.day_bounds(today_dt.date())
+            query = query.where(db.Booking.starts_at >= day_start, db.Booking.starts_at < day_end)
             title = f"☀️ Записи на сегодня ({today_str})"
         
         elif period == "week":
-            end_week = (today_dt + timedelta(days=7)).strftime("%Y-%m-%d")
-            query = query.where(db.Booking.datetime >= today_str,
-                                db.Booking.datetime < end_week)
+            week_start, week_end = timeutils.range_bounds(
+                today_dt.date(), today_dt.date() + timedelta(days=6)
+            )
+            end_week = week_end.strftime("%Y-%m-%d")
+            query = query.where(db.Booking.starts_at >= week_start, db.Booking.starts_at < week_end)
             title = f"📅 Записи на неделю (до {end_week})"
         
         else: # "all" — теперь это "Все будущие записи"
-            query = query.where(db.Booking.datetime >= today_str)
+            query = query.where(db.Booking.starts_at >= timeutils.now())
             title = "📚 Все предстоящие записи"
 
-        query = query.order_by(db.Booking.datetime)
+        query = query.order_by(db.Booking.starts_at)
         result = await session.execute(query)
         bookings = result.scalars().all()
 
@@ -2214,8 +2217,7 @@ async def process_view_bookings(cb: CallbackQuery):
         try:
             client_name = b.user.first_name if b.user else "Клиент"
             service_name = b.service.catalog_service.name if (b.service and b.service.catalog_service) else "Услуга"
-            # Форматируем дату для красоты (убираем год, если он текущий)
-            display_date = b.datetime 
+            display_date = timeutils.format_human(b.starts_at)
             
             status_emoji = "⏳" if b.status == BOOKING_PENDING else "✅"
             
@@ -2795,7 +2797,7 @@ async def get_statistics(cb: CallbackQuery):
         return
 
     period = cb.data.split("_")[1]
-    today = datetime.now().date()
+    today = timeutils.today()
     if period == "today":
         start_date = today
         end_date = today + timedelta(days=1)
@@ -2812,29 +2814,32 @@ async def get_statistics(cb: CallbackQuery):
         await cb.answer("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0439 \u043f\u0435\u0440\u0438\u043e\u0434.")
         return
 
+    # start_date/end_date заданы в днях, а запросы сравнивают моменты времени.
+    period_start, period_end = timeutils.range_bounds(start_date, end_date - timedelta(days=1))
+
     async with db.async_session() as session:
         pending_count = await session.scalar(
             select(func.count(db.Booking.id)).where(
                 db.Booking.stylist_id == stylist.id,
                 db.Booking.status == BOOKING_PENDING,
-                db.Booking.datetime >= start_date.strftime("%Y-%m-%d"),
-                db.Booking.datetime < end_date.strftime("%Y-%m-%d"),
+                db.Booking.starts_at >= period_start,
+                db.Booking.starts_at < period_end,
             )
         ) or 0
         approved_count = await session.scalar(
             select(func.count(db.Booking.id)).where(
                 db.Booking.stylist_id == stylist.id,
                 db.Booking.status == BOOKING_APPROVED,
-                db.Booking.datetime >= start_date.strftime("%Y-%m-%d"),
-                db.Booking.datetime < end_date.strftime("%Y-%m-%d"),
+                db.Booking.starts_at >= period_start,
+                db.Booking.starts_at < period_end,
             )
         ) or 0
         completed_count = await session.scalar(
             select(func.count(db.Booking.id)).where(
                 db.Booking.stylist_id == stylist.id,
                 db.Booking.status == BOOKING_COMPLETED,
-                db.Booking.datetime >= start_date.strftime("%Y-%m-%d"),
-                db.Booking.datetime < end_date.strftime("%Y-%m-%d"),
+                db.Booking.starts_at >= period_start,
+                db.Booking.starts_at < period_end,
             )
         ) or 0
         revenue = await session.scalar(
@@ -2844,8 +2849,8 @@ async def get_statistics(cb: CallbackQuery):
             .where(
                 db.Booking.stylist_id == stylist.id,
                 db.Booking.status.in_((BOOKING_APPROVED, BOOKING_COMPLETED)),
-                db.Booking.datetime >= start_date.strftime("%Y-%m-%d"),
-                db.Booking.datetime < end_date.strftime("%Y-%m-%d"),
+                db.Booking.starts_at >= period_start,
+                db.Booking.starts_at < period_end,
             )
         ) or 0
 

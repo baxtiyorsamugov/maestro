@@ -28,7 +28,10 @@ os.environ["ADMIN_PASSWORD"] = "test"
 os.environ["ADMIN_SECRET_KEY"] = "test-secret-key-for-tests-only-32ch"
 
 import pytest  # noqa: E402
+import timeutils  # noqa: E402
 import pytest_asyncio  # noqa: E402
+from datetime import timedelta  # noqa: E402
+
 from sqlalchemy import delete  # noqa: E402
 
 import database as db  # noqa: E402
@@ -76,12 +79,14 @@ async def fixture_data(session):
     session.add(service)
     await session.flush()
 
+    starts_at = timeutils.parse_slot("2099-01-01 12:00")
     booking = db.Booking(
         user_id=client_user.id,
         stylist_id=stylist.id,
         service_id=service.id,
-        datetime="2099-01-01 12:00",
-        status="pending",
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(minutes=service.duration_min),
+        status=db.BOOKING_PENDING,
     )
     session.add(booking)
     await session.commit()
