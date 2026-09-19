@@ -49,7 +49,7 @@ class TestDispatcherAssembly:
         обновите их в том же коммите; упало без вашего ведома — что-то потерялось.
         """
         expected_messages = 23
-        expected_callbacks = 50  # 49 доменных + catch-all для устаревших кнопок
+        expected_callbacks = 51  # 50 доменных + catch-all для устаревших кнопок
 
         total_messages = len(loader.dp.message.handlers) + sum(
             len(r.message.handlers) for r in loader.dp.sub_routers

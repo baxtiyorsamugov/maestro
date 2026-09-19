@@ -16,6 +16,29 @@ import timeutils
 from database import ACTIVE_BOOKING_STATUSES, BOOKING_DECLINED
 from services.access import is_stylist_subscription_active
 
+#: За сколько часов до визита клиент ещё может отменить или перенести запись.
+#: Мастер планирует день заранее: отмена за пять минут до прихода — это дыра
+#: в расписании, которую уже нечем закрыть. Два часа — компромисс: клиент
+#: успевает передумать, мастер успевает предложить слот другому.
+CHANGE_WINDOW_HOURS = 2
+
+
+def can_change_booking(booking: db.Booking, now: datetime | None = None) -> tuple[bool, str | None]:
+    """
+    Можно ли клиенту отменить или перенести эту запись.
+
+    Возвращает (можно, ключ_причины). Причина — ключ из texts.py, а не готовый
+    текст: сервис не знает язык пользователя и не должен знать (CLAUDE.md, 4.5).
+    """
+    if booking.status not in ACTIVE_BOOKING_STATUSES:
+        return False, "change_denied_closed"
+
+    now = now or timeutils.now()
+    if booking.starts_at - now < timedelta(hours=CHANGE_WINDOW_HOURS):
+        return False, "change_denied_too_late"
+
+    return True, None
+
 
 async def get_effective_schedule_for_date(session, stylist_id: int, selected_date):
     special_schedule = await session.scalar(
@@ -44,6 +67,19 @@ async def load_special_dates(session, stylist_id: int) -> list[db.SpecialSchedul
 def get_time_bounds(start_time: str, end_time: str):
     return datetime.strptime(start_time, "%H:%M"), datetime.strptime(end_time, "%H:%M")
 
+def exclude_booking(bookings: list[db.Booking], booking_id: int | None) -> list[db.Booking]:
+    """
+    Убирает из списка занятости саму переносимую запись.
+
+    При переносе клиент двигает свой же визит, и без этого его текущий слот
+    (а при длинной услуге — и соседние) показывался бы занятым им самим.
+    Человек видел бы меньше вариантов, чем есть на самом деле, и не понимал,
+    почему время, которое он вот-вот освободит, выбрать нельзя.
+    """
+    if booking_id is None:
+        return bookings
+    return [booking for booking in bookings if booking.id != booking_id]
+
 def slot_overlaps_existing(slot_start: datetime, service_duration_min: int, bookings: list[db.Booking]) -> bool:
     slot_end = slot_start + timedelta(minutes=service_duration_min)
     for booking in bookings:
@@ -69,7 +105,9 @@ def calculate_available_slots(selected_date, schedule, service_duration_min: int
 
     return available_slots
 
-async def get_available_slots_for_date(session, stylist_id: int, service_id: int, selected_date):
+async def get_available_slots_for_date(
+    session, stylist_id: int, service_id: int, selected_date, exclude_booking_id: int | None = None
+):
     schedule, _ = await get_effective_schedule_for_date(session, stylist_id, selected_date)
     if not schedule:
         return None, []
@@ -89,6 +127,7 @@ async def get_available_slots_for_date(session, stylist_id: int, service_id: int
         )
     )).scalars().all()
 
+    bookings = exclude_booking(bookings, exclude_booking_id)
     return schedule, calculate_available_slots(selected_date, schedule, service.duration_min, bookings)
 
 def resolve_schedule_for_date(
@@ -107,7 +146,9 @@ def resolve_schedule_for_date(
         return special
     return weekly_by_day.get(selected_date.isoweekday())
 
-async def get_available_dates_for_month(session, stylist_id: int, service_id: int, year: int, month: int):
+async def get_available_dates_for_month(
+    session, stylist_id: int, service_id: int, year: int, month: int, exclude_booking_id: int | None = None
+):
     """
     Даты месяца, где у мастера есть хотя бы один свободный слот.
 
@@ -150,7 +191,7 @@ async def get_available_dates_for_month(session, stylist_id: int, service_id: in
     )).scalars().all()
 
     bookings_by_date: dict = {}
-    for booking in month_bookings:
+    for booking in exclude_booking(month_bookings, exclude_booking_id):
         bookings_by_date.setdefault(booking.starts_at.date(), []).append(booking)
 
     result = []

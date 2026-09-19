@@ -80,6 +80,42 @@ TEXTS = {
         "ru": "❌ Отменить",
         "uz": "❌ Bekor qilish",
     },
+    "reschedule_booking": {
+        "ru": "🔄 Перенести",
+        "uz": "🔄 Ko'chirish",
+    },
+    "change_denied_closed": {
+        "ru": "Эта запись уже закрыта: переносить или отменять нечего.",
+        "uz": "Bu yozuv allaqachon yopilgan: ko'chirish yoki bekor qilish uchun hech narsa yo'q.",
+    },
+    "change_denied_too_late": {
+        "ru": "Менять запись можно не позже чем за {hours} ч. до визита. Позвоните мастеру напрямую.",
+        "uz": "Yozuvni tashrifdan kamida {hours} soat oldin o'zgartirish mumkin. Maestroga to'g'ridan-to'g'ri qo'ng'iroq qiling.",
+    },
+    "reschedule_pick_date": {
+        "ru": "Выберите новую дату. Старое время освободится, как только вы подтвердите новое.",
+        "uz": "Yangi sanani tanlang. Eski vaqt siz yangisini tasdiqlaganingizdan so'ng bo'shaydi.",
+    },
+    "reschedule_done": {
+        "ru": "Запись перенесена на {slot}.\n\nМастер подтвердит новое время — придёт уведомление.",
+        "uz": "Yozuv {slot} ga ko'chirildi.\n\nMaestro yangi vaqtni tasdiqlaydi — xabar keladi.",
+    },
+    "reschedule_notice_stylist": {
+        "ru": "<b>Клиент перенёс запись</b>\n\nКлиент: {client}\nУслуга: {service}\nБыло: {old_slot}\nСтало: {new_slot}",
+        "uz": "<b>Mijoz yozuvni ko'chirdi</b>\n\nMijoz: {client}\nXizmat: {service}\nOldin: {old_slot}\nHozir: {new_slot}",
+    },
+    "btn_approve_booking": {
+        "ru": "Подтвердить",
+        "uz": "Tasdiqlash",
+    },
+    "btn_decline_booking": {
+        "ru": "Отклонить",
+        "uz": "Rad etish",
+    },
+    "reschedule_service_gone": {
+        "ru": "Услуги из этой записи больше нет. Запишитесь заново.",
+        "uz": "Bu yozuvdagi xizmat endi mavjud emas. Qaytadan yoziling.",
+    },
     "favorites_empty": {
         "ru": "У вас пока нет избранных мастеров.",
         "uz": "Sizda hozircha sevimli maestrolar yo'q.",
