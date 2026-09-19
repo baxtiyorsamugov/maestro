@@ -13,6 +13,12 @@ class ScheduleForm(StatesGroup):
     start_time = State()
     end_time = State()
 
+class BreakForm(StatesGroup):
+    """Настройка перерыва: день уже выбран, осталось начало и конец."""
+
+    start_time = State()
+    end_time = State()
+
 class SpecialDateForm(StatesGroup):
     target_date = State()
     start_time = State()

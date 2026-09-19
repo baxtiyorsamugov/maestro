@@ -20,7 +20,33 @@ from constants import DEFAULT_LANGUAGE, day_name
 from services.access import get_subscription_days_left
 
 
+def format_break(schedule, lang: str = DEFAULT_LANGUAGE) -> str:
+    """Перерыв в скобках — или пустая строка, если его нет."""
+    if not schedule or not (
+        getattr(schedule, "break_start", None) and getattr(schedule, "break_end", None)
+    ):
+        return ""
+    label = texts.get_text("schedule_break_label", lang).format(
+        start=schedule.break_start, end=schedule.break_end
+    )
+    return f" ({label})"
+
+
+def format_buffer(buffer_min: int | None, lang: str = DEFAULT_LANGUAGE) -> str:
+    """«15 мин» или «нет» — подпись буфера для кнопки и подтверждения."""
+    if not buffer_min:
+        return texts.get_text("buffer_off", lang)
+    return texts.get_text("buffer_minutes", lang).format(minutes=buffer_min)
+
+
 def format_schedule_range(schedule, lang: str = DEFAULT_LANGUAGE) -> str:
+    """
+    Часы дня без перерыва.
+
+    Перерыв сюда не попадает намеренно: эта строка стоит и на кнопке дня,
+    рядом с которой лежит «Выходной», и «10:00-18:00 (обед 13:00-14:00)»
+    растянуло бы кнопку на две строки. Перерыв показывается в тексте обзора.
+    """
     if not schedule:
         return texts.get_text("schedule_day_off_short", lang)
     return f"{schedule.start_time}-{schedule.end_time}"
@@ -51,7 +77,10 @@ def build_schedule_overview_text(
     ]
     for day in range(1, 8):
         schedule = schedule_map.get(day)
-        lines.append(f"• {day_name(day, lang)}: <b>{format_schedule_range(schedule, lang)}</b>")
+        lines.append(
+            f"• {day_name(day, lang)}: <b>{format_schedule_range(schedule, lang)}</b>"
+            f"{format_break(schedule, lang)}"
+        )
     lines.append("")
 
     if special_dates:

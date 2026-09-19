@@ -232,6 +232,66 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "schedule_break_label": {
+        "ru": "обед {start}-{end}",
+        "uz": "tushlik {start}-{end}",
+    },
+    "kb_breaks": {
+        "ru": "☕ Перерывы",
+        "uz": "☕ Tanaffuslar",
+    },
+    "kb_buffer": {
+        "ru": "⏱ Буфер между записями: {value}",
+        "uz": "⏱ Yozuvlar orasidagi tanaffus: {value}",
+    },
+    "buffer_off": {
+        "ru": "нет",
+        "uz": "yo'q",
+    },
+    "buffer_minutes": {
+        "ru": "{minutes} мин",
+        "uz": "{minutes} daq",
+    },
+    "buffer_title": {
+        "ru": "<b>Буфер между записями</b>\n\nСколько минут оставить себе между клиентами: убрать рабочее место, продезинфицировать инструмент, выдохнуть.\n\nЭто время клиент не увидит в календаре — слоты сдвинутся сами.",
+        "uz": "<b>Yozuvlar orasidagi tanaffus</b>\n\nMijozlar orasida o'zingizga necha daqiqa qoldirish kerak: ish joyini yig'ish, asbobni dezinfeksiya qilish, nafas rostlash.\n\nMijoz bu vaqtni kalendarda ko'rmaydi — bo'sh vaqtlar o'zi suriladi.",
+    },
+    "buffer_saved": {
+        "ru": "Буфер: {value}",
+        "uz": "Tanaffus: {value}",
+    },
+    "break_title": {
+        "ru": "<b>Перерывы по дням недели</b>\n\nОбед или любой другой постоянный перерыв. В это время клиент не сможет записаться.\n\nВыберите день:",
+        "uz": "<b>Hafta kunlari bo'yicha tanaffuslar</b>\n\nTushlik yoki boshqa doimiy tanaffus. Bu vaqtda mijoz yozila olmaydi.\n\nKunni tanlang:",
+    },
+    "break_none": {
+        "ru": "без перерыва",
+        "uz": "tanaffussiz",
+    },
+    "break_day_off_hint": {
+        "ru": "{day} — выходной. Сначала задайте рабочие часы этого дня.",
+        "uz": "{day} — dam olish kuni. Avval shu kunning ish vaqtini belgilang.",
+    },
+    "break_pick_start": {
+        "ru": "{day}: начало перерыва.\nРабочий день: {start}-{end}",
+        "uz": "{day}: tanaffus boshlanishi.\nIsh kuni: {start}-{end}",
+    },
+    "break_pick_end": {
+        "ru": "{day}: конец перерыва. Начало — {start}.",
+        "uz": "{day}: tanaffus tugashi. Boshlanishi — {start}.",
+    },
+    "break_saved": {
+        "ru": "{day}: перерыв {start}-{end}",
+        "uz": "{day}: tanaffus {start}-{end}",
+    },
+    "break_cleared": {
+        "ru": "{day}: перерыв убран",
+        "uz": "{day}: tanaffus olib tashlandi",
+    },
+    "kb_break_clear": {
+        "ru": "🚫 Убрать перерыв",
+        "uz": "🚫 Tanaffusni olib tashlash",
+    },
     "special_title": {
         "ru": "Особые даты {name}",
         "uz": "{name} maxsus sanalari",

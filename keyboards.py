@@ -22,8 +22,9 @@ from constants import DEFAULT_LANGUAGE, TIME_OPTIONS, day_short, week_header
 
 # Зависимость идёт в одну сторону: клавиатура может показать готовую подпись,
 # но presenters ничего не знает про разметку.
-from presenters import format_schedule_range
+from presenters import format_buffer, format_schedule_range
 from services.access import is_stylist_subscription_active
+from services.booking import BUFFER_CHOICES
 
 
 def get_schedule_time_kb(
@@ -75,7 +76,7 @@ def get_special_schedule_time_kb(
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_schedule_management_kb(
-    schedule_map: dict[int, db.Schedule], lang: str = DEFAULT_LANGUAGE
+    schedule_map: dict[int, db.Schedule], lang: str = DEFAULT_LANGUAGE, buffer_min: int = 0
 ):
     buttons = []
     for day in range(1, 8):
@@ -91,10 +92,98 @@ def get_schedule_management_kb(
             ),
         ])
     buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_breaks", lang), callback_data="brk_menu"
+    )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_buffer", lang).format(value=format_buffer(buffer_min, lang)),
+        callback_data="buffer_menu",
+    )])
+    buttons.append([InlineKeyboardButton(
         text=texts.get_text("kb_special_dates", lang), callback_data="schedule_special_dates"
     )])
     buttons.append([InlineKeyboardButton(
         text=texts.get_text("kb_close", lang), callback_data="schedule_close"
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_buffer_kb(current: int, lang: str = DEFAULT_LANGUAGE):
+    """Выбор буфера. Текущее значение помечено — иначе непонятно, что стоит сейчас."""
+    row = []
+    buttons = []
+    for minutes in BUFFER_CHOICES:
+        label = format_buffer(minutes, lang)
+        if minutes == current:
+            label = f"✅ {label}"
+        row.append(InlineKeyboardButton(text=label, callback_data=f"buffer_set_{minutes}"))
+        if len(row) == 3:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_back_to_weekly", lang), callback_data="schedule_weekly"
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_break_days_kb(schedule_map: dict[int, db.Schedule], lang: str = DEFAULT_LANGUAGE):
+    """
+    День недели для настройки перерыва.
+
+    Выходные дни тоже показываются, но помечены: мастер не должен гадать,
+    почему в списке шесть дней вместо семи.
+    """
+    buttons = []
+    for day in range(1, 8):
+        schedule = schedule_map.get(day)
+        if not schedule:
+            state = texts.get_text("schedule_day_off_short", lang)
+        elif schedule.break_start and schedule.break_end:
+            state = f"{schedule.break_start}-{schedule.break_end}"
+        else:
+            state = texts.get_text("break_none", lang)
+        buttons.append([InlineKeyboardButton(
+            text=f"{day_short(day, lang)} • {state}", callback_data=f"brk_day_{day}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_back_to_weekly", lang), callback_data="schedule_weekly"
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_break_time_kb(
+    day_of_week: int,
+    action: str,
+    lower_bound: str,
+    upper_bound: str,
+    lang: str = DEFAULT_LANGUAGE,
+):
+    """
+    Часы для границы перерыва внутри рабочего дня.
+
+    Показывать время за пределами смены незачем: перерыв в 22:00 у мастера,
+    который работает до 18:00, не значит ничего, а выбрать его можно.
+    """
+    buttons = []
+    row = []
+    for time_value in TIME_OPTIONS:
+        if time_value < lower_bound or time_value > upper_bound:
+            continue
+        row.append(InlineKeyboardButton(
+            text=time_value, callback_data=f"brk_{action}_{day_of_week}_{time_value}"
+        ))
+        if len(row) == 4:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    if action == "start":
+        buttons.append([InlineKeyboardButton(
+            text=texts.get_text("kb_break_clear", lang), callback_data=f"brk_clear_{day_of_week}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        text=texts.get_text("kb_breaks", lang), callback_data="brk_menu"
     )])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
