@@ -53,7 +53,10 @@ async def clear_booking_draft(state: FSMContext) -> None:
         data.pop(key, None)
     await state.set_data(data)
 
-@router.callback_query(F.data.startswith(("book_", "maestro_", "stylist_")))
+# Префикс stylist_ здесь был недостижим: карточка мастера подключена раньше
+# и забирает эти нажатия себе. Оставлять его — значит делать вид, что хендлер
+# ловит больше, чем ловит на самом деле.
+@router.callback_query(F.data.startswith(("book_", "maestro_")))
 async def show_services(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
         return

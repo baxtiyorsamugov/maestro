@@ -592,6 +592,18 @@ TEXTS = {
         "ru": "Готово",
         "uz": "Tayyor",
     },
+    "fallback_in_scenario": {
+        "ru": "Не понял ответ. Воспользуйтесь кнопками выше или отправьте /start, чтобы начать заново.",
+        "uz": "Javobni tushunmadim. Yuqoridagi tugmalardan foydalaning yoki qaytadan boshlash uchun /start yuboring.",
+    },
+    "fallback_use_menu": {
+        "ru": "Я понимаю только кнопки меню. Выберите действие ниже.",
+        "uz": "Men faqat menyu tugmalarini tushunaman. Quyidan amalni tanlang.",
+    },
+    "fallback_button_outdated": {
+        "ru": "Эта кнопка устарела. Откройте меню заново.",
+        "uz": "Bu tugma eskirgan. Menyuni qaytadan oching.",
+    },
 }
 
 BUTTONS = {
