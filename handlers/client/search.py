@@ -24,6 +24,7 @@ from guards import (
 from services.access import (
     is_stylist_subscription_active,
 )
+from services.booking import get_last_booking_for_repeat
 from states import SearchForm
 
 router = Router(name="client_search")
@@ -64,7 +65,7 @@ async def show_stylist_buttons(message: Message, stylists: list, title: str, sho
         ])
 
     if shop_id_for_back_button:
-        btns.append([InlineKeyboardButton(text="\n️ Назад", callback_data=f"shop_{shop_id_for_back_button}")])
+        btns.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=f"shop_{shop_id_for_back_button}")])
 
     await message.answer(title, reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
 
@@ -142,15 +143,15 @@ async def search_by_district_menu(cb: CallbackQuery):
         )).scalars().all()
 
     if not districts:
-        await cb.answer("Пока нет доступны\n районов для поиска.", show_alert=True)
+        await cb.answer("Пока нет доступных районов для поиска.", show_alert=True)
         return
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         *[[InlineKeyboardButton(text=d, callback_data=f"dist_{d}")] for d in districts],
-        [InlineKeyboardButton(text="\n️ Назад", callback_data="back_home")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_home")],
     ])
     await cb.message.edit_text(
-        "Выберите район. Потом можно открыть список под\nодящи\n барбершопов.",
+        "Выберите район. Потом можно открыть список подходящих барбершопов.",
         reply_markup=kb,
     )
     await cb.answer()
@@ -227,7 +228,28 @@ async def booking_start_menu(message: Message, state: FSMContext):
 
     # Отправляем сообщение. Мы не убираем Reply-кнопки, чтобы клиент мог передумать 
     # и нажать "Мой профиль", но фокус теперь на вводе цифр.
-    await message.answer(text, parse_mode="HTML")
+    # Вернувшемуся клиенту предлагаем повтор: в большинстве случаев он идёт
+    # к тому же мастеру на ту же услугу, и вводить ID ему незачем.
+    keyboard = None
+    async with db.async_session() as session:
+        last = await get_last_booking_for_repeat(session, user.id)
+        if last:
+            service_name = (
+                last.service.catalog_service.name
+                if last.service.catalog_service
+                else texts.get_text("booking_service", lang)
+            )
+            text += "\n\n" + texts.get_text("repeat_hint", lang)
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text=texts.get_text("repeat_button", lang).format(
+                        service=service_name, stylist=last.stylist.name
+                    ),
+                    callback_data=f"repeat_{last.id}",
+                )
+            ]])
+
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 @router.callback_query(F.data == "back_home")
 async def back_home(cb: CallbackQuery):

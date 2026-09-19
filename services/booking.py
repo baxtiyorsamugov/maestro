@@ -9,10 +9,12 @@ import calendar as calendar_module
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 import database as db
 import timeutils
 from database import ACTIVE_BOOKING_STATUSES, BOOKING_DECLINED
+from services.access import is_stylist_subscription_active
 
 
 async def get_effective_schedule_for_date(session, stylist_id: int, selected_date):
@@ -169,3 +171,29 @@ async def get_available_dates_for_month(session, stylist_id: int, service_id: in
             result.append(current_date)
 
     return result
+
+
+async def get_last_booking_for_repeat(session, user_id: int) -> db.Booking | None:
+    """
+    Последняя запись клиента, которую имеет смысл повторить.
+
+    Отсекаем случаи, когда кнопка привела бы в тупик: мастер закрыт по тарифу
+    или услуга удалена. Лучше не показывать кнопку, чем показать неработающую.
+    """
+    booking = await session.scalar(
+        select(db.Booking)
+        .join(db.Stylist, db.Stylist.id == db.Booking.stylist_id)
+        .join(db.Service, db.Service.id == db.Booking.service_id)
+        .where(db.Booking.user_id == user_id)
+        .options(
+            joinedload(db.Booking.stylist).joinedload(db.Stylist.user_account),
+            joinedload(db.Booking.service).joinedload(db.Service.catalog_service),
+        )
+        .order_by(db.Booking.starts_at.desc())
+        .limit(1)
+    )
+    if not booking or not booking.stylist or not booking.service:
+        return None
+    if not is_stylist_subscription_active(booking.stylist.user_account):
+        return None
+    return booking

@@ -604,6 +604,34 @@ TEXTS = {
         "ru": "Эта кнопка устарела. Откройте меню заново.",
         "uz": "Bu tugma eskirgan. Menyuni qaytadan oching.",
     },
+    "repeat_button": {
+        "ru": "🔁 Повторить: {service} у {stylist}",
+        "uz": "🔁 Takrorlash: {stylist}da {service}",
+    },
+    "repeat_hint": {
+        "ru": "Или повторите прошлую запись одним нажатием:",
+        "uz": "Yoki oldingi yozuvni bir bosishda takrorlang:",
+    },
+    "repeat_service_gone": {
+        "ru": "Эту услугу мастер больше не оказывает. Откройте его карточку и выберите другую.",
+        "uz": "Maestro bu xizmatni endi ko'rsatmaydi. Uning kartasini ochib, boshqasini tanlang.",
+    },
+    "booking_stylist_closed": {
+        "ru": "Запись к этому мастеру временно закрыта.",
+        "uz": "Bu maestroga yozilish vaqtincha yopiq.",
+    },
+    "booking_no_free_dates": {
+        "ru": "Для этой услуги пока нет свободных дат.",
+        "uz": "Bu xizmat uchun hozircha bo'sh sanalar yo'q.",
+    },
+    "booking_pick_date": {
+        "ru": "Выберите дату. Активны только дни со свободным временем.",
+        "uz": "Sanani tanlang. Faqat bo'sh vaqti bor kunlar faol.",
+    },
+    "booking_session_expired": {
+        "ru": "Время выбора истекло. Начните запись заново.",
+        "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang.",
+    },
 }
 
 BUTTONS = {

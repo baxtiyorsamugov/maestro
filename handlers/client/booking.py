@@ -17,12 +17,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 import database as db
+import texts
 import timeutils
 import utils
 from database import (
     BOOKING_PENDING,
 )
 from guards import (
+    deny_access,
     ensure_registered_callback,
     get_user_lang,
 )
@@ -30,6 +32,7 @@ from loader import bot
 from services.access import (
     is_registration_complete,
     is_stylist_subscription_active,
+    load_booking_for_client,
 )
 from services.booking import get_available_dates_for_month, get_available_slots_for_date
 
@@ -130,6 +133,45 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
     )
     await cb.answer()
 
+async def show_calendar_for_service(
+    cb: CallbackQuery, stylist_id: int, service_id: int, lang: str
+) -> None:
+    """
+    Календарь свободных дат для пары мастер + услуга.
+
+    Общий шаг для выбора услуги и для повтора прошлой записи: обе дороги
+    приводят сюда, и расходиться им незачем.
+    """
+    current_dt = timeutils.now()
+
+    async with db.async_session() as session:
+        available_dates = await get_available_dates_for_month(
+            session, stylist_id, service_id, current_dt.year, current_dt.month
+        )
+
+    if not available_dates:
+        await cb.answer(texts.get_text("booking_no_free_dates", lang), show_alert=True)
+        return
+
+    kb = utils.generate_calendar(
+        current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates
+    )
+    await cb.message.edit_text(texts.get_text("booking_pick_date", lang), reply_markup=kb)
+    await cb.answer()
+
+
+async def _active_stylist_or_none(session, stylist_id: int):
+    """Мастер, к которому сейчас можно записаться."""
+    stylist = await session.scalar(
+        select(db.Stylist)
+        .where(db.Stylist.id == stylist_id)
+        .options(joinedload(db.Stylist.user_account))
+    )
+    if not stylist or not is_stylist_subscription_active(stylist.user_account):
+        return None
+    return stylist
+
+
 @router.callback_query(F.data.startswith("srv_"))
 async def choose_service_and_show_calendar(cb: CallbackQuery, state: FSMContext):
     if not await ensure_registered_callback(cb):
@@ -140,33 +182,57 @@ async def choose_service_and_show_calendar(cb: CallbackQuery, state: FSMContext)
     draft = await get_booking_draft(state)
     stylist_id = draft.get("stylist_id")
     if not stylist_id:
-        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_session_expired", lang), show_alert=True)
         return
 
     await update_booking_draft(state, service_id=service_id)
-    current_dt = datetime.now()
 
     async with db.async_session() as session:
-        stylist = await session.scalar(
-            select(db.Stylist)
-            .where(db.Stylist.id == stylist_id)
-            .options(joinedload(db.Stylist.user_account))
-        )
-        if not stylist or not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({"ru": "Запись к этому мастеру временно закрыта.", "uz": "Bu maestroga yozilish vaqtincha yopiq."}[lang], show_alert=True)
+        if not await _active_stylist_or_none(session, stylist_id):
+            await cb.answer(texts.get_text("booking_stylist_closed", lang), show_alert=True)
             return
-        available_dates = await get_available_dates_for_month(session, stylist_id, service_id, current_dt.year, current_dt.month)
 
-    if not available_dates:
-        await cb.answer({"ru": "Для этой услуги пока нет свободных дат.", "uz": "Bu xizmat uchun hozircha bo'sh sanalar yo'q."}[lang], show_alert=True)
+    await show_calendar_for_service(cb, stylist_id, service_id, lang)
+
+
+@router.callback_query(F.data.startswith("repeat_"))
+async def repeat_last_booking(cb: CallbackQuery, state: FSMContext):
+    """
+    Повтор прошлой записи: тот же мастер, та же услуга, сразу календарь.
+
+    Вернувшийся клиент проходил те же пять экранов, что и новый, хотя в большинстве
+    случаев идёт к тому же мастеру на ту же услугу. Здесь пропускаются четыре из них.
+    """
+    if not await ensure_registered_callback(cb):
         return
 
-    kb = utils.generate_calendar(current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates)
-    await cb.message.edit_text(
-        {"ru": "Выберите дату. Активны только дни со свободным временем.", "uz": "Sanani tanlang. Faqat bo'sh vaqti bor kunlar faol."}[lang],
-        reply_markup=kb,
+    lang = await get_user_lang(cb.from_user.id)
+    booking_id = int(cb.data.split("_")[-1])
+
+    async with db.async_session() as session:
+        # Идентификатор из callback_data — недоверенный ввод: сверяем владельца.
+        booking = await load_booking_for_client(session, booking_id, cb.from_user.id)
+        if not booking:
+            await deny_access(cb)
+            return
+
+        if not await _active_stylist_or_none(session, booking.stylist_id):
+            await cb.answer(texts.get_text("booking_stylist_closed", lang), show_alert=True)
+            return
+
+        service = await session.get(db.Service, booking.service_id)
+        if not service:
+            await cb.answer(texts.get_text("repeat_service_gone", lang), show_alert=True)
+            return
+
+        stylist_id, service_id = booking.stylist_id, service.id
+
+    await update_booking_draft(state, stylist_id=stylist_id, service_id=service_id)
+    logging.info(
+        "booking.repeat user_id=%s stylist_id=%s service_id=%s",
+        cb.from_user.id, stylist_id, service_id,
     )
-    await cb.answer()
+    await show_calendar_for_service(cb, stylist_id, service_id, lang)
 
 @router.callback_query(F.data == "ignore")
 async def ignore_calendar_button(cb: CallbackQuery):
