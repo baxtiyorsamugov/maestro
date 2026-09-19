@@ -30,15 +30,23 @@ async def show_stats_menu(message: Message):
     if not (user and stylist):
         return
 
+    lang = user.language_code or "ru"
     async with db.async_session() as session:
         fav_count = await session.scalar(select(func.count(db.Favorite.id)).where(db.Favorite.stylist_id == stylist.id))
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="\u0417\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f", callback_data="stats_today")],
-        [InlineKeyboardButton(text="\u0417\u0430 \u0432\u0447\u0435\u0440\u0430", callback_data="stats_yesterday")],
-        [InlineKeyboardButton(text="\u0417\u0430 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 7 \u0434\u043d\u0435\u0439", callback_data="stats_7_days")],
+        [InlineKeyboardButton(
+            text=texts.get_text("stats_period_today", lang), callback_data="stats_today"
+        )],
+        [InlineKeyboardButton(
+            text=texts.get_text("stats_period_yesterday", lang), callback_data="stats_yesterday"
+        )],
+        [InlineKeyboardButton(
+            text=texts.get_text("stats_period_week", lang), callback_data="stats_7_days"
+        )],
     ])
     await message.answer(
-        f"<b>\u0412\u0430\u0441 \u0434\u043e\u0431\u0430\u0432\u0438\u043b\u0438 \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435 {fav_count} \u0440\u0430\u0437(\u0430).</b>\n\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043f\u0435\u0440\u0438\u043e\u0434 \u0434\u043b\u044f \u043e\u0442\u0447\u0451\u0442\u0430:",
+        f"<b>{texts.get_text('stats_favorites_count', lang).format(count=fav_count)}</b>\n\n"
+        f"{texts.get_text('stats_choose_period', lang)}",
         reply_markup=kb,
         parse_mode="HTML",
     )
@@ -50,21 +58,22 @@ async def get_statistics(cb: CallbackQuery):
         return
 
     period = cb.data.split("_")[1]
+    lang = user.language_code or "ru"
     today = timeutils.today()
     if period == "today":
         start_date = today
         end_date = today + timedelta(days=1)
-        period_text = "\u0441\u0435\u0433\u043e\u0434\u043d\u044f"
+        period_text = texts.get_text("stats_label_today", lang)
     elif period == "yesterday":
         start_date = today - timedelta(days=1)
         end_date = today
-        period_text = "\u0432\u0447\u0435\u0440\u0430"
+        period_text = texts.get_text("stats_label_yesterday", lang)
     elif period == "7":
         start_date = today - timedelta(days=7)
         end_date = today + timedelta(days=1)
-        period_text = "\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 7 \u0434\u043d\u0435\u0439"
+        period_text = texts.get_text("stats_label_week", lang)
     else:
-        await cb.answer("\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0439 \u043f\u0435\u0440\u0438\u043e\u0434.")
+        await cb.answer(texts.get_text("stats_unknown_period", lang))
         return
 
     # start_date/end_date заданы в днях, а запросы сравнивают моменты времени.
@@ -109,12 +118,12 @@ async def get_statistics(cb: CallbackQuery):
 
     total_count = pending_count + approved_count + completed_count
     await cb.message.edit_text(
-        f"<b>\u041e\u0442\u0447\u0451\u0442 \u0437\u0430 {period_text}:</b>\n\n"
-        f"\u0412\u0441\u0435\u0433\u043e \u0437\u0430\u043f\u0438\u0441\u0435\u0439: {total_count}\n"
-        f"\u041d\u043e\u0432\u044b\u0435 \u0437\u0430\u044f\u0432\u043a\u0438: {pending_count}\n"
-        f"\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043d\u043d\u044b\u0435: {approved_count}\n"
-        f"\u0417\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u044b\u0435: {completed_count}\n"
-        f"\u0414\u043e\u0445\u043e\u0434: {revenue:,.0f} so'm",
+        f"<b>{texts.get_text('stats_report_title', lang).format(period=period_text)}</b>\n\n"
+        f"{texts.get_text('stats_total', lang)}: {total_count}\n"
+        f"{texts.get_text('stats_pending', lang)}: {pending_count}\n"
+        f"{texts.get_text('stats_approved', lang)}: {approved_count}\n"
+        f"{texts.get_text('stats_completed', lang)}: {completed_count}\n"
+        f"{texts.get_text('stats_revenue', lang)}: {revenue:,.0f} so'm",
         parse_mode="HTML",
     )
     await cb.answer()

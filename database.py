@@ -139,6 +139,11 @@ class Stylist(Base, TimestampMixin):
     # Денормализация: число оценок нужно и в карточке, и в сортировке поиска.
     reviews_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
+    # Минуты между записями: убрать за клиентом, продезинфицировать инструмент,
+    # выдохнуть. Свойство мастера, а не услуги: время нужно человеку, а не стрижке.
+    # 0 — прежнее поведение, записи идут вплотную.
+    buffer_min: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
     # --- ИСПРАВЛЕНИЯ ЗДЕСЬ ---
     # Связь №1: Обратная прямая связь с аккаунтом User
     user_account = relationship("User", back_populates="stylist_profile", foreign_keys=[user_id])
@@ -225,6 +230,9 @@ class Schedule(Base):
     # Время в формате "09:00"
     start_time: Mapped[str] = mapped_column(String(5))
     end_time: Mapped[str] = mapped_column(String(5))
+    # Обед. Заполнены обе колонки или ни одной: перерыв без конца — не перерыв.
+    break_start: Mapped[str] = mapped_column(String(5), nullable=True)
+    break_end: Mapped[str] = mapped_column(String(5), nullable=True)
 
     stylist = relationship("Stylist")
 

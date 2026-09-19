@@ -17,6 +17,7 @@
 Локально: python scripts/check_encoding.py
 """
 import ast
+import re
 import subprocess
 from pathlib import Path
 
@@ -26,6 +27,17 @@ ROOT = Path(__file__).resolve().parent.parent
 # схлопнувшаяся кириллица, а не осмысленная строка.
 # Собирается из частей намеренно: иначе проверка находит саму себя.
 MOJIBAKE_MARKER = "?" * 3
+
+# Второй пласт той же порчи: символ превратился не в «?», а в перенос строки.
+# «доступны\nрайонов» вместо «доступных районов» — строка выглядит обычной,
+# и проверка на «???» её не видит.
+#
+# Кириллическая буква вплотную перед переносом: нормальный перенос ставят
+# после знака препинания или законченной фразы, а не посреди слова.
+EATEN_LETTER = re.compile(r"[а-яёА-ЯЁ]\n")
+
+# Вариационный селектор без символа перед ним: было эмодзи, осталась приправа.
+EATEN_EMOJI = re.compile(r"(?:^|\n|\s)️")
 
 
 def tracked_python_files() -> list[Path]:
@@ -74,6 +86,18 @@ def check_file(path: Path) -> list[str]:
         surrogates = [hex(ord(ch)) for ch in value if 0xD800 <= ord(ch) <= 0xDFFF]
         if surrogates:
             problems.append(f"{rel}:{lineno}: суррогатные пары {surrogates} — {value[:40]!r}")
+
+        if EATEN_LETTER.search(value):
+            problems.append(
+                f"{rel}:{lineno}: перенос строки вплотную после кириллицы — "
+                f"похоже, вместо символа, {value[:50]!r}"
+            )
+
+        if EATEN_EMOJI.search(value):
+            problems.append(
+                f"{rel}:{lineno}: вариационный селектор без эмодзи перед ним — "
+                f"символ съеден, {value[:40]!r}"
+            )
 
     return problems
 

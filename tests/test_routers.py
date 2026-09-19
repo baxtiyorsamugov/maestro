@@ -44,7 +44,13 @@ class TestDispatcherAssembly:
         """
         Хендлеры переезжали между модулями: если при следующем переносе
         часть потеряется, бот молча перестанет отвечать на эти кнопки.
+
+        Числа ниже — не требование, а страховка. Добавили хендлер намеренно —
+        обновите их в том же коммите; упало без вашего ведома — что-то потерялось.
         """
+        expected_messages = 23
+        expected_callbacks = 58  # 57 доменных + catch-all для устаревших кнопок
+
         total_messages = len(loader.dp.message.handlers) + sum(
             len(r.message.handlers) for r in loader.dp.sub_routers
         )
@@ -52,8 +58,12 @@ class TestDispatcherAssembly:
             len(r.callback_query.handlers) for r in loader.dp.sub_routers
         )
 
-        assert total_messages == 23, f"message-хендлеров стало {total_messages}"
-        assert total_callbacks == 48, f"callback-хендлеров стало {total_callbacks}"
+        assert total_messages == expected_messages, (
+            f"message-хендлеров стало {total_messages}, ожидалось {expected_messages}"
+        )
+        assert total_callbacks == expected_callbacks, (
+            f"callback-хендлеров стало {total_callbacks}, ожидалось {expected_callbacks}"
+        )
 
     def test_error_handler_stays_on_dispatcher(self):
         """

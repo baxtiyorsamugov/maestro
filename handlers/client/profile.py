@@ -34,6 +34,7 @@ from loader import bot
 from services.access import (
     load_booking_for_client,
 )
+from services.booking import can_change_booking
 from services.rating import recalculate_stylist_rating
 
 router = Router(name="client_profile")
@@ -98,7 +99,20 @@ async def show_profile(message: Message, state: FSMContext):
             f"{'-' * 20}\n"
         )
         if booking.status in ACTIVE_BOOKING_STATUSES:
-            kb_builder.append([InlineKeyboardButton(text=f"{texts.get_text('cancel_booking', lang)}: {timeutils.format_human(booking.starts_at, lang)}", callback_data=f"booking_cancel_{booking.id}")])
+            slot_label = timeutils.format_human(booking.starts_at, lang)
+            # Перенос закрывается за CHANGE_WINDOW_HOURS до визита: мастеру нужно
+            # время, чтобы перестроить день. Отмена остаётся доступной до конца —
+            # предупреждённый мастер всё же лучше, чем клиент, который просто не
+            # пришёл и ничего не сказал.
+            if can_change_booking(booking)[0]:
+                kb_builder.append([InlineKeyboardButton(
+                    text=f"{texts.get_text('reschedule_booking', lang)}: {slot_label}",
+                    callback_data=f"reschedule_{booking.id}",
+                )])
+            kb_builder.append([InlineKeyboardButton(
+                text=f"{texts.get_text('cancel_booking', lang)}: {slot_label}",
+                callback_data=f"booking_cancel_{booking.id}",
+            )])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb_builder)
     await message.answer(response_text, reply_markup=keyboard, parse_mode="HTML")
