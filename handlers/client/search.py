@@ -87,16 +87,16 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
                     "uz": "ID faqat raqamlardan iborat bo'lishi kerak. Qayta urinib ko'ring.",
                 }[lang])
                 return False
-            
+
             requested_id = int(message.text)
-            
+
             # ИСПРАВЛЕНИЕ: Ищем ТОЛЬКО по основному ID стилиста (тот, что в твоей таблице)
             stylist = await session.scalar(
                 select(db.Stylist)
                 .where(db.Stylist.id == requested_id)
                 .options(joinedload(db.Stylist.user_account))
             )
-            
+
             if stylist and not is_stylist_subscription_active(stylist.user_account):
                 expiry_text = stylist.user_account.subscription_until.strftime("%Y-%m-%d") if stylist.user_account and stylist.user_account.subscription_until else None
                 await message.answer({
@@ -104,7 +104,7 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
                     "uz": f"Maestro topildi, lekin hozir yozilish uchun mavjud emas. Tarif muddati tugagan: {expiry_text or 'koʻrsatilmagan'}.",
                 }[lang])
                 return False
-            
+
             stylists = [stylist] if stylist else []
             title = {"ru": "Результат поиска по ID:", "uz": "ID bo'yicha qidiruv natijasi:"}[lang]
         else:
@@ -194,23 +194,19 @@ async def process_search_input(message: Message, state: FSMContext):
         await state.clear()
         await state.update_data(search_type=None)
 
-@router.message(F.text.in_([texts.get_buttons("ru")["search_menu"], texts.get_buttons("uz")["search_menu"]]))
-async def booking_start_menu(message: Message, state: FSMContext):
-    # 1. Полная очистка перед стартом
-    await state.clear()
-    
-    # 2. Проверка регистрации (чтобы мы знали язык и телефон клиента)
-    user = await ensure_registered_message(message)
-    if not user:
-        return
+async def send_booking_menu(target: Message, user: db.User, state: FSMContext) -> None:
+    """
+    Стартовый экран записи.
 
-    # 3. СРАЗУ ставим бота в режим ожидания ID
+    Пользователь передаётся аргументом, а не берётся из target.from_user:
+    сюда приходят и сообщения клиента, и сообщения, отправленные самим ботом
+    (возврат по кнопке «Назад»), а у вторых from_user — это бот.
+    """
     await state.set_state(SearchForm.waiting_for_name)
     await state.update_data(search_type="id")  # ждём именно ID мастера
-    
+
     lang = user.language_code or "ru"
 
-    # 4. Красивый и понятный текст в стиле Maestro
     text = {
         "ru": (
             "✨ <b>Добро пожаловать в мир Maestro!</b>\n\n"
@@ -249,12 +245,36 @@ async def booking_start_menu(message: Message, state: FSMContext):
                 )
             ]])
 
-    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+    # Reply-кнопки не убираем: клиент может передумать и нажать «Мой профиль».
+    await target.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+
+@router.message(F.text.in_(texts.all_variants("search_menu")))
+async def booking_start_menu(message: Message, state: FSMContext):
+    await state.clear()
+    user = await ensure_registered_message(message)
+    if not user:
+        return
+    await send_booking_menu(message, user, state)
+
 
 @router.callback_query(F.data == "back_home")
-async def back_home(cb: CallbackQuery):
+async def back_home(cb: CallbackQuery, state: FSMContext):
+    """
+    Возврат к началу записи.
+
+    Раньше здесь вызывался booking_start_menu(cb.message) — без обязательного
+    аргумента state, то есть с TypeError. Даже с аргументом это не сработало бы:
+    у сообщения, отправленного ботом, from_user — сам бот, и проверка регистрации
+    отвечала бы «сначала завершите регистрацию».
+    """
+    user = await ensure_registered_callback(cb)
+    if not user:
+        return
+
+    await state.clear()
     await cb.message.delete()
-    await booking_start_menu(cb.message)
+    await send_booking_menu(cb.message, user, state)
     await cb.answer()
 
 @router.callback_query(F.data.startswith("dist_"))
