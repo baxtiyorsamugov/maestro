@@ -149,15 +149,27 @@ def build_booking_card(
         if booking.service and booking.service.catalog_service
         else texts.get_text("booking_service_unknown", lang)
     )
-    client_name = booking.user.first_name or texts.get_text("booking_client", lang)
-    phone = booking.user.phone_number or texts.get_text("booking_phone_unknown", lang)
+    if booking.user is None:
+        # Запись, которую мастер завёл сам. Ни телефона, ни ссылки на Telegram
+        # у такого клиента нет — показывать пустые строки вместо них незачем.
+        client_name = booking.guest_name or texts.get_text("offline_guest_unnamed", lang)
+        head = (
+            f"{texts.get_text('booking_client', lang)}: {escape(client_name)}\n"
+            f"{texts.get_text('offline_badge', lang)}\n"
+        )
+    else:
+        client_name = booking.user.first_name or texts.get_text("booking_client", lang)
+        phone = booking.user.phone_number or texts.get_text("booking_phone_unknown", lang)
+        head = (
+            f"{texts.get_text('booking_client', lang)}: {escape(client_name)}\n"
+            f"{texts.get_text('booking_contact', lang)}: {escape(phone)}\n"
+            f'<a href="tg://user?id={booking.user.telegram_id}">'
+            f"{texts.get_text('booking_write_telegram', lang)}</a>\n"
+        )
 
     card = (
         f"<b>{texts.get_text('booking_card_title', lang)}</b>\n\n"
-        f"{texts.get_text('booking_client', lang)}: {escape(client_name)}\n"
-        f"{texts.get_text('booking_contact', lang)}: {escape(phone)}\n"
-        f'<a href="tg://user?id={booking.user.telegram_id}">'
-        f"{texts.get_text('booking_write_telegram', lang)}</a>\n"
+        f"{head}"
         f"{texts.get_text('booking_service', lang)}: {escape(service_name)}\n"
         f"{texts.get_text('booking_datetime', lang)}: "
         f"{escape(timeutils.format_slot(booking.starts_at))}"

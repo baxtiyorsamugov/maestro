@@ -292,7 +292,7 @@ def _render_dashboard(data: dict) -> str:
   </style>
 </head>
 <body>
-  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {datetime.now().strftime("%Y-%m-%d %H:%M")}</div></div><a class="button" href="/admin">Открыть CRUD-админку</a></header>
+  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {timeutils.now().strftime("%Y-%m-%d %H:%M")}</div></div><a class="button" href="/admin">Открыть CRUD-админку</a></header>
   <main>
     <div class="grid">
       <div class="card"><span>Пользователи</span><strong>{data["users_count"]}</strong></div>

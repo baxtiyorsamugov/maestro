@@ -186,9 +186,16 @@ class Booking(Base, TimestampMixin):
     __tablename__ = 'bookings'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    # NULL — запись, которую мастер завёл сам: офлайн-клиент, пришедший с улицы
+    # или позвонивший. Аккаунта в Telegram у такого клиента нет, и заводить
+    # ему фиктивного пользователя значит мусорить в таблице users.
+    # Клиентские запросы идут через JOIN по user_id и такие записи не видят.
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
     stylist_id: Mapped[int] = mapped_column(ForeignKey("stylists.id"))
     service_id: Mapped[int] = mapped_column(ForeignKey("services.id"))
+
+    # Имя офлайн-клиента для памяти мастера. Пусто — просто занятое время.
+    guest_name: Mapped[str] = mapped_column(String(100), nullable=True)
 
     # Наивное локальное время Asia/Tashkent — см. модуль timeutils, там же обоснование.
     # Раньше здесь была строка "2023-10-25 14:00": сравнения шли лексикографически,

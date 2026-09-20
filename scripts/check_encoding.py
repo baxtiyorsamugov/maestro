@@ -41,15 +41,27 @@ EATEN_EMOJI = re.compile(r"(?:^|\n|\s)️")
 
 
 def tracked_python_files() -> list[Path]:
-    # Список файлов берём у git: фиксированная команда без пользовательского ввода.
+    """
+    Файлы под контролем версий плюс новые, ещё не добавленные в индекс.
+
+    --others --exclude-standard добавляет неотслеживаемые файлы, не попавшие
+    в .gitignore. Без этого проверка молча пропускала только что созданный
+    файл: локально всё зелено, а CI краснеет после коммита — ровно этим
+    и закончилась задача про офлайн-записи.
+
+    Команда фиксированная, пользовательского ввода в ней нет.
+    """
     result = subprocess.run(
-        ["git", "ls-files", "*.py"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.py"],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
-    return [ROOT / line for line in result.stdout.splitlines() if line.strip()]
+    # Файл может быть и в индексе, и в выводе --others — убираем повторы,
+    # сохраняя порядок, чтобы вывод проверки был стабильным.
+    seen = dict.fromkeys(line for line in result.stdout.splitlines() if line.strip())
+    return [ROOT / line for line in seen]
 
 
 def string_literals(tree: ast.AST):
@@ -104,7 +116,7 @@ def check_file(path: Path) -> list[str]:
 
 def main() -> int:
     files = tracked_python_files()
-    print(f"Проверка кодировки: {len(files)} файлов под контролем версий")
+    print(f"Проверка кодировки: {len(files)} файлов (в индексе и новые)")
 
     problems = []
     for path in files:
