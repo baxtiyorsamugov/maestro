@@ -18,6 +18,7 @@ import database as db
 import security
 import timeutils
 from config import check_environment, load_admin_settings
+from services import audit
 from services.reviews import load_reviews_for_moderation
 
 # Как и в loader.py: сначала собираем все претензии к окружению, потом падаем
@@ -248,6 +249,105 @@ def _stylist_rows(stylists: list[db.Stylist]) -> str:
     return "".join(rows)
 
 
+#: Подписи действий. Журнал читает человек, а не грепает машина:
+#: «booking.approved» в таблице заставляет держать словарь в голове.
+AUDIT_LABELS = {
+    audit.BOOKING_CREATED: "Запись создана клиентом",
+    audit.BOOKING_CREATED_OFFLINE: "Запись офлайн-клиента",
+    audit.BOOKING_APPROVED: "Подтверждена мастером",
+    audit.BOOKING_DECLINED: "Отклонена мастером",
+    audit.BOOKING_COMPLETED: "Визит завершён",
+    audit.BOOKING_CANCELLED: "Отменена клиентом",
+    audit.BOOKING_RESCHEDULED: "Перенесена клиентом",
+    audit.REVIEW_HIDDEN: "Отзыв скрыт",
+    audit.REVIEW_RESTORED: "Отзыв возвращён",
+}
+
+ACTOR_LABELS = {
+    db.ACTOR_CLIENT: "клиент",
+    db.ACTOR_STYLIST: "мастер",
+    db.ACTOR_ADMIN: "админ",
+    db.ACTOR_SYSTEM: "система",
+}
+
+
+def _audit_actor(entry: db.AuditLog) -> str:
+    """
+    Кто совершил действие, в читаемом виде.
+
+    Имя берём у связанного пользователя, а для админки и фоновых задач —
+    из actor_label: строки в users у них нет.
+    """
+    kind = ACTOR_LABELS.get(entry.actor_kind, entry.actor_kind)
+    if entry.actor and entry.actor.first_name:
+        return f"{entry.actor.first_name} ({kind})"
+    if entry.actor_label:
+        return f"{entry.actor_label} ({kind})"
+    return kind
+
+
+def _render_audit(rows: list[dict]) -> str:
+    """
+    Журнал действий над записями.
+
+    Только чтение: строки журнала не редактируются и не удаляются ни здесь,
+    ни где-либо ещё в коде. Журнал, который можно поправить, не доказывает
+    ничего.
+    """
+    if rows:
+        body = "".join(
+            f"""
+        <tr>
+          <td class="muted">{escape(row['when'])}</td>
+          <td><b>{escape(row['action'])}</b></td>
+          <td>{escape(row['actor'])}</td>
+          <td>{escape(str(row['booking_id'])) if row['booking_id'] else '—'}</td>
+          <td class="muted">{escape(row['details'])}</td>
+        </tr>"""
+            for row in rows
+        )
+        table = f"""
+    <table>
+      <thead>
+        <tr><th>Когда</th><th>Что</th><th>Кто</th><th>Запись</th><th>Подробности</th></tr>
+      </thead>
+      <tbody>{body}</tbody>
+    </table>"""
+    else:
+        table = "<div class='empty'>Журнал пуст — действий над записями ещё не было.</div>"
+
+    return f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maestro — журнал действий</title>
+  <style>
+    :root {{ --panel:#fff; --line:#e2e8f0; --muted:#64748b; --brand:#2563eb; }}
+    * {{ box-sizing:border-box; }}
+    body {{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#f8fafc; color:#0f172a; }}
+    header {{ display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 24px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }}
+    h1 {{ margin:0; font-size:20px; }}
+    a.button {{ display:inline-block; padding:8px 14px; border-radius:6px; background:var(--brand); color:#fff; text-decoration:none; font-size:14px; }}
+    main {{ max-width:1100px; margin:0 auto; padding:24px; }}
+    table {{ width:100%; border-collapse:collapse; font-size:14px; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; }}
+    th, td {{ padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }}
+    th {{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }}
+    .muted {{ color:var(--muted); }}
+    .empty {{ color:var(--muted); text-align:center; padding:28px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }}
+    @media (max-width: 720px) {{ th:nth-child(5), td:nth-child(5) {{ display:none; }} }}
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>Журнал действий</h1><div class="muted">Последние {len(rows)} записей. Только чтение: журнал не редактируется.</div></div>
+    <div><a class="button" href="/reviews">Отзывы</a> <a class="button" href="/dashboard">К дашборду</a></div>
+  </header>
+  <main>{table}</main>
+</body>
+</html>"""
+
+
 def _render_reviews(rows: list[dict]) -> str:
     """
     Страница модерации отзывов.
@@ -360,7 +460,7 @@ def _render_dashboard(data: dict) -> str:
   </style>
 </head>
 <body>
-  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {timeutils.now().strftime("%Y-%m-%d %H:%M")}</div></div><div><a class="button" href="/reviews">Отзывы</a> <a class="button" href="/admin">Открыть CRUD-админку</a></div></header>
+  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {timeutils.now().strftime("%Y-%m-%d %H:%M")}</div></div><div><a class="button" href="/audit">Журнал</a> <a class="button" href="/reviews">Отзывы</a> <a class="button" href="/admin">Открыть CRUD-админку</a></div></header>
   <main>
     <div class="grid">
       <div class="card"><span>Пользователи</span><strong>{data["users_count"]}</strong></div>
@@ -724,12 +824,48 @@ async def toggle_review_visibility(booking_id: int, request: Request):
         booking = await session.get(db.Booking, booking_id)
         if booking and booking.review_text:
             booking.review_hidden = not booking.review_hidden
+            # Скрытие чужого отзыва — именно то действие, о котором потом
+            # спрашивают «кто и почему». Журнал уезжает тем же commit'ом.
+            audit.record_admin(
+                session,
+                audit.REVIEW_HIDDEN if booking.review_hidden else audit.REVIEW_RESTORED,
+                ADMIN_SETTINGS.username,
+                booking_id=booking_id,
+            )
             await session.commit()
             logging.info(
                 "review.moderated booking_id=%s hidden=%s", booking_id, booking.review_hidden
             )
 
     return RedirectResponse("/reviews", status_code=303)
+
+
+@app.get("/audit", response_class=HTMLResponse)
+async def audit_feed(request: Request):
+    """
+    Журнал действий над записями.
+
+    Раньше на вопрос «кто отменил эту запись и когда» ответить было нечем:
+    статус менялся, а следов не оставалось.
+    """
+    if not _is_admin_authenticated(request):
+        return RedirectResponse("/admin/login")
+    try:
+        async with db.async_session() as session:
+            entries = await audit.load_feed(session)
+            rows = [
+                {
+                    "when": timeutils.format_slot(item.created_at),
+                    "action": AUDIT_LABELS.get(item.action, item.action),
+                    "actor": _audit_actor(item),
+                    "booking_id": item.booking_id,
+                    "details": item.details or "",
+                }
+                for item in entries
+            ]
+    except SQLAlchemyError as exc:
+        return HTMLResponse(_render_dashboard_error(exc), status_code=503)
+    return HTMLResponse(_render_audit(rows))
 
 
 @app.get("/health")

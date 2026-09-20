@@ -34,6 +34,7 @@ from guards import (
     ensure_active_stylist_message,
     get_user_lang,
 )
+from services import audit
 from services.booking import (
     build_offline_booking,
     get_available_dates_for_month,
@@ -235,7 +236,7 @@ async def offline_ask_name(cb: CallbackQuery, state: FSMContext):
 
 
 async def _save(target, stylist_id: int, state: FSMContext, lang: str,
-                guest_name: str | None) -> None:
+                guest_name: str | None, stylist_user_id: int | None = None) -> None:
     """
     Общий финал для обоих путей: с именем и без.
 
@@ -277,6 +278,15 @@ async def _save(target, stylist_id: int, state: FSMContext, lang: str,
         )
         session.add(booking)
         try:
+            # flush до записи в журнал: id брони присваивается здесь, а
+            # журнал ссылается именно на него. Всё остаётся одной транзакцией.
+            await session.flush()
+            audit.record_stylist(
+                session, audit.BOOKING_CREATED_OFFLINE, booking,
+                stylist_user_id=stylist_user_id,
+                details=f"{date_str} {slot}"
+                        + (f", {booking.guest_name}" if booking.guest_name else ""),
+            )
             await session.commit()
         except IntegrityError:
             await session.rollback()
@@ -308,7 +318,7 @@ async def offline_save_without_name(cb: CallbackQuery, state: FSMContext):
         return
 
     lang = await get_user_lang(cb.from_user.id)
-    await _save(cb.message, stylist.id, state, lang, None)
+    await _save(cb.message, stylist.id, state, lang, None, user.id)
     await cb.answer()
 
 
@@ -320,4 +330,4 @@ async def offline_save_with_name(message: Message, state: FSMContext):
         return
 
     lang = await get_user_lang(message.from_user.id)
-    await _save(message, stylist.id, state, lang, normalize_guest_name(message.text))
+    await _save(message, stylist.id, state, lang, normalize_guest_name(message.text), user.id)

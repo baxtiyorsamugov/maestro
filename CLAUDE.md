@@ -30,7 +30,7 @@
 | `bot.py` | точка входа: сборка роутеров, обработчик ошибок, шедулер, поллинг |
 | `loader.py` | объекты `bot`, `dp`, `storage` и регистрация middleware |
 | `handlers/` | хендлеры по доменам: `client/`, `stylist/`, `fallback`. Порядок роутеров — в `handlers/__init__.py` |
-| `services/` | бизнес-логика: `booking` (слоты, перенос, буфер), `access` (права, подписка), `rating`, `reviews` (отзывы и модерация), `stylist_profile`, `search` (подбор и сортировка) |
+| `services/` | бизнес-логика: `booking` (слоты, перенос, буфер), `access` (права, подписка), `rating`, `reviews` (отзывы и модерация), `stylist_profile`, `search` (подбор и сортировка), `audit` (журнал действий) |
 | `guards.py` | проверки доступа уровня хендлеров: `ensure_*`, `deny_access` |
 | `keyboards.py` | всё, что возвращает разметку |
 | `presenters.py` | всё, что возвращает текст для пользователя |
@@ -155,6 +155,9 @@ TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pyt
   Для действий мастера над своим профилем — `guards.ensure_active_stylist_callback()`.
 - Никогда не восстанавливай состояние из текста сообщения (`cb.message.text.split(":")`).
   Источник истины — база.
+- Меняешь статус записи — пиши в журнал (`services.audit`) **в той же сессии**,
+  до `commit()`. Отдельная транзакция означает, что при сбое изменение есть,
+  а следа нет. Проверяется тестами, читающими исходники хендлеров.
 - Не логируй `BOT_TOKEN`, номера телефонов и `telegram_id` в открытом виде.
   Для идентификатора есть `logutil.mask_user()`; строка `user_id=%s` рядом с telegram_id
   роняет `test_source_has_no_plain_user_id_logging`.

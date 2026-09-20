@@ -31,6 +31,7 @@ from guards import (
     get_user_lang,
 )
 from loader import bot
+from services import audit
 from services.access import (
     load_booking_for_client,
 )
@@ -147,6 +148,13 @@ async def cancel_booking(cb: CallbackQuery):
 
         # Статус вместо удаления: история визитов нужна для статистики и follow-up.
         booking.status = BOOKING_CANCELLED
+        # Тем же commit'ом, что и смена статуса: иначе при сбое между ними
+        # отмена есть, а следа нет — ровно тот случай, ради которого журнал
+        # и читают («кто отменил эту запись и когда»).
+        audit.record_client(
+            session, audit.BOOKING_CANCELLED, booking,
+            details=f"было: {booking_datetime}",
+        )
         await session.commit()
 
     if stylist_telegram_id:

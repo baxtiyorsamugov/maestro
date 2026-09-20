@@ -35,11 +35,25 @@ from loader import bot
 from presenters import (
     build_booking_card,
 )
+from services import audit
 from services.access import (
     load_booking_for_stylist,
 )
 
 router = Router(name="stylist_bookings")
+
+
+def _actor_id(booking: db.Booking) -> int | None:
+    """
+    Кто из мастеров совершил действие.
+
+    Берём из самой брони, а не из cb.from_user: load_booking_for_stylist
+    уже сверил владельца в SQL-запросе, то есть это тот же человек, но
+    в виде id строки users — а именно на неё ссылается журнал.
+    """
+    if booking.stylist and booking.stylist.user_account:
+        return booking.stylist.user_account.id
+    return None
 
 
 @router.message(F.text.in_(texts.all_variants("my_bookings")))
@@ -185,6 +199,12 @@ async def approve_booking(cb: CallbackQuery):
             return
 
         booking.status = BOOKING_APPROVED
+        # Журнал уезжает тем же commit'ом, что и смена статуса: отдельная
+        # транзакция означала бы, что при сбое между ними изменение есть,
+        # а следа нет — то есть журнал врёт там, где его и читают.
+        audit.record_stylist(
+            session, audit.BOOKING_APPROVED, booking, stylist_user_id=_actor_id(booking)
+        )
         await session.commit()
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
@@ -220,6 +240,9 @@ async def decline_booking(cb: CallbackQuery):
             return
 
         booking.status = BOOKING_DECLINED
+        audit.record_stylist(
+            session, audit.BOOKING_DECLINED, booking, stylist_user_id=_actor_id(booking)
+        )
         await session.commit()
         client_lang = booking.user.language_code or "ru"
         client_telegram_id = booking.user.telegram_id
@@ -255,6 +278,9 @@ async def complete_booking(cb: CallbackQuery):
             return
 
         booking.status = BOOKING_COMPLETED
+        audit.record_stylist(
+            session, audit.BOOKING_COMPLETED, booking, stylist_user_id=_actor_id(booking)
+        )
         await session.commit()
         # У офлайн-клиента нет аккаунта: оценку просить не у кого.
         client_lang = booking.user.language_code or "ru" if booking.user else None
