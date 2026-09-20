@@ -13,11 +13,14 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
+import logutil
 import middlewares
 from config import check_environment, load_bot_settings
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+# Формат и уровень берутся из окружения: LOG_FORMAT=json в контейнере,
+# текст при локальной разработке — JSON в терминале читать невозможно.
+logutil.setup_logging()
 
 # Окружение проверяется до создания Bot: иначе первая же недостающая
 # переменная роняет импорт своим трейсбеком, и про остальные человек
