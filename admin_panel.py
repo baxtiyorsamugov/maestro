@@ -17,9 +17,12 @@ from wtforms.fields import SelectField
 import database as db
 import security
 import timeutils
-from config import load_admin_settings
+from config import check_environment, load_admin_settings
 from services.reviews import load_reviews_for_moderation
 
+# Как и в loader.py: сначала собираем все претензии к окружению, потом падаем
+# одним понятным списком. Токен бота админке не нужен — её можно поднять отдельно.
+check_environment(groups=("admin", "database"))
 ADMIN_SETTINGS = load_admin_settings()
 
 login_throttle = security.LoginThrottle()

@@ -40,7 +40,7 @@
 | `database.py` | SQLAlchemy 2.x async ORM-модели + `engine` + `async_session` |
 | `admin_panel.py` | FastAPI + sqladmin: CRUD, дашборд, `/health` |
 | `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
-| `config.py` | загрузка и валидация `.env`, сборка DSN |
+| `config.py` | `.env` через pydantic-settings: модели `BotSettings`/`AdminSettings`/`MySQLSettings`, `check_environment()` печатает все проблемы разом, сборка DSN |
 | `texts.py` | локализация: 211 ключей. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |

@@ -14,10 +14,20 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
 import middlewares
-from config import get_optional_env, get_required_env
+from config import check_environment, load_bot_settings
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
+
+# Окружение проверяется до создания Bot: иначе первая же недостающая
+# переменная роняет импорт своим трейсбеком, и про остальные человек
+# узнаёт только на следующем запуске. Пароль админки здесь не нужен —
+# бота можно запускать без неё.
+check_environment(groups=("bot", "database"))
+
+# Токен проверяется на похожесть на токен Telegram, а не уезжает в первый же
+# запрос, чтобы вернуться оттуда «Unauthorized» без объяснения, что не так.
+BOT = load_bot_settings()
 
 
 def build_storage():
@@ -27,7 +37,7 @@ def build_storage():
     С MemoryStorage незавершённый сценарий записи теряется при каждом рестарте
     бота — для прода нужен Redis (docs/AUDIT.md, A-6).
     """
-    redis_url = get_optional_env("REDIS_URL")
+    redis_url = BOT.redis_url
     if not redis_url:
         logging.warning(
             "storage.memory_fallback REDIS_URL не задан: состояние сценариев "
@@ -42,7 +52,7 @@ def build_storage():
 
 storage = build_storage()
 
-bot = Bot(token=get_required_env("BOT_TOKEN"))
+bot = Bot(token=BOT.token)
 
 dp = Dispatcher(storage=storage)
 
