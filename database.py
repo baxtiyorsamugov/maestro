@@ -286,6 +286,60 @@ class Portfolio(Base):
     telegram_photo_file_id: Mapped[str] = mapped_column(String(255))
 
 
+#: Кто совершил действие. Строки, а не Enum: список пополняется чаще, чем
+#: меняется схема, а миграция ради нового значения — лишний повод её не делать.
+ACTOR_CLIENT = "client"
+ACTOR_STYLIST = "stylist"
+ACTOR_ADMIN = "admin"
+ACTOR_SYSTEM = "system"
+
+
+class AuditLog(Base):
+    """
+    Журнал действий над записями.
+
+    Раньше на вопрос «кто отменил эту запись и когда» ответить было нечем:
+    статус менялся, а следов не оставалось. Для сервиса, где клиент и мастер
+    спорят о том, кто что отменил, это не мелочь.
+
+    Строки только добавляются. Изменять и удалять их не должен никто —
+    в админке представление открыто на чтение, а в коде нет ни одного места,
+    которое правило бы существующую запись журнала.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=_now, server_default=func.now()
+    )
+
+    # Что произошло: "booking.approved", "review.hidden" и так далее.
+    action: Mapped[str] = mapped_column(String(50))
+
+    actor_kind: Mapped[str] = mapped_column(String(20))
+    # Ссылка на пользователя, если действие совершил человек из бота.
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # Подпись для тех, у кого нет строки в users: логин админки, "scheduler".
+    actor_label: Mapped[str] = mapped_column(String(100), nullable=True)
+
+    # Намеренно БЕЗ ForeignKey на bookings. Журнал обязан пережить то,
+    # что он описывает: внешний ключ либо утащил бы запись журнала следом
+    # за удалённой бронью, либо запретил бы удаление. Записи у нас и так
+    # не удаляются, но журнал не должен зависеть от этого обещания.
+    booking_id: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    # Человекочитаемая подробность: было -> стало, причина, старое время.
+    details: Mapped[str] = mapped_column(String(500), nullable=True)
+
+    actor = relationship("User", foreign_keys=[actor_user_id])
+
+    __table_args__ = (
+        Index("ix_audit_log_booking", "booking_id"),
+        Index("ix_audit_log_created_at", "created_at"),
+    )
+
+
 def _run_alembic_upgrade() -> None:
     """Синхронный прогон миграций. Вызывается из потока, чтобы не блокировать loop."""
     from alembic import command

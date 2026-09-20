@@ -30,6 +30,7 @@ from guards import (
 )
 from loader import bot
 from logutil import mask_user
+from services import audit
 from services.access import (
     is_registration_complete,
     is_stylist_subscription_active,
@@ -515,6 +516,19 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
             session.add(target_booking)
 
         try:
+            # flush до записи в журнал: у новой брони id присваивается здесь,
+            # а журнал ссылается именно на него. Транзакция остаётся одна,
+            # и гонку по слоту IntegrityError ловит так же — просто раньше.
+            await session.flush()
+            if moved_booking:
+                audit.record_client(
+                    session, audit.BOOKING_RESCHEDULED, target_booking,
+                    details=f"{timeutils.format_slot(old_starts_at)} -> {full_datetime}",
+                )
+            else:
+                audit.record_client(
+                    session, audit.BOOKING_CREATED, target_booking, details=full_datetime
+                )
             await session.commit()
         except IntegrityError:
             # Частичный уникальный индекс uq_active_booking_slot: слот заняли
