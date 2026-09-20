@@ -15,9 +15,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from wtforms.fields import SelectField
 
 import database as db
+import observability
 import security
 import timeutils
-from config import check_environment, load_admin_settings
+from config import check_environment, load_admin_settings, load_sentry_settings
 from services import audit
 from services.reviews import load_reviews_for_moderation
 
@@ -25,6 +26,11 @@ from services.reviews import load_reviews_for_moderation
 # одним понятным списком. Токен бота админке не нужен — её можно поднять отдельно.
 check_environment(groups=("admin", "database"))
 ADMIN_SETTINGS = load_admin_settings()
+
+# Та же Sentry, что у бота, но с тегом component=admin: обе половины шлют
+# в один проект, и без тега непонятно, где именно сломалось.
+_sentry = load_sentry_settings()
+observability.init_sentry(_sentry.dsn, _sentry.environment, component="admin")
 
 login_throttle = security.LoginThrottle()
 

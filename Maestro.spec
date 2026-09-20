@@ -14,6 +14,7 @@ a = Analysis(
         "backports",
         "backports.tarfile",
         "pydantic_settings",
+        "sentry_sdk",
         "pymysql",
         "sqladmin",
         "uvicorn",

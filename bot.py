@@ -16,10 +16,17 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database as db
 import handlers
+import observability
 import scheduler
+from config import load_sentry_settings
 from guards import get_user_lang
 from keyboards import get_main_keyboard
 from loader import bot, dp
+
+# Ошибка на проде видна только в логах контейнера — то есть её никто
+# не видит, пока не пойдёт смотреть. Без SENTRY_DSN ничего не включается.
+_sentry = load_sentry_settings()
+observability.init_sentry(_sentry.dsn, _sentry.environment, component="bot")
 
 ERROR_TEXT = {
     "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
@@ -49,13 +56,19 @@ async def handle_unexpected_error(event: ErrorEvent) -> bool:
     Последний рубеж: любое необработанное исключение в хендлере.
     Пользователь не должен оставаться перед «зависшим» экраном без ответа.
     """
-    logging.exception(
-        "handler.unhandled_error update_id=%s error=%s",
-        getattr(event.update, "update_id", None),
-        event.exception,
+    update = event.update
+    update_id = getattr(update, "update_id", None)
+
+    # Привязываем событие к апдейту до логирования: sentry-sdk подхватывает
+    # исключение из logging.exception, и теги должны быть проставлены раньше.
+    source = update.callback_query or update.message
+    observability.note_update(
+        update_id, source.from_user.id if source and source.from_user else None
     )
 
-    update = event.update
+    logging.exception(
+        "handler.unhandled_error update_id=%s error=%s", update_id, event.exception
+    )
     try:
         if update.callback_query:
             lang = await get_user_lang(update.callback_query.from_user.id)

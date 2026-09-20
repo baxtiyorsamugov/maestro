@@ -81,6 +81,18 @@ class BotSettings(_Base):
         return value
 
 
+class SentrySettings(_Base):
+    """
+    Отправка ошибок наружу. Всё необязательно: без DSN Sentry не включается.
+
+    Отдельная группа, а не поля в BotSettings: наблюдаемость нужна обеим
+    половинам, и требовать её нельзя — локальная разработка идёт без неё.
+    """
+
+    dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    environment: str = Field(default="production", alias="SENTRY_ENVIRONMENT")
+
+
 class AdminSettings(_Base):
     """Учётные данные веб-панели."""
 
@@ -212,6 +224,10 @@ def load_admin_settings() -> AdminSettings:
 
 def load_bot_settings() -> BotSettings:
     return BotSettings()
+
+
+def load_sentry_settings() -> SentrySettings:
+    return SentrySettings()
 
 
 def _problems_of(loader) -> list[str]:
