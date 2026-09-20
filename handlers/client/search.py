@@ -21,10 +21,17 @@ from guards import (
     ensure_registered_message,
     get_user_lang,
 )
+from presenters import build_stylist_button_label
 from services.access import (
     is_stylist_subscription_active,
 )
 from services.booking import get_last_booking_for_repeat
+from services.search import (
+    DEFAULT_SORT,
+    SORT_MODES,
+    load_stylist_cards,
+    sort_cards,
+)
 from states import SearchForm
 
 router = Router(name="client_search")
@@ -48,24 +55,40 @@ async def clear_search_context(state: FSMContext, user_id: int):
         await state.clear()
     await state.update_data(search_type=None)
 
-# --- Вспомогательная функция для показа списка мастеров ---
-async def show_stylist_buttons(message: Message, stylists: list, title: str, shop_id_for_back_button: int | None = None):
+async def show_stylist_buttons(
+    message: Message,
+    stylists: list,
+    title: str,
+    lang: str,
+    shop_id_for_back_button: int | None = None,
+):
+    """
+    Результаты поиска по имени или ID.
+
+    Подписи те же, что в списке салона: рейтинг, цена «от» и ближайшее
+    свободное время. Два разных вида одного и того же списка заставляли бы
+    человека заново разбираться, что перед ним, — и один из них неизбежно
+    отстал бы от другого.
+    """
     if not stylists:
-        await message.answer("Мастера по вашему запросу не найдены.")
+        await message.answer(texts.get_text("search_nobody_found", lang))
         return
 
-    btns = []
-    for stylist in stylists:
-        rating_suffix = f" (⭐ {stylist.avg_rating:.1f})" if stylist.avg_rating else ""
-        btns.append([
-            InlineKeyboardButton(
-                text=f"💇‍♂️ {stylist.name}{rating_suffix}",
-                callback_data=f"maestro_{stylist.id}",
-            )
-        ])
+    async with db.async_session() as session:
+        cards = sort_cards(await load_stylist_cards(session, stylists), DEFAULT_SORT)
+
+    btns = [
+        [InlineKeyboardButton(
+            text=build_stylist_button_label(card, lang), callback_data=f"maestro_{card.id}"
+        )]
+        for card in cards
+    ]
 
     if shop_id_for_back_button:
-        btns.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=f"shop_{shop_id_for_back_button}")])
+        btns.append([InlineKeyboardButton(
+            text=texts.get_text("kb_back", lang),
+            callback_data=f"shop_{shop_id_for_back_button}",
+        )])
 
     await message.answer(title, reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
 
@@ -127,7 +150,7 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
         await message.answer(retry_prompt.get(search_type, retry_prompt["name"])[lang])
         return False
 
-    await show_stylist_buttons(message, stylists, title)
+    await show_stylist_buttons(message, stylists, title, lang)
     return True
 
 
@@ -319,35 +342,85 @@ async def show_shops(cb: CallbackQuery):
     )
     await cb.answer()
 
-@router.callback_query(F.data.startswith("shop_"))
-async def show_stylists(cb: CallbackQuery):
+async def render_stylist_list(cb: CallbackQuery, shop_id: int, sort_mode: str) -> None:
+    """
+    Список мастеров салона с фактами и сортировкой.
+
+    Раньше здесь были одни имена: чтобы понять, кто дороже, у кого рейтинг
+    выше и кто освободится раньше, приходилось открывать карточки по одной
+    и возвращаться. Обычно так не делают — жмут первого или уходят.
+    """
     lang = await get_user_lang(cb.from_user.id)
-    shop_id = int(cb.data.split("_")[1])
+
     async with db.async_session() as session:
         stylists = (await session.execute(
             select(db.Stylist)
             .where(db.Stylist.barbershop_id == shop_id)
             .options(joinedload(db.Stylist.user_account))
         )).scalars().all()
-        stylists = [stylist for stylist in stylists if is_stylist_subscription_active(stylist.user_account)]
+        stylists = [s for s in stylists if is_stylist_subscription_active(s.user_account)]
         shop = await session.get(db.Barbershop, shop_id)
+        cards = await load_stylist_cards(session, stylists)
 
-    if not stylists:
-        await cb.answer({"ru": "В этом салоне пока нет активных мастеров.", "uz": "Bu salonda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
+    if not cards:
+        await cb.answer(
+            {
+                "ru": "В этом салоне пока нет активных мастеров.",
+                "uz": "Bu salonda hozircha faol maestrolar yo'q.",
+            }[lang],
+            show_alert=True,
+        )
         return
 
-    btns = [[InlineKeyboardButton(text=f"{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]} {s.name}", callback_data=f"maestro_{s.id}")] for s in stylists]
-    btns.append([InlineKeyboardButton(text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data=f"dist_{shop.district}")])
+    cards = sort_cards(cards, sort_mode)
+
+    btns = [
+        [InlineKeyboardButton(
+            text=build_stylist_button_label(card, lang), callback_data=f"maestro_{card.id}"
+        )]
+        for card in cards
+    ]
+
+    # Режимы сортировки одной строкой. Текущий помечен галочкой: иначе
+    # непонятно, по чему список отсортирован сейчас.
+    sort_row = []
+    for mode in SORT_MODES:
+        label = texts.get_text(f"sort_{mode}", lang)
+        if mode == sort_mode:
+            label = f"✅ {label}"
+        sort_row.append(InlineKeyboardButton(
+            text=label, callback_data=f"sort_{mode}_{shop_id}"
+        ))
+    btns.append(sort_row)
+    btns.append([InlineKeyboardButton(
+        text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data=f"dist_{shop.district}"
+    )])
 
     await cb.message.edit_text(
-        {
-            "ru": f"Выберите мастера в салоне <b>{escape(shop.name)}</b>.",
-            "uz": f"<b>{escape(shop.name)}</b> salonidagi maestroni tanlang.",
-        }[lang],
+        texts.get_text("search_pick_stylist", lang).format(
+            shop=escape(shop.name),
+            sort=texts.get_text("search_sorted_by", lang).format(
+                mode=texts.get_text(f"sort_{sort_mode}", lang)
+            ),
+        ),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML",
     )
     await cb.answer()
 
 
+@router.callback_query(F.data.startswith("sort_"))
+async def change_sort(cb: CallbackQuery):
+    # Режим приходит из callback_data, то есть от клиента Telegram:
+    # сверяем со своим списком, а не доверяем присланному.
+    _, mode, shop_id = cb.data.split("_", 2)
+    if mode not in SORT_MODES:
+        lang = await get_user_lang(cb.from_user.id)
+        await cb.answer(texts.get_text("fallback_button_outdated", lang), show_alert=True)
+        return
+    await render_stylist_list(cb, int(shop_id), mode)
 
+
+@router.callback_query(F.data.startswith("shop_"))
+async def show_stylists(cb: CallbackQuery):
+    await render_stylist_list(cb, int(cb.data.split("_")[1]), DEFAULT_SORT)

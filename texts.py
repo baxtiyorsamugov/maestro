@@ -232,6 +232,46 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "search_nobody_found": {
+        "ru": "Мастера по вашему запросу не найдены.",
+        "uz": "So'rovingiz bo'yicha maestrolar topilmadi.",
+    },
+    "search_pick_stylist": {
+        "ru": "Выберите мастера в салоне <b>{shop}</b>.\n{sort}",
+        "uz": "<b>{shop}</b> salonidagi maestroni tanlang.\n{sort}",
+    },
+    "search_sorted_by": {
+        "ru": "Сортировка: {mode}",
+        "uz": "Saralash: {mode}",
+    },
+    "sort_rating": {
+        "ru": "⭐ По рейтингу",
+        "uz": "⭐ Reyting bo'yicha",
+    },
+    "sort_price": {
+        "ru": "💰 По цене",
+        "uz": "💰 Narx bo'yicha",
+    },
+    "sort_soonest": {
+        "ru": "⏱ Кто раньше",
+        "uz": "⏱ Kim oldinroq",
+    },
+    "search_price_from": {
+        "ru": "от {price}",
+        "uz": "{price} dan",
+    },
+    "search_no_services": {
+        "ru": "услуг пока нет",
+        "uz": "xizmatlar yo'q",
+    },
+    "search_no_slots": {
+        "ru": "нет окон на 2 недели",
+        "uz": "2 haftaga bo'sh joy yo'q",
+    },
+    "search_no_rating": {
+        "ru": "без оценок",
+        "uz": "bahosiz",
+    },
     "profile_card_title": {
         "ru": "<b>Ваша карточка</b>\n\nЕё видит клиент до того, как нажмёт «Записаться».",
         "uz": "<b>Sizning kartangiz</b>\n\nUni mijoz «Yozilish»ni bosishdan oldin ko'radi.",

@@ -30,7 +30,7 @@
 | `bot.py` | точка входа: сборка роутеров, обработчик ошибок, шедулер, поллинг |
 | `loader.py` | объекты `bot`, `dp`, `storage` и регистрация middleware |
 | `handlers/` | хендлеры по доменам: `client/`, `stylist/`, `fallback`. Порядок роутеров — в `handlers/__init__.py` |
-| `services/` | бизнес-логика: `booking` (слоты, перенос, буфер), `access` (права, подписка), `rating`, `reviews` (отзывы и модерация), `stylist_profile` |
+| `services/` | бизнес-логика: `booking` (слоты, перенос, буфер), `access` (права, подписка), `rating`, `reviews` (отзывы и модерация), `stylist_profile`, `search` (подбор и сортировка) |
 | `guards.py` | проверки доступа уровня хендлеров: `ensure_*`, `deny_access` |
 | `keyboards.py` | всё, что возвращает разметку |
 | `presenters.py` | всё, что возвращает текст для пользователя |
@@ -41,7 +41,7 @@
 | `admin_panel.py` | FastAPI + sqladmin: CRUD, дашборд, `/health` |
 | `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
 | `config.py` | `.env` через pydantic-settings: модели `BotSettings`/`AdminSettings`/`MySQLSettings`, `check_environment()` печатает все проблемы разом, сборка DSN |
-| `texts.py` | локализация: 228 ключей. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
+| `texts.py` | локализация: 238 ключей. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |
 | `security.py` | хеширование пароля админки и ограничение попыток входа |
