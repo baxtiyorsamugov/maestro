@@ -29,6 +29,7 @@ from guards import (
     get_user_lang,
 )
 from loader import bot
+from logutil import mask_user
 from services.access import (
     is_registration_complete,
     is_stylist_subscription_active,
@@ -254,8 +255,8 @@ async def repeat_last_booking(cb: CallbackQuery, state: FSMContext):
         state, stylist_id=stylist_id, service_id=service_id, reschedule_id=None
     )
     logging.info(
-        "booking.repeat user_id=%s stylist_id=%s service_id=%s",
-        cb.from_user.id, stylist_id, service_id,
+        "booking.repeat user=%s stylist_id=%s service_id=%s",
+        mask_user(cb.from_user.id), stylist_id, service_id,
     )
     await show_calendar_for_service(cb, stylist_id, service_id, lang)
 
@@ -305,8 +306,8 @@ async def reschedule_booking(cb: CallbackQuery, state: FSMContext):
         state, stylist_id=stylist_id, service_id=service_id, reschedule_id=booking_id
     )
     logging.info(
-        "booking.reschedule_started user_id=%s booking_id=%s",
-        cb.from_user.id, booking_id,
+        "booking.reschedule_started user=%s booking_id=%s",
+        mask_user(cb.from_user.id), booking_id,
     )
     await show_calendar_for_service(cb, stylist_id, service_id, lang, reschedule_id=booking_id)
 
@@ -520,8 +521,8 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
             # между проверкой свободных слотов и записью.
             await session.rollback()
             logging.info(
-                "booking.slot_race stylist_id=%s datetime=%s user_id=%s reschedule_id=%s",
-                data["stylist_id"], full_datetime, user_id, reschedule_id,
+                "booking.slot_race stylist_id=%s datetime=%s user=%s reschedule_id=%s",
+                data["stylist_id"], full_datetime, mask_user(user_id), reschedule_id,
             )
             await cb.answer(
                 {
@@ -548,8 +549,8 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
     await clear_booking_draft(state)
     if old_starts_at:
         logging.info(
-            "booking.rescheduled booking_id=%s user_id=%s new_slot=%s",
-            booking_db_id, user_id, full_datetime,
+            "booking.rescheduled booking_id=%s user=%s new_slot=%s",
+            booking_db_id, mask_user(user_id), full_datetime,
         )
         await cb.message.edit_text(
             texts.get_text("reschedule_done", lang).format(

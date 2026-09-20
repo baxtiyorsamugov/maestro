@@ -146,4 +146,4 @@ async def check_subscription_expiry(bot: Bot):
                 try:
                     await bot.send_message(user.telegram_id, text, parse_mode="HTML")
                 except Exception as e:
-                    logging.warning("notify.subscription_failed user_id=%s error=%s", user.id, e)
+                    logging.warning("notify.subscription_failed db_user_id=%s error=%s", user.id, e)

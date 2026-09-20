@@ -1,6 +1,10 @@
 """
 Middleware бота.
 
+Порядок регистрации задан в loader.py и важен: логирование должно охватывать
+всё остальное, кеш пользователя — существовать до антифлуда (тот читает язык),
+а антифлуд — отсекать лишнее до того, как хендлер пойдёт в базу.
+
 Пока файл один: выносить в пакет имеет смысл вместе с общим разбором bot.py
 (Фаза 3 дорожной карты), а не раньше.
 """
@@ -14,6 +18,9 @@ from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, TelegramObject
+
+import guards
+from logutil import mask_user
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +93,9 @@ class ThrottlingMiddleware(BaseMiddleware):
         if not self._is_throttled(user.id):
             return await handler(event, data)
 
-        logger.warning("throttle.blocked user_id=%s event=%s", user.id, type(event).__name__)
+        logger.warning(
+            "throttle.blocked user=%s event=%s", mask_user(user.id), type(event).__name__
+        )
 
         if not self._should_warn(user.id):
             # Callback всё равно нужно закрыть, иначе в клиенте висят «часики».
@@ -102,3 +111,75 @@ class ThrottlingMiddleware(BaseMiddleware):
             await event.answer(text)
 
         return None
+
+
+class UserContextMiddleware(BaseMiddleware):
+    """
+    Один запрос к users на апдейт вместо трёх-четырёх.
+
+    Раньше одно нажатие кнопки приводило к ensure_registered_callback,
+    затем к get_user_lang, затем к ещё одному get_user_lang внутри
+    deny_access — три одинаковых SELECT и три соединения к базе.
+
+    Кеш живёт ровно один апдейт и лежит в ContextVar: апдейты обрабатываются
+    конкурентно, и общий словарь выдавал бы одному пользователю данные другого.
+    Хендлеры менять не пришлось — они по-прежнему зовут guards.get_user_lang().
+    """
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        token = guards.open_user_cache()
+        try:
+            return await handler(event, data)
+        finally:
+            guards.close_user_cache(token)
+
+
+class LoggingMiddleware(BaseMiddleware):
+    """
+    Одна строка на апдейт: что пришло, от кого и сколько заняло.
+
+    До этого при разборе инцидента не было даже точки отсчёта — по логам нельзя
+    было сказать, дошёл ли апдейт до бота вообще. update_id связывает строки
+    одного нажатия между собой, включая те, что пишут сами хендлеры.
+
+    Идентификатор пользователя маскируется (CLAUDE.md, 4.4).
+    """
+
+    #: Медленный апдейт заслуживает WARNING, а не INFO: такие и ищут в логах.
+    SLOW_SECONDS = 3.0
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        user = data.get("event_from_user")
+        update = data.get("event_update")
+        update_id = getattr(update, "update_id", "?")
+        # Текст сообщения в лог не попадает: это переписка живых людей.
+        # Для callback пишем data — это наши же служебные строки.
+        action = event.data if isinstance(event, CallbackQuery) else type(event).__name__
+
+        started = time.monotonic()
+        try:
+            return await handler(event, data)
+        except Exception:
+            logger.exception(
+                "update.failed id=%s user=%s action=%s",
+                update_id, mask_user(getattr(user, "id", None)), action,
+            )
+            raise
+        finally:
+            elapsed = time.monotonic() - started
+            level = logging.WARNING if elapsed >= self.SLOW_SECONDS else logging.INFO
+            logger.log(
+                level,
+                "update.done id=%s user=%s action=%s elapsed=%.3f",
+                update_id, mask_user(getattr(user, "id", None)), action, elapsed,
+            )

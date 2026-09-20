@@ -36,7 +36,7 @@
 | `presenters.py` | всё, что возвращает текст для пользователя |
 | `constants.py` | словарь расписания, общий для keyboards и presenters |
 | `states.py` | группы FSM |
-| `middlewares.py` | антифлуд |
+| `middlewares.py` | логирование апдейтов, кеш пользователя на апдейт, антифлуд (порядок задан в `loader.py`) |
 | `database.py` | SQLAlchemy 2.x async ORM-модели + `engine` + `async_session` |
 | `admin_panel.py` | FastAPI + sqladmin: CRUD, дашборд, `/health` |
 | `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
@@ -45,6 +45,7 @@
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |
 | `security.py` | хеширование пароля админки и ограничение попыток входа |
+| `logutil.py` | `mask_user()` — `telegram_id` в логах только маскированным (4.4) |
 | `scripts/` | служебные скрипты: проверки для CI, генерация хеша пароля, seed |
 | `launcher.py` | запускает admin-панель + бота вместе (для `.exe`) |
 | `scripts/seed_db.py` | **ОПАСНО**: `drop_all()` + демо-данные. Запускается только с `--i-know-what-i-do` и при `DB_DRIVER=sqlite` |
@@ -143,6 +144,8 @@ pyinstaller Maestro.spec
 - Никогда не восстанавливай состояние из текста сообщения (`cb.message.text.split(":")`).
   Источник истины — база.
 - Не логируй `BOT_TOKEN`, номера телефонов и `telegram_id` в открытом виде.
+  Для идентификатора есть `logutil.mask_user()`; строка `user_id=%s` рядом с telegram_id
+  роняет `test_source_has_no_plain_user_id_logging`.
 
 ### 4.5 UX
 - Любое действие пользователя должно получать ответ: `cb.answer()` обязателен в конце

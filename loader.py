@@ -56,8 +56,16 @@ bot = Bot(token=BOT.token)
 
 dp = Dispatcher(storage=storage)
 
-# Антифлуд. Регистрируется на оба типа апдейтов: быстрые повторные нажатия
-# порождают параллельные запросы к базе и дублирующие уведомления.
+# Порядок здесь — это порядок обёртывания, и он не случайный:
+#   1. логирование снаружи всего, иначе отброшенные антифлудом апдейты
+#      не попадут в лог и при разборе инцидента их будто бы не было;
+#   2. кеш пользователя следующим — им пользуется и антифлуд, и хендлеры;
+#   3. антифлуд последним, чтобы лишнее отсекалось до похода в базу.
+logging_mw = middlewares.LoggingMiddleware()
+user_context = middlewares.UserContextMiddleware()
 throttling = middlewares.ThrottlingMiddleware()
-dp.message.middleware(throttling)
-dp.callback_query.middleware(throttling)
+
+for event in (dp.message, dp.callback_query):
+    event.middleware(logging_mw)
+    event.middleware(user_context)
+    event.middleware(throttling)

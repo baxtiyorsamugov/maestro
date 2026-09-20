@@ -19,6 +19,7 @@ import texts
 from guards import (
     ensure_registered_callback,
     ensure_registered_message,
+    forget_user,
 )
 from handlers.client.stylist_card import send_stylist_card
 from keyboards import (
@@ -27,6 +28,7 @@ from keyboards import (
     get_language_switch_kb,
     get_main_keyboard,
 )
+from logutil import mask_user
 from presenters import get_registration_text
 from services.access import (
     is_registration_complete,
@@ -73,8 +75,8 @@ async def finish_registration(
 
     if pending_stylist_id:
         logging.info(
-            "deeplink.resumed user_id=%s stylist_id=%s",
-            message.from_user.id, pending_stylist_id,
+            "deeplink.resumed user=%s stylist_id=%s",
+            mask_user(message.from_user.id), pending_stylist_id,
         )
         await send_stylist_card(message, pending_stylist_id, lang)
 
@@ -147,7 +149,7 @@ async def start(message: Message, state: FSMContext, command: CommandObject | No
 
     if stylist_id:
         lang = user.language_code if user and user.language_code else "ru"
-        logging.info("deeplink.stylist user_id=%s stylist_id=%s", message.from_user.id, stylist_id)
+        logging.info("deeplink.stylist user=%s stylist_id=%s", mask_user(message.from_user.id), stylist_id)
         await message.answer(
             {"ru": "Открываю карточку мастера...", "uz": "Maestro kartasi ochilmoqda..."}[lang],
             reply_markup=await get_main_keyboard(message.from_user.id),
@@ -169,6 +171,9 @@ async def lang_choice(cb: CallbackQuery, state: FSMContext):
         else:
             user.language_code = lang
         await session.commit()
+    # Строка users изменилась — кеш апдейта обязан о ней забыть, иначе
+    # остаток обработки пойдёт на старом языке (guards.forget_user).
+    forget_user(cb.from_user.id)
 
     if user and (user.role == 'stylist' or is_registration_complete(user)):
         await state.clear()
@@ -210,6 +215,7 @@ async def change_language(cb: CallbackQuery):
         if db_user:
             db_user.language_code = lang
             await session.commit()
+    forget_user(cb.from_user.id)
 
     keyboard = await get_main_keyboard(cb.from_user.id)
     await cb.message.edit_text(texts.get_text('language_changed', lang), reply_markup=None)
@@ -234,6 +240,7 @@ async def process_registration_name(message: Message, state: FSMContext):
 
         user.first_name = full_name
         await session.commit()
+    forget_user(message.from_user.id)
 
     await state.set_state(RegistrationForm.phone_number)
     await message.answer(
@@ -257,6 +264,7 @@ async def process_registration_contact(message: Message, state: FSMContext):
 
         user.phone_number = normalize_phone_number(message.contact.phone_number) or message.contact.phone_number
         await session.commit()
+    forget_user(message.from_user.id)
 
     pending_stylist_id = (await state.get_data()).get("pending_stylist_id")
     await state.clear()
@@ -302,6 +310,7 @@ async def process_registration_phone_text(message: Message, state: FSMContext):
 
         user.phone_number = normalized_phone
         await session.commit()
+    forget_user(message.from_user.id)
 
     pending_stylist_id = (await state.get_data()).get("pending_stylist_id")
     await state.clear()
