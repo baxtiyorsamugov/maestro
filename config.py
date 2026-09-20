@@ -94,11 +94,25 @@ class SentrySettings(_Base):
 
 
 class AdminSettings(_Base):
-    """Учётные данные веб-панели."""
+    """
+    Учётные данные веб-панели.
+
+    Вторая пара (MANAGER) необязательна. Она даёт вход с ограниченными правами:
+    смотреть всё, менять только записи. Нужна, чтобы администратор на ресепшене
+    мог разбирать заявки, не имея доступа к тарифам и учётным записям.
+
+    Учётные записи заданы окружением, а не таблицей в базе. Для сервиса
+    с одним владельцем и одним помощником это соразмерно: таблица потребовала
+    бы миграции, UI управления пользователями и восстановления пароля —
+    ради двух строк. Цена решения известна: третий человек требует правки
+    `.env` и перезапуска.
+    """
 
     username: str = Field(alias="ADMIN_USERNAME")
     password: str = Field(alias="ADMIN_PASSWORD")
     secret_key: str = Field(alias="ADMIN_SECRET_KEY")
+    manager_username: str | None = Field(default=None, alias="ADMIN_MANAGER_USERNAME")
+    manager_password: str | None = Field(default=None, alias="ADMIN_MANAGER_PASSWORD")
 
     @field_validator("secret_key")
     @classmethod

@@ -74,6 +74,69 @@ def looks_like_hash(value: str) -> bool:
     return value.startswith(f"{PREFIX}$")
 
 
+#: Роли в веб-панели.
+#:
+#: owner видит и меняет всё. manager смотрит всё, но меняет только записи:
+#: администратор на ресепшене должен разбирать заявки, не имея доступа
+#: к тарифам мастеров и учётным записям клиентов.
+ROLE_OWNER = "owner"
+ROLE_MANAGER = "manager"
+
+
+def constant_time_equals(left: str, right: str) -> bool:
+    """
+    Постоянное по времени сравнение строк, безопасное для не-ASCII.
+
+    `secrets.compare_digest` на объектах `str` требует, чтобы оба были
+    только из ASCII, и иначе бросает TypeError — то есть кириллический
+    пароль в форме входа ронял бы панель пятисоткой вместо отказа.
+    Для аудитории, которая пишет по-русски и по-узбекски, это не редкость.
+
+    Сравниваем байты: на них ограничения нет, а свойство постоянного
+    времени сохраняется.
+    """
+    return secrets.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
+
+
+def _credentials_match(username: str, password: str,
+                       expected_username: str, expected_password: str) -> bool:
+    """
+    Сверка пары логин-пароль.
+
+    Оба поля сравниваются всегда и целиком: ранний выход по неверному логину
+    выдал бы существование учётной записи по времени ответа.
+    """
+    username_ok = constant_time_equals(username, expected_username)
+    if looks_like_hash(expected_password):
+        password_ok = verify_password(password, expected_password)
+    else:
+        password_ok = constant_time_equals(password, expected_password)
+    return username_ok and password_ok
+
+
+def authenticate_admin(username: str, password: str, settings) -> str | None:
+    """
+    Возвращает роль вошедшего или None.
+
+    Сначала владелец, потом помощник. Обе пары проверяются полностью даже
+    после совпадения с первой — иначе по времени ответа было бы видно,
+    какая именно учётная запись подошла.
+    """
+    role = None
+
+    if _credentials_match(username, password, settings.username, settings.password):
+        role = ROLE_OWNER
+
+    if settings.manager_username and settings.manager_password:
+        manager_ok = _credentials_match(
+            username, password, settings.manager_username, settings.manager_password
+        )
+        if manager_ok and role is None:
+            role = ROLE_MANAGER
+
+    return role
+
+
 @dataclass
 class LoginThrottle:
     """

@@ -38,13 +38,13 @@
 | `states.py` | группы FSM |
 | `middlewares.py` | логирование апдейтов, кеш пользователя на апдейт, антифлуд (порядок задан в `loader.py`) |
 | `database.py` | SQLAlchemy 2.x async ORM-модели + `engine` + `async_session` |
-| `admin_panel.py` | FastAPI + sqladmin: CRUD, дашборд, `/health` |
+| `admin_panel.py` | FastAPI + sqladmin: CRUD с ролями, дашборд, отзывы, журнал, `/health`, `/metrics` |
 | `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
 | `config.py` | `.env` через pydantic-settings: модели `BotSettings`/`AdminSettings`/`MySQLSettings`, `check_environment()` печатает все проблемы разом, сборка DSN |
 | `texts.py` | локализация: 238 ключей. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |
-| `security.py` | хеширование пароля админки и ограничение попыток входа |
+| `security.py` | хеширование пароля админки, роли (`owner` / `manager`), ограничение попыток входа |
 | `logutil.py` | `mask_user()` — `telegram_id` в логах только маскированным (4.4); `setup_logging()` — JSON-вывод и ротация |
 | `observability.py` | Sentry: подключение по `SENTRY_DSN` и вычистка секретов из событий |
 | `scripts/` | служебные скрипты: проверки для CI, генерация хеша пароля, seed |
@@ -159,6 +159,11 @@ TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pyt
 - Меняешь статус записи — пиши в журнал (`services.audit`) **в той же сессии**,
   до `commit()`. Отдельная транзакция означает, что при сбое изменение есть,
   а следа нет. Проверяется тестами, читающими исходники хендлеров.
+- Сравнивать секреты — через `security.constant_time_equals()`, а не
+  `secrets.compare_digest` напрямую: на объектах `str` он требует ASCII
+  и на кириллическом пароле бросает `TypeError` вместо отказа.
+- Новое представление в админке наследуется от `RoleAwareView`. Право на запись
+  выдаётся явно через `writable_by`, по умолчанию — только владелец.
 - Не логируй `BOT_TOKEN`, номера телефонов и `telegram_id` в открытом виде.
   Для идентификатора есть `logutil.mask_user()`; строка `user_id=%s` рядом с telegram_id
   роняет `test_source_has_no_plain_user_id_logging`.
