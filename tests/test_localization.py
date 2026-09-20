@@ -110,4 +110,4 @@ class TestPanelTexts:
 
 class TestRoutersStillAssemble:
     def test_routers_unchanged_by_localization(self):
-        assert len(handlers.ROUTERS) == 14
+        assert len(handlers.ROUTERS) == 15

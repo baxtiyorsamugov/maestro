@@ -232,6 +232,186 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "search_nobody_found": {
+        "ru": "Мастера по вашему запросу не найдены.",
+        "uz": "So'rovingiz bo'yicha maestrolar topilmadi.",
+    },
+    "search_pick_stylist": {
+        "ru": "Выберите мастера в салоне <b>{shop}</b>.\n{sort}",
+        "uz": "<b>{shop}</b> salonidagi maestroni tanlang.\n{sort}",
+    },
+    "search_sorted_by": {
+        "ru": "Сортировка: {mode}",
+        "uz": "Saralash: {mode}",
+    },
+    "sort_rating": {
+        "ru": "⭐ По рейтингу",
+        "uz": "⭐ Reyting bo'yicha",
+    },
+    "sort_price": {
+        "ru": "💰 По цене",
+        "uz": "💰 Narx bo'yicha",
+    },
+    "sort_soonest": {
+        "ru": "⏱ Кто раньше",
+        "uz": "⏱ Kim oldinroq",
+    },
+    "search_price_from": {
+        "ru": "от {price}",
+        "uz": "{price} dan",
+    },
+    "search_no_services": {
+        "ru": "услуг пока нет",
+        "uz": "xizmatlar yo'q",
+    },
+    "search_no_slots": {
+        "ru": "нет окон на 2 недели",
+        "uz": "2 haftaga bo'sh joy yo'q",
+    },
+    "search_no_rating": {
+        "ru": "без оценок",
+        "uz": "bahosiz",
+    },
+    "profile_card_title": {
+        "ru": "<b>Ваша карточка</b>\n\nЕё видит клиент до того, как нажмёт «Записаться».",
+        "uz": "<b>Sizning kartangiz</b>\n\nUni mijoz «Yozilish»ni bosishdan oldin ko'radi.",
+    },
+    "profile_card_about": {
+        "ru": "О себе: {about}",
+        "uz": "O'zim haqimda: {about}",
+    },
+    "profile_card_no_about": {
+        "ru": "О себе: не заполнено. Пара строк помогает клиенту выбрать — без них карточки мастеров неотличимы.",
+        "uz": "O'zim haqimda: to'ldirilmagan. Bir necha satr mijozga tanlashda yordam beradi — ularsiz maestrolar kartalari bir xil.",
+    },
+    "profile_card_no_photo": {
+        "ru": "Фото: нет.",
+        "uz": "Foto: yo'q.",
+    },
+    "profile_card_has_photo": {
+        "ru": "Фото: загружено.",
+        "uz": "Foto: yuklangan.",
+    },
+    "kb_edit_about": {
+        "ru": "✏️ О себе",
+        "uz": "✏️ O'zim haqimda",
+    },
+    "kb_edit_photo": {
+        "ru": "🖼 Фото",
+        "uz": "🖼 Foto",
+    },
+    "kb_clear_photo": {
+        "ru": "🚫 Убрать фото",
+        "uz": "🚫 Fotoni olib tashlash",
+    },
+    "kb_clear_about": {
+        "ru": "🚫 Очистить",
+        "uz": "🚫 Tozalash",
+    },
+    "profile_ask_about": {
+        "ru": "Напишите пару строк о себе — до {limit} символов.\n\nЧто вы делаете лучше всего, сколько лет в профессии, чем отличаетесь. Это увидят клиенты.",
+        "uz": "O'zingiz haqingizda bir necha satr yozing — {limit} belgigacha.\n\nNimani eng yaxshi bajarasiz, kasbda necha yil, nimangiz bilan ajralib turasiz. Buni mijozlar ko'radi.",
+    },
+    "profile_about_saved": {
+        "ru": "Описание сохранено.",
+        "uz": "Tavsif saqlandi.",
+    },
+    "profile_about_empty": {
+        "ru": "Пустое описание сохранять нечего. Напишите текст или нажмите «Очистить».",
+        "uz": "Bo'sh tavsifni saqlab bo'lmaydi. Matn yozing yoki «Tozalash»ni bosing.",
+    },
+    "profile_about_cleared": {
+        "ru": "Описание убрано.",
+        "uz": "Tavsif olib tashlandi.",
+    },
+    "profile_ask_photo": {
+        "ru": "Пришлите фото одним сообщением. Лучше своё рабочее, а не логотип — клиенты выбирают человека.",
+        "uz": "Bitta xabar bilan foto yuboring. Logotip emas, o'zingizning ish fotongiz yaxshiroq — mijozlar odamni tanlaydi.",
+    },
+    "profile_photo_saved": {
+        "ru": "Фото сохранено.",
+        "uz": "Foto saqlandi.",
+    },
+    "profile_photo_cleared": {
+        "ru": "Фото убрано.",
+        "uz": "Foto olib tashlandi.",
+    },
+    "profile_photo_expected": {
+        "ru": "Это не фото. Пришлите изображение или вернитесь назад.",
+        "uz": "Bu foto emas. Rasm yuboring yoki ortga qayting.",
+    },
+    "rating_invalid": {
+        "ru": "Некорректная оценка.",
+        "uz": "Noto'g'ri baho.",
+    },
+    "rating_already_left": {
+        "ru": "Вы уже оставили оценку.",
+        "uz": "Siz allaqachon baho qo'ygansiz.",
+    },
+    "rating_thanks": {
+        "ru": "Спасибо за оценку: {stars}\n\nРасскажете, как всё прошло? Несколько слов помогут тем, кто выбирает мастера впервые.",
+        "uz": "Baho uchun rahmat: {stars}\n\nQanday o'tganini aytib berasizmi? Bir necha so'z maestroni birinchi marta tanlayotganlarga yordam beradi.",
+    },
+    "rating_thanks_short": {
+        "ru": "Спасибо за оценку: {stars}",
+        "uz": "Baho uchun rahmat: {stars}",
+    },
+    "kb_write_review": {
+        "ru": "✍️ Написать отзыв",
+        "uz": "✍️ Sharh yozish",
+    },
+    "kb_skip_review": {
+        "ru": "Пропустить",
+        "uz": "O'tkazib yuborish",
+    },
+    "review_prompt": {
+        "ru": "Напишите отзыв одним сообщением — до {limit} символов.\n\nЕго увидят другие клиенты рядом с вашей оценкой.",
+        "uz": "Sharhni bitta xabar bilan yozing — {limit} belgigacha.\n\nUni boshqa mijozlar bahoingiz yonida ko'radi.",
+    },
+    "review_saved": {
+        "ru": "Отзыв сохранён. Спасибо — он поможет другим выбрать мастера.",
+        "uz": "Sharh saqlandi. Rahmat — u boshqalarga maestro tanlashda yordam beradi.",
+    },
+    "review_empty": {
+        "ru": "Пустой отзыв сохранять нечего. Напишите пару слов или нажмите «Пропустить».",
+        "uz": "Bo'sh sharhni saqlab bo'lmaydi. Bir necha so'z yozing yoki «O'tkazib yuborish»ni bosing.",
+    },
+    "review_skipped": {
+        "ru": "Хорошо, обойдёмся оценкой.",
+        "uz": "Yaxshi, baho bilan cheklanamiz.",
+    },
+    "review_denied_not_completed": {
+        "ru": "Отзыв можно оставить только о завершённом визите.",
+        "uz": "Sharhni faqat yakunlangan tashrif haqida qoldirish mumkin.",
+    },
+    "review_denied_no_rating": {
+        "ru": "Сначала поставьте оценку.",
+        "uz": "Avval baho qo'ying.",
+    },
+    "review_denied_already_left": {
+        "ru": "Вы уже оставили отзыв об этом визите.",
+        "uz": "Siz bu tashrif haqida sharh qoldirgansiz.",
+    },
+    "kb_stylist_reviews": {
+        "ru": "💬 Отзывы ({count})",
+        "uz": "💬 Sharhlar ({count})",
+    },
+    "reviews_title": {
+        "ru": "<b>Отзывы: {name}</b>",
+        "uz": "<b>Sharhlar: {name}</b>",
+    },
+    "reviews_empty": {
+        "ru": "Об этом мастере пока никто не написал. Будете первым?",
+        "uz": "Bu maestro haqida hozircha hech kim yozmagan. Birinchi bo'lasizmi?",
+    },
+    "reviews_more": {
+        "ru": "И ещё {count}. Показаны последние {shown}.",
+        "uz": "Yana {count} ta. Oxirgi {shown} tasi ko'rsatilgan.",
+    },
+    "reviews_anonymous": {
+        "ru": "Клиент",
+        "uz": "Mijoz",
+    },
     "offline_badge": {
         "ru": "🚶 Офлайн-запись",
         "uz": "🚶 Oflayn yozuv",
@@ -825,6 +1005,10 @@ STYLIST_BUTTONS = {
     "my_services": {
         "ru": "✂️ Мои услуги",
         "uz": "✂️ Mening xizmatlarim",
+    },
+    "my_profile_card": {
+        "ru": "👤 Моя карточка",
+        "uz": "👤 Mening kartam",
     },
     "my_portfolio": {
         "ru": "🖼 Мое портфолио",

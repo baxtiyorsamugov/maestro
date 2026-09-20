@@ -48,8 +48,8 @@ class TestDispatcherAssembly:
         Числа ниже — не требование, а страховка. Добавили хендлер намеренно —
         обновите их в том же коммите; упало без вашего ведома — что-то потерялось.
         """
-        expected_messages = 24
-        expected_callbacks = 65  # 64 доменных + catch-all для устаревших кнопок
+        expected_messages = 29
+        expected_callbacks = 74  # 73 доменных + catch-all для устаревших кнопок
 
         total_messages = len(loader.dp.message.handlers) + sum(
             len(r.message.handlers) for r in loader.dp.sub_routers

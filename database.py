@@ -144,6 +144,13 @@ class Stylist(Base, TimestampMixin):
     # 0 — прежнее поведение, записи идут вплотную.
     buffer_min: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
+    # Карточка мастера: пара строк о себе и фото. До этого в карточке был
+    # только адрес салона — выбрать по ней мастера было не по чему.
+    # Отдельного флага «опубликован» нет намеренно: видимость уже определяет
+    # подписка, и второй выключатель дал бы два источника правды.
+    about: Mapped[str] = mapped_column(String(500), nullable=True)
+    photo_file_id: Mapped[str] = mapped_column(String(255), nullable=True)
+
     # --- ИСПРАВЛЕНИЯ ЗДЕСЬ ---
     # Связь №1: Обратная прямая связь с аккаунтом User
     user_account = relationship("User", back_populates="stylist_profile", foreign_keys=[user_id])
@@ -207,6 +214,13 @@ class Booking(Base, TimestampMixin):
 
     rating: Mapped[int] = mapped_column(Integer, nullable=True)  # Оценка от 1 до 5
     review_text: Mapped[str] = mapped_column(String(500), nullable=True)  # Текст отзыва
+
+    # Постмодерация: отзыв виден сразу, владелец сервиса может его скрыть.
+    # Премодерация для сервиса с одним администратором означала бы, что отзывы
+    # не появляются вообще — очередь некому разбирать.
+    review_hidden: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     
     reminder_day_sent: Mapped[bool] = mapped_column(Boolean, default=False)   # За 24 часа
     reminder_hour_sent: Mapped[bool] = mapped_column(Boolean, default=False)  # За 1 час

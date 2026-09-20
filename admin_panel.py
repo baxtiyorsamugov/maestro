@@ -17,8 +17,12 @@ from wtforms.fields import SelectField
 import database as db
 import security
 import timeutils
-from config import load_admin_settings
+from config import check_environment, load_admin_settings
+from services.reviews import load_reviews_for_moderation
 
+# Как и в loader.py: сначала собираем все претензии к окружению, потом падаем
+# одним понятным списком. Токен бота админке не нужен — её можно поднять отдельно.
+check_environment(groups=("admin", "database"))
 ADMIN_SETTINGS = load_admin_settings()
 
 login_throttle = security.LoginThrottle()
@@ -244,6 +248,70 @@ def _stylist_rows(stylists: list[db.Stylist]) -> str:
     return "".join(rows)
 
 
+def _render_reviews(rows: list[dict]) -> str:
+    """
+    Страница модерации отзывов.
+
+    Текст экранируется: отзыв пишет клиент, и это ровно тот случай, когда
+    чужая строка попадает в HTML. Переносы восстанавливаем уже после
+    экранирования — иначе <br> съест сам escape.
+    """
+    if rows:
+        cards = "".join(
+            f"""
+      <article class="review {'hidden' if row['hidden'] else ''}">
+        <div class="review-head">
+          <b>{'★' * row['rating']}</b>
+          <span>{escape(row['author'])} → {escape(row['stylist'])}</span>
+          <span class="muted">{escape(row['when'])}</span>
+          {'<span class="status status-declined">скрыт</span>' if row['hidden'] else ''}
+        </div>
+        <p>{escape(row['text']).replace(chr(10), '<br>')}</p>
+        <form method="post" action="/reviews/{row['id']}/toggle">
+          <button type="submit">{'Показать' if row['hidden'] else 'Скрыть'}</button>
+        </form>
+      </article>"""
+            for row in rows
+        )
+    else:
+        cards = "<div class='empty'>Отзывов пока нет.</div>"
+
+    return f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maestro — модерация отзывов</title>
+  <style>
+    :root {{ --panel:#fff; --line:#e2e8f0; --muted:#64748b; --brand:#2563eb; --bad:#dc2626; }}
+    * {{ box-sizing:border-box; }}
+    body {{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#f8fafc; color:#0f172a; }}
+    header {{ display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 24px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }}
+    h1 {{ margin:0; font-size:20px; }}
+    a.button {{ display:inline-block; padding:8px 14px; border-radius:6px; background:var(--brand); color:#fff; text-decoration:none; font-size:14px; }}
+    main {{ max-width:860px; margin:0 auto; padding:24px; display:grid; gap:14px; }}
+    .review {{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; }}
+    .review.hidden {{ opacity:.55; }}
+    .review-head {{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:14px; margin-bottom:8px; }}
+    .muted {{ color:var(--muted); font-size:13px; }}
+    .review p {{ margin:0 0 12px; white-space:normal; line-height:1.5; }}
+    .status {{ display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700; }}
+    .status-declined {{ color:var(--bad); background:#fee2e2; }}
+    button {{ padding:7px 14px; border:1px solid var(--line); border-radius:6px; background:#f1f5f9; cursor:pointer; font-size:14px; }}
+    button:hover {{ background:#e2e8f0; }}
+    .empty {{ color:var(--muted); text-align:center; padding:28px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }}
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>Модерация отзывов</h1><div class="muted">Отзыв виден клиентам сразу — скрытие убирает его из карточки мастера.</div></div>
+    <a class="button" href="/dashboard">К дашборду</a>
+  </header>
+  <main>{cards}</main>
+</body>
+</html>"""
+
+
 def _render_dashboard(data: dict) -> str:
     statuses = {
         "pending": data["status_counts"].get("pending", 0),
@@ -292,7 +360,7 @@ def _render_dashboard(data: dict) -> str:
   </style>
 </head>
 <body>
-  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {timeutils.now().strftime("%Y-%m-%d %H:%M")}</div></div><a class="button" href="/admin">Открыть CRUD-админку</a></header>
+  <header><div><h1>Maestro Dashboard</h1><div>Обновлено: {timeutils.now().strftime("%Y-%m-%d %H:%M")}</div></div><div><a class="button" href="/reviews">Отзывы</a> <a class="button" href="/admin">Открыть CRUD-админку</a></div></header>
   <main>
     <div class="grid">
       <div class="card"><span>Пользователи</span><strong>{data["users_count"]}</strong></div>
@@ -557,6 +625,7 @@ class BookingAdmin(ModelView, model=db.Booking):
         db.Booking.starts_at,
         db.Booking.status,
         db.Booking.rating,
+        db.Booking.review_hidden,
     ]
     column_labels = {
         "user.first_name": "Клиент",
@@ -565,6 +634,9 @@ class BookingAdmin(ModelView, model=db.Booking):
         db.Booking.starts_at: "Дата и время",
         db.Booking.status: "Статус",
         db.Booking.rating: "Оценка",
+        db.Booking.review_text: "Отзыв",
+        db.Booking.review_hidden: "Отзыв скрыт",
+        db.Booking.guest_name: "Офлайн-клиент",
     }
     column_searchable_list = [db.Booking.starts_at, db.Booking.status]
     column_sortable_list = [db.Booking.id, db.Booking.starts_at, db.Booking.status, db.Booking.rating]
@@ -606,6 +678,58 @@ async def dashboard(request: Request):
     except SQLAlchemyError as exc:
         return HTMLResponse(_render_dashboard_error(exc), status_code=503)
     return HTMLResponse(_render_dashboard(data))
+
+
+@app.get("/reviews", response_class=HTMLResponse)
+async def reviews_moderation(request: Request):
+    """
+    Очередь модерации отзывов.
+
+    Отдельная страница, а не фильтр в CRUD: модератору нужен текст целиком
+    и одно нажатие, чтобы скрыть, — в табличном списке sqladmin отзыв
+    обрезается до неузнаваемости.
+    """
+    if not _is_admin_authenticated(request):
+        return RedirectResponse("/admin/login")
+    try:
+        async with db.async_session() as session:
+            rows = await load_reviews_for_moderation(session)
+            data = [
+                {
+                    "id": item.id,
+                    "author": (item.user.first_name if item.user else None) or "—",
+                    "stylist": item.stylist.name if item.stylist else "—",
+                    "rating": item.rating or 0,
+                    "when": timeutils.format_slot(item.starts_at),
+                    "text": item.review_text or "",
+                    "hidden": bool(item.review_hidden),
+                }
+                for item in rows
+            ]
+    except SQLAlchemyError as exc:
+        return HTMLResponse(_render_dashboard_error(exc), status_code=503)
+    return HTMLResponse(_render_reviews(data))
+
+
+@app.post("/reviews/{booking_id}/toggle")
+async def toggle_review_visibility(booking_id: int, request: Request):
+    """
+    Скрыть отзыв или вернуть его. Текст при этом не трогаем: разбирать
+    жалобу «почему скрыли мой отзыв» по пустой колонке невозможно.
+    """
+    if not _is_admin_authenticated(request):
+        return RedirectResponse("/admin/login")
+
+    async with db.async_session() as session:
+        booking = await session.get(db.Booking, booking_id)
+        if booking and booking.review_text:
+            booking.review_hidden = not booking.review_hidden
+            await session.commit()
+            logging.info(
+                "review.moderated booking_id=%s hidden=%s", booking_id, booking.review_hidden
+            )
+
+    return RedirectResponse("/reviews", status_code=303)
 
 
 @app.get("/health")

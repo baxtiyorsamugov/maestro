@@ -13,6 +13,7 @@ a = Analysis(
         "aiosqlite",
         "backports",
         "backports.tarfile",
+        "pydantic_settings",
         "pymysql",
         "sqladmin",
         "uvicorn",

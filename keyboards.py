@@ -305,7 +305,8 @@ async def get_main_keyboard(user_id: int):
             kb = [
                 [KeyboardButton(text=panel["my_bookings"]), KeyboardButton(text=panel["my_stats"])],
                 [KeyboardButton(text=panel["manage_schedule"]), KeyboardButton(text=panel["my_services"])],
-                [KeyboardButton(text=panel["my_portfolio"]), KeyboardButton(text=panel["subscription"])],
+                [KeyboardButton(text=panel["my_profile_card"]), KeyboardButton(text=panel["my_portfolio"])],
+                [KeyboardButton(text=panel["subscription"])],
             ]
             return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, row_width=2)
 

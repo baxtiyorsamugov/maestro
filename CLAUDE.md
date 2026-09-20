@@ -30,21 +30,22 @@
 | `bot.py` | точка входа: сборка роутеров, обработчик ошибок, шедулер, поллинг |
 | `loader.py` | объекты `bot`, `dp`, `storage` и регистрация middleware |
 | `handlers/` | хендлеры по доменам: `client/`, `stylist/`, `fallback`. Порядок роутеров — в `handlers/__init__.py` |
-| `services/` | бизнес-логика: `booking` (слоты), `access` (права, подписка), `rating` |
+| `services/` | бизнес-логика: `booking` (слоты, перенос, буфер), `access` (права, подписка), `rating`, `reviews` (отзывы и модерация), `stylist_profile`, `search` (подбор и сортировка) |
 | `guards.py` | проверки доступа уровня хендлеров: `ensure_*`, `deny_access` |
 | `keyboards.py` | всё, что возвращает разметку |
 | `presenters.py` | всё, что возвращает текст для пользователя |
 | `constants.py` | словарь расписания, общий для keyboards и presenters |
 | `states.py` | группы FSM |
-| `middlewares.py` | антифлуд |
+| `middlewares.py` | логирование апдейтов, кеш пользователя на апдейт, антифлуд (порядок задан в `loader.py`) |
 | `database.py` | SQLAlchemy 2.x async ORM-модели + `engine` + `async_session` |
 | `admin_panel.py` | FastAPI + sqladmin: CRUD, дашборд, `/health` |
 | `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
-| `config.py` | загрузка и валидация `.env`, сборка DSN |
-| `texts.py` | локализация: 193 ключа. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
+| `config.py` | `.env` через pydantic-settings: модели `BotSettings`/`AdminSettings`/`MySQLSettings`, `check_environment()` печатает все проблемы разом, сборка DSN |
+| `texts.py` | локализация: 238 ключей. Панель мастера переведена полностью, в клиентских хендлерах ещё есть инлайн-словари |
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |
 | `security.py` | хеширование пароля админки и ограничение попыток входа |
+| `logutil.py` | `mask_user()` — `telegram_id` в логах только маскированным (4.4) |
 | `scripts/` | служебные скрипты: проверки для CI, генерация хеша пароля, seed |
 | `launcher.py` | запускает admin-панель + бота вместе (для `.exe`) |
 | `scripts/seed_db.py` | **ОПАСНО**: `drop_all()` + демо-данные. Запускается только с `--i-know-what-i-do` и при `DB_DRIVER=sqlite` |
@@ -87,6 +88,18 @@ python -m compileall -q bot.py admin_panel.py database.py scheduler.py config.py
 
 ```bash
 pyinstaller Maestro.spec
+```
+
+Вся система в контейнерах (бот, админка, PostgreSQL, Redis):
+
+```bash
+docker compose up -d
+```
+
+Тесты на той же базе, что в проде, — иначе поддержка PostgreSQL протухает молча:
+
+```bash
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pytest tests/ -q
 ```
 
 ---
@@ -143,6 +156,8 @@ pyinstaller Maestro.spec
 - Никогда не восстанавливай состояние из текста сообщения (`cb.message.text.split(":")`).
   Источник истины — база.
 - Не логируй `BOT_TOKEN`, номера телефонов и `telegram_id` в открытом виде.
+  Для идентификатора есть `logutil.mask_user()`; строка `user_id=%s` рядом с telegram_id
+  роняет `test_source_has_no_plain_user_id_logging`.
 
 ### 4.5 UX
 - Любое действие пользователя должно получать ответ: `cb.answer()` обязателен в конце
@@ -222,6 +237,7 @@ maestro/
 | `docs/CONVENTIONS.md` | соглашения по коду, именованию, callback_data, i18n |
 | `docs/UX_GUIDELINES.md` | правила пользовательского опыта бота |
 | `docs/SECURITY.md` | модель угроз и чек-лист безопасности |
+| `docs/DEPLOY.md` | развёртывание: compose, PostgreSQL, обновление, что ещё не сделано |
 | `README.md` | инструкция по запуску для человека |
 
 ---

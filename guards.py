@@ -9,12 +9,14 @@
 services.access прямо в SQL-запросе, здесь только реакция на отказ.
 """
 import logging
+from contextvars import ContextVar, Token
 
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 from sqlalchemy import select
 
 import database as db
 from keyboards import get_main_keyboard
+from logutil import mask_user
 from presenters import get_registration_text, get_subscription_menu_text
 from services.access import (
     get_stylist_profile_by_telegram,
@@ -27,9 +29,61 @@ ACCESS_DENIED_TEXT = {
     "uz": "Bu amal faqat yozuv ishtirokchisiga ochiq.",
 }
 
-async def get_user_by_telegram_id(telegram_id: int) -> db.User | None:
+#: Пользователи, уже прочитанные в рамках текущего апдейта.
+#:
+#: Один callback тянул одну и ту же строку из users по три-четыре раза:
+#: ensure_registered_callback, затем get_user_lang, затем ещё раз внутри
+#: deny_access. Запросы одинаковые, а соединений к базе четыре.
+#:
+#: ContextVar, а не глобальный словарь: апдейты обрабатываются конкурентно,
+#: и общий кеш выдавал бы одному пользователю данные другого.
+_user_cache: ContextVar[dict[int, db.User | None] | None] = ContextVar(
+    "maestro_user_cache", default=None
+)
+
+
+def open_user_cache() -> Token:
+    """Начало апдейта. Токен нужен, чтобы закрыть кеш ровно на своём уровне."""
+    return _user_cache.set({})
+
+
+def close_user_cache(token: Token) -> None:
+    _user_cache.reset(token)
+
+
+def forget_user(telegram_id: int) -> None:
+    """
+    Убрать пользователя из кеша апдейта.
+
+    Обязательно после любой правки его строки: смена языка, завершение
+    регистрации. Иначе остаток апдейта работает с данными «до изменения» —
+    например, подтверждение о смене языка приходит на старом языке.
+    """
+    cache = _user_cache.get()
+    if cache is not None:
+        cache.pop(telegram_id, None)
+
+
+async def _load_user_from_db(telegram_id: int) -> db.User | None:
+    """Собственно запрос. Вынесен отдельно, чтобы кеш проверялся тестами."""
     async with db.async_session() as session:
-        return await session.scalar(select(db.User).where(db.User.telegram_id == telegram_id))
+        return await session.scalar(
+            select(db.User).where(db.User.telegram_id == telegram_id)
+        )
+
+
+async def get_user_by_telegram_id(telegram_id: int) -> db.User | None:
+    cache = _user_cache.get()
+    if cache is not None and telegram_id in cache:
+        return cache[telegram_id]
+
+    user = await _load_user_from_db(telegram_id)
+
+    if cache is not None:
+        # Отсутствие пользователя кешируем тоже: незарегистрированный
+        # человек не должен обходиться дороже зарегистрированного.
+        cache[telegram_id] = user
+    return user
 
 async def get_user_lang(telegram_id: int, default: str = "ru") -> str:
     user = await get_user_by_telegram_id(telegram_id)
@@ -38,7 +92,7 @@ async def get_user_lang(telegram_id: int, default: str = "ru") -> str:
 async def deny_access(cb: CallbackQuery) -> None:
     lang = await get_user_lang(cb.from_user.id)
     logging.warning(
-        "access.denied user_id=%s callback=%s", cb.from_user.id, cb.data
+        "access.denied user=%s callback=%s", mask_user(cb.from_user.id), cb.data
     )
     await cb.answer(ACCESS_DENIED_TEXT[lang], show_alert=True)
 
