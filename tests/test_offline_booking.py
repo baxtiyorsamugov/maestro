@@ -64,7 +64,11 @@ class TestGuestName:
         assert len(result) == GUEST_NAME_MAX_LEN
 
     def test_newlines_do_not_survive(self):
-        assert normalize_guest_name("Али\nВалиев") == "Али Валиев"
+        # Перенос собирается из частей намеренно. Литерал «Али<перенос>Валиев» —
+        # это ровно тот шаблон, который ищет scripts/check_encoding.py
+        # (кириллица вплотную перед переносом = съеденный символ), и проверка
+        # упала бы на этом тесте, не отличив фикстуру от настоящей порчи.
+        assert normalize_guest_name("Али" + chr(10) + "Валиев") == "Али Валиев"
 
 
 class TestBuildOfflineBooking:
