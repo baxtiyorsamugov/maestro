@@ -5,7 +5,7 @@ from html import escape
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy import func, select, text
@@ -15,15 +15,17 @@ from starlette.middleware.sessions import SessionMiddleware
 from wtforms.fields import SelectField
 
 import database as db
+import logutil
 import observability
 import security
 import timeutils
 from config import check_environment, load_admin_settings, load_sentry_settings
-from services import audit
+from services import audit, metrics
 from services.reviews import load_reviews_for_moderation
 
 # Как и в loader.py: сначала собираем все претензии к окружению, потом падаем
 # одним понятным списком. Токен бота админке не нужен — её можно поднять отдельно.
+logutil.setup_logging()
 check_environment(groups=("admin", "database"))
 ADMIN_SETTINGS = load_admin_settings()
 
@@ -872,6 +874,26 @@ async def audit_feed(request: Request):
     except SQLAlchemyError as exc:
         return HTMLResponse(_render_dashboard_error(exc), status_code=503)
     return HTMLResponse(_render_audit(rows))
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def prometheus_metrics():
+    """
+    Метрики в текстовом формате Prometheus.
+
+    Без авторизации намеренно: система наблюдения ходит сюда без сессии,
+    а внутри только агрегаты — ни одного персонального значения. Наружу
+    эндпоинт всё равно не торчит: порт админки проброшен на localhost.
+    """
+    try:
+        async with db.async_session() as session:
+            snapshot = await metrics.collect(session)
+    except SQLAlchemyError as exc:
+        # Явный текст вместо пустого ответа: молчащий /metrics система
+        # наблюдения примет за «метрик нет», а не за «база недоступна».
+        logging.warning("metrics.failed error=%s", exc)
+        return PlainTextResponse("# база недоступна" + chr(10), status_code=503)
+    return PlainTextResponse(snapshot.as_prometheus())
 
 
 @app.get("/health")

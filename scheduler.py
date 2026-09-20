@@ -7,6 +7,8 @@ from sqlalchemy.orm import joinedload
 
 import database as db
 import timeutils
+from config import get_optional_env
+from services import metrics
 
 
 # 1. Напоминания за 24 часа и за 1 час
@@ -118,6 +120,42 @@ async def check_follow_ups(bot: Bot):
         
         await session.commit()
         
+async def send_health_alerts(bot: Bot):
+    """
+    Сводка проблем владельцу сервиса.
+
+    Метрики, на которые никто не смотрит, не отличаются от их отсутствия:
+    заявка, которую мастер не разобрал третьи сутки, ничего не роняет —
+    клиент просто не дождался ответа и ушёл.
+
+    Пишем только когда есть что сказать. Ежедневное «всё хорошо» читать
+    перестают через неделю, и вместе с ним перестают читать настоящие
+    предупреждения.
+
+    Без ALERT_CHAT_ID задача не делает ничего: адресата нет.
+    """
+    chat_id = get_optional_env("ALERT_CHAT_ID")
+    if not chat_id:
+        return
+
+    async with db.async_session() as session:
+        snapshot = await metrics.collect(session)
+
+    found = metrics.problems(snapshot)
+    if not found:
+        logging.info("alerts.nothing_to_report")
+        return
+
+    text = "<b>Maestro: требует внимания</b>\n\n" + "\n".join(f"• {item}" for item in found)
+    try:
+        await bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+        logging.warning("alerts.sent problems=%s", len(found))
+    except Exception as e:
+        # Не глушим молча: если алерты не доходят, об этом надо узнать
+        # из логов, а не по тишине.
+        logging.warning("alerts.send_failed error=%s", e)
+
+
 async def check_subscription_expiry(bot: Bot):
     logging.info("subscription.check_started")
     today = timeutils.today()

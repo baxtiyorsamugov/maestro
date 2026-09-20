@@ -6,6 +6,7 @@ URL базы берётся из config.load_database_settings() — тот же
 """
 import asyncio
 import sys
+import logging
 from logging.config import fileConfig
 from pathlib import Path
 
@@ -27,7 +28,15 @@ config = context.config
 if not config.get_main_option("sqlalchemy.url", None):
     config.set_main_option("sqlalchemy.url", load_database_settings().url)
 
-if config.config_file_name is not None:
+# Настройку логов из alembic.ini применяем, только когда Alembic запущен сам
+# по себе (`alembic upgrade head` в консоли).
+#
+# Бот и админка накатывают миграции на старте, уже настроив логирование под
+# себя. fileConfig заменяет обработчики корневого логгера целиком — то есть
+# после первой же миграции формат молча возвращался бы к алембиковскому,
+# и JSON-логи в контейнере не работали бы никогда, а причина была бы
+# совершенно неочевидной.
+if config.config_file_name is not None and not logging.getLogger().handlers:
     fileConfig(config.config_file_name)
 
 target_metadata = db.Base.metadata

@@ -91,6 +91,10 @@ def start_scheduler() -> AsyncIOScheduler:
     tasks.add_job(scheduler.check_reminders, "cron", hour="*", minute=0, args=(bot,))
     tasks.add_job(scheduler.check_follow_ups, "cron", hour=10, minute=0, args=(bot,))
     tasks.add_job(scheduler.check_subscription_expiry, "cron", hour=10, minute=5, args=(bot,))
+    # Раз в день, утром: сводка проблем владельцу. Молчит, когда сказать нечего —
+    # ежедневное «всё хорошо» читать перестают через неделю, а вместе с ним
+    # перестают читать и настоящие предупреждения.
+    tasks.add_job(scheduler.send_health_alerts, "cron", hour=9, minute=0, args=(bot,))
     tasks.start()
     logging.info("scheduler.started jobs=%s", len(tasks.get_jobs()))
     return tasks
