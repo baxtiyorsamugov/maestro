@@ -232,6 +232,58 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "offline_badge": {
+        "ru": "🚶 Офлайн-запись",
+        "uz": "🚶 Oflayn yozuv",
+    },
+    "offline_guest_unnamed": {
+        "ru": "Без имени",
+        "uz": "Ismsiz",
+    },
+    "kb_offline_new": {
+        "ru": "➕ Записать клиента",
+        "uz": "➕ Mijozni yozish",
+    },
+    "offline_pick_service": {
+        "ru": "<b>Запись офлайн-клиента</b>\n\nЭто время перестанет предлагаться другим.\n\nВыберите услугу:",
+        "uz": "<b>Oflayn mijozni yozish</b>\n\nBu vaqt boshqalarga taklif qilinmaydi.\n\nXizmatni tanlang:",
+    },
+    "offline_no_services": {
+        "ru": "Сначала добавьте хотя бы одну услугу — из неё берётся длительность записи.",
+        "uz": "Avval kamida bitta xizmat qo'shing — yozuv davomiyligi undan olinadi.",
+    },
+    "offline_pick_date": {
+        "ru": "Выберите дату. Активны только дни, где есть свободное время.",
+        "uz": "Sanani tanlang. Faqat bo'sh vaqti bor kunlar faol.",
+    },
+    "offline_no_free_dates": {
+        "ru": "Свободного времени под эту услугу нет. Проверьте расписание и перерывы.",
+        "uz": "Bu xizmat uchun bo'sh vaqt yo'q. Jadval va tanaffuslarni tekshiring.",
+    },
+    "offline_pick_time": {
+        "ru": "{date}: выберите время.",
+        "uz": "{date}: vaqtni tanlang.",
+    },
+    "offline_no_free_slots": {
+        "ru": "На этот день свободного времени не осталось.",
+        "uz": "Bu kunda bo'sh vaqt qolmadi.",
+    },
+    "offline_ask_name": {
+        "ru": "{slot}\n\nКак зовут клиента? Имя видите только вы — оно нужно, чтобы не перепутать записи.\n\nМожно пропустить.",
+        "uz": "{slot}\n\nMijozning ismi nima? Ismni faqat siz ko'rasiz — yozuvlarni adashtirmaslik uchun kerak.\n\nO'tkazib yuborish mumkin.",
+    },
+    "kb_offline_skip_name": {
+        "ru": "Пропустить",
+        "uz": "O'tkazib yuborish",
+    },
+    "offline_saved": {
+        "ru": "Готово: {slot} — {name}.\n\nЭто время больше не предлагается клиентам.",
+        "uz": "Tayyor: {slot} — {name}.\n\nBu vaqt endi mijozlarga taklif qilinmaydi.",
+    },
+    "offline_slot_taken": {
+        "ru": "Это время только что заняли. Выберите другое.",
+        "uz": "Bu vaqtni hozirgina band qilishdi. Boshqasini tanlang.",
+    },
     "schedule_break_label": {
         "ru": "обед {start}-{end}",
         "uz": "tushlik {start}-{end}",
@@ -467,6 +519,10 @@ TEXTS = {
     "kb_close": {
         "ru": "✖ Закрыть",
         "uz": "✖ Yopish",
+    },
+    "kb_back": {
+        "ru": "⬅️ Назад",
+        "uz": "⬅️ Ortga",
     },
     "kb_back_to_start_time": {
         "ru": "← Назад ко времени начала",

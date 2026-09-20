@@ -32,3 +32,8 @@ migrations/versions/__pycache__/
 
 # Runtime
 tmp/
+
+# Конфиги редакторов: у каждого свои, в общем репозитории они только мешают.
+.obsidian/
+.idea/
+.vscode/

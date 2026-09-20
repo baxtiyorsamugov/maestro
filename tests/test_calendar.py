@@ -14,7 +14,7 @@ from services import booking as booking_service
 
 def _future_month() -> tuple[int, int]:
     """Месяц целиком в будущем, чтобы прошедшие дни не отфильтровывались."""
-    target = date.today().replace(day=1) + timedelta(days=62)
+    target = timeutils.today().replace(day=1) + timedelta(days=62)
     return target.year, target.month
 
 
@@ -144,7 +144,7 @@ class TestAvailableDates:
         session = fixture_data["session"]
         await _add_weekly_schedule(session, fixture_data["stylist"].id)
 
-        today = date.today()
+        today = timeutils.today()
         dates = await booking_service.get_available_dates_for_month(
             session, fixture_data["stylist"].id, fixture_data["service"].id, today.year, today.month
         )

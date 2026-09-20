@@ -13,6 +13,11 @@ class ScheduleForm(StatesGroup):
     start_time = State()
     end_time = State()
 
+class OfflineBookingForm(StatesGroup):
+    """Запись офлайн-клиента: услуга, дата и время уже в черновике."""
+
+    guest_name = State()
+
 class BreakForm(StatesGroup):
     """Настройка перерыва: день уже выбран, осталось начало и конец."""
 

@@ -22,6 +22,9 @@ async def check_reminders(bot: Bot):
             db.Booking.status == db.BOOKING_APPROVED,
             db.Booking.starts_at >= now,
             db.Booking.starts_at <= now + timedelta(hours=26),
+            # Запись офлайн-клиента напоминать некому: аккаунта в Telegram
+            # у него нет, а b.user.language_code на таком ряду упадёт.
+            db.Booking.user_id.is_not(None),
         ).options(
             joinedload(db.Booking.user),
             joinedload(db.Booking.stylist),
@@ -82,7 +85,9 @@ async def check_follow_ups(bot: Bot):
             db.Booking.status == db.BOOKING_COMPLETED,
             db.Booking.starts_at >= day_start,
             db.Booking.starts_at < day_end,
-            db.Booking.follow_up_sent.is_(False)
+            db.Booking.follow_up_sent.is_(False),
+            # Офлайн-клиенту «пора обновить образ» отправить некуда.
+            db.Booking.user_id.is_not(None),
         ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
         
         bookings = (await session.execute(query)).scalars().all()

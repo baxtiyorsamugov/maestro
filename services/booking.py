@@ -13,7 +13,7 @@ from sqlalchemy.orm import joinedload
 
 import database as db
 import timeutils
-from database import ACTIVE_BOOKING_STATUSES, BOOKING_DECLINED
+from database import ACTIVE_BOOKING_STATUSES, BOOKING_APPROVED, BOOKING_DECLINED
 from services.access import is_stylist_subscription_active
 
 #: За сколько часов до визита клиент ещё может отменить или перенести запись.
@@ -298,6 +298,55 @@ async def get_available_dates_for_month(
             result.append(current_date)
 
     return result
+
+
+#: Сколько символов имени офлайн-клиента мастер может сохранить.
+#: Ограничение колонки — 100; обрезаем на входе, чтобы не ловить ошибку базы
+#: после того, как человек уже набрал текст.
+GUEST_NAME_MAX_LEN = 100
+
+
+def normalize_guest_name(raw: str | None) -> str | None:
+    """
+    Имя офлайн-клиента: без лишних пробелов, не длиннее колонки.
+
+    Пустая строка превращается в None — «занятое время без имени» и
+    «время клиента, которого зовут пустотой» должны выглядеть одинаково.
+    """
+    if not raw:
+        return None
+    cleaned = " ".join(raw.split())[:GUEST_NAME_MAX_LEN]
+    return cleaned or None
+
+
+def build_offline_booking(
+    stylist_id: int,
+    service: db.Service,
+    starts_at: datetime,
+    guest_name: str | None = None,
+) -> db.Booking:
+    """
+    Запись, которую мастер завёл сам.
+
+    Статус сразу approved: подтверждать нечего, мастер и есть тот, кто
+    подтверждает. Из этого следует, что такая запись попадает в частичный
+    индекс uq_active_booking_slot и честно занимает слот для всех остальных —
+    ровно то, ради чего задача и делалась.
+    """
+    return db.Booking(
+        user_id=None,
+        stylist_id=stylist_id,
+        service_id=service.id,
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(minutes=service.duration_min),
+        status=BOOKING_APPROVED,
+        guest_name=normalize_guest_name(guest_name),
+    )
+
+
+def is_offline_booking(booking: db.Booking) -> bool:
+    """Запись без клиента в Telegram: уведомлять и напоминать некому."""
+    return booking.user_id is None
 
 
 async def get_last_booking_for_repeat(session, user_id: int) -> db.Booking | None:
