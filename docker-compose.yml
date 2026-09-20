@@ -1,0 +1,87 @@
+# Полная система: бот, админка, PostgreSQL, Redis.
+#
+# `docker compose up -d` поднимает всё. Миграции бот и админка накатывают
+# сами на старте (db.run_migrations()), отдельного шага не нужно.
+#
+# Почему PostgreSQL, а не MySQL: частичный уникальный индекс
+# uq_active_booking_slot — единственная настоящая защита от двойной брони —
+# работает на PostgreSQL и SQLite и не работает на MySQL, где остаётся
+# только перепроверка в транзакции (docs/SECURITY.md, S-6).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-maestro}
+      POSTGRES_PASSWORD: ${DB_PASS:?DB_PASS обязателен}
+      POSTGRES_DB: ${DB_NAME:-maestro}
+      TZ: Asia/Tashkent
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # Бот и админка стартуют с миграций: пускать их к базе, которая ещё
+      # инициализируется, — гарантированное падение на старте.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-maestro} -d ${DB_NAME:-maestro}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Наружу не публикуется: база доступна только внутри сети compose.
+    # Для отладки раскомментируйте, понимая, что открываете.
+    # ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # appendonly: без него незавершённые сценарии записи теряются при
+    # рестарте Redis — ровно то, от чего мы уходили с MemoryStorage.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bot:
+    build: .
+    restart: unless-stopped
+    command: ["python", "bot.py"]
+    environment: &app_env
+      BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN обязателен}
+      DB_DRIVER: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-maestro}
+      DB_PASS: ${DB_PASS:?DB_PASS обязателен}
+      DB_NAME: ${DB_NAME:-maestro}
+      REDIS_URL: redis://redis:6379/0
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME обязателен}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD обязателен}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:?ADMIN_SECRET_KEY обязателен}
+      LOG_SALT: ${LOG_SALT:-}
+      TZ: Asia/Tashkent
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  admin:
+    build: .
+    restart: unless-stopped
+    command:
+      ["uvicorn", "admin_panel:app", "--host", "0.0.0.0", "--port", "8002"]
+    environment: *app_env
+    # Наружу — только на localhost хоста. Админку в интернет выставляют
+    # через nginx с HTTPS, а не портом контейнера.
+    ports:
+      - "127.0.0.1:8002:8002"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  redis_data:

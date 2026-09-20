@@ -16,16 +16,32 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-_TEST_DB = Path(tempfile.gettempdir()) / "maestro_test.db"
-if _TEST_DB.exists():
-    _TEST_DB.unlink()
-
 os.environ["BOT_TOKEN"] = "123456789:AAFakeTokenForTestsOnlyDoNotUseInProd"
-os.environ["DB_DRIVER"] = "sqlite"
-os.environ["SQLITE_PATH"] = str(_TEST_DB)
 os.environ["ADMIN_USERNAME"] = "test"
 os.environ["ADMIN_PASSWORD"] = "test"
 os.environ["ADMIN_SECRET_KEY"] = "test-secret-key-for-tests-only-32ch"
+
+# По умолчанию — временная SQLite: быстро и без внешних зависимостей.
+#
+# TEST_DATABASE_URL переводит весь набор на другую базу. Это не удобство,
+# а необходимость: compose объявляет PostgreSQL основной базой, и поддержка,
+# которую никто не прогоняет, протухает молча. Уже поймали так одну миграцию,
+# которая на PostgreSQL не накатывалась вовсе.
+#
+#   docker run -d --name pg -e POSTGRES_PASSWORD=pass -p 5432:5432 postgres:16-alpine
+#   TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pytest tests/ -q
+_EXTERNAL_DB = os.getenv("TEST_DATABASE_URL")
+if _EXTERNAL_DB:
+    os.environ["DATABASE_URL"] = _EXTERNAL_DB
+    os.environ.pop("DB_DRIVER", None)
+    os.environ.pop("SQLITE_PATH", None)
+else:
+    _TEST_DB = Path(tempfile.gettempdir()) / "maestro_test.db"
+    if _TEST_DB.exists():
+        _TEST_DB.unlink()
+    os.environ.pop("DATABASE_URL", None)
+    os.environ["DB_DRIVER"] = "sqlite"
+    os.environ["SQLITE_PATH"] = str(_TEST_DB)
 
 from datetime import timedelta  # noqa: E402
 
@@ -36,10 +52,49 @@ from sqlalchemy import delete  # noqa: E402
 import database as db  # noqa: E402
 import timeutils  # noqa: E402
 
+if _EXTERNAL_DB:
+    # asyncpg привязывает соединение к циклу событий, в котором оно открыто,
+    # а pytest-asyncio заводит новый цикл на каждый тест. Пул, переживший
+    # предыдущий тест, отдаёт соединение от закрытого цикла — и весь набор
+    # рассыпается на «RuntimeError: Event loop is closed».
+    #
+    # NullPool закрывает соединение сразу после использования: в тестах это
+    # медленнее, но здесь важна не скорость, а совпадение с боевым поведением.
+    # На боевом движке пул остаётся: там цикл событий один на весь процесс.
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    db.engine = create_async_engine(_EXTERNAL_DB, echo=False, poolclass=NullPool)
+    db.async_session = async_sessionmaker(db.engine, expire_on_commit=False)
+
 
 @pytest.fixture(scope="session", autouse=True)
 def migrated_schema():
-    """Один прогон миграций на всю сессию тестов."""
+    """
+    Один прогон миграций на всю сессию тестов.
+
+    На внешней базе сначала сносим схему: она могла остаться от прошлого
+    прогона, и миграции упали бы на уже существующих таблицах.
+    """
+    if _EXTERNAL_DB:
+        # Чистим тем же драйвером, которым работает приложение: тянуть ради
+        # одного DROP SCHEMA синхронный psycopg2 значит держать в зависимостях
+        # второй драйвер к той же базе.
+        import asyncio
+
+        import sqlalchemy as sa
+
+        async def _wipe():
+            async with db.engine.begin() as conn:
+                if db.engine.dialect.name == "postgresql":
+                    # Двумя вызовами, а не одной строкой через «;»: asyncpg
+                    # готовит запрос к исполнению и на нескольких командах
+                    # в одном statement падает.
+                    await conn.execute(sa.text("DROP SCHEMA public CASCADE"))
+                    await conn.execute(sa.text("CREATE SCHEMA public"))
+
+        asyncio.run(_wipe())
+
     db._run_alembic_upgrade()
     yield
 

@@ -29,15 +29,24 @@ depends_on: str | Sequence[str] | None = None
 TABLES = ("users", "barbershops", "stylists", "services", "bookings")
 
 
-def _local_now() -> str:
-    """Локальное время Asia/Tashkent тем же способом, что и в приложении."""
+def _local_now():
+    """
+    Локальное время Asia/Tashkent тем же способом, что и в приложении.
+
+    Возвращается объект datetime, а не строка. SQLite и MySQL строку в колонку
+    DATETIME принимали, asyncpg — нет: он проверяет тип параметра и падает
+    с «expected a datetime.date or datetime.datetime instance, got str».
+    На PostgreSQL миграция из-за этого не накатывалась вовсе.
+    """
     import sys
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     import timeutils
 
-    return timeutils.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Микросекунды отбрасываем: колонка их не хранит, а в логах миграции
+    # они только мешают сверять значения глазами.
+    return timeutils.now().replace(microsecond=0)
 
 
 def upgrade() -> None:

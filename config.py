@@ -17,6 +17,7 @@ admin_panel.py и migrations/env.py.
 import os
 import sys
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from pydantic import Field, ValidationError, field_validator
@@ -98,8 +99,21 @@ class AdminSettings(_Base):
         return value
 
 
-class MySQLSettings(_Base):
-    """Параметры MySQL. Читаются только при DB_DRIVER=mysql."""
+#: Серверные драйверы: имя из DB_DRIVER -> префикс DSN для SQLAlchemy.
+#:
+#: PostgreSQL — основной для прода. Причина не в моде: частичный уникальный
+#: индекс uq_active_booking_slot, единственная настоящая защита от двойной
+#: брони, работает на SQLite и PostgreSQL и не работает на MySQL. На MySQL
+#: защитой остаётся только перепроверка в транзакции (docs/SECURITY.md, S-6).
+SERVER_DRIVERS = {
+    "postgres": "postgresql+asyncpg",
+    "postgresql": "postgresql+asyncpg",
+    "mysql": "mysql+aiomysql",
+}
+
+
+class ServerDatabaseSettings(_Base):
+    """Параметры серверной базы. Читаются, только когда драйвер не sqlite."""
 
     host: str = Field(alias="DB_HOST")
     port: int = Field(alias="DB_PORT")
@@ -173,17 +187,22 @@ def load_database_settings() -> DatabaseSettings:
     if driver == "sqlite":
         return _sqlite_settings()
 
-    mysql = MySQLSettings()
+    prefix = SERVER_DRIVERS.get(driver)
+    if not prefix:
+        known = ", ".join(["sqlite", *SERVER_DRIVERS])
+        raise ConfigError(f"DB_DRIVER={driver!r} не поддерживается. Доступны: {known}")
+
+    server = ServerDatabaseSettings()
     return DatabaseSettings(
         url_value=(
-            f"mysql+aiomysql://{mysql.user}:{mysql.password}@"
-            f"{mysql.host}:{mysql.port}/{mysql.name}"
+            f"{prefix}://{server.user}:{quote_plus(server.password)}@"
+            f"{server.host}:{server.port}/{server.name}"
         ),
-        host=mysql.host,
-        port=str(mysql.port),
-        user=mysql.user,
-        password=mysql.password,
-        name=mysql.name,
+        host=server.host,
+        port=str(server.port),
+        user=server.user,
+        password=server.password,
+        name=server.name,
     )
 
 

@@ -90,6 +90,18 @@ python -m compileall -q bot.py admin_panel.py database.py scheduler.py config.py
 pyinstaller Maestro.spec
 ```
 
+Вся система в контейнерах (бот, админка, PostgreSQL, Redis):
+
+```bash
+docker compose up -d
+```
+
+Тесты на той же базе, что в проде, — иначе поддержка PostgreSQL протухает молча:
+
+```bash
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pytest tests/ -q
+```
+
 ---
 
 ## 4. Жёсткие правила (нарушение = баг в проде)
@@ -225,6 +237,7 @@ maestro/
 | `docs/CONVENTIONS.md` | соглашения по коду, именованию, callback_data, i18n |
 | `docs/UX_GUIDELINES.md` | правила пользовательского опыта бота |
 | `docs/SECURITY.md` | модель угроз и чек-лист безопасности |
+| `docs/DEPLOY.md` | развёртывание: compose, PostgreSQL, обновление, что ещё не сделано |
 | `README.md` | инструкция по запуску для человека |
 
 ---
