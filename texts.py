@@ -232,6 +232,78 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "rating_invalid": {
+        "ru": "Некорректная оценка.",
+        "uz": "Noto'g'ri baho.",
+    },
+    "rating_already_left": {
+        "ru": "Вы уже оставили оценку.",
+        "uz": "Siz allaqachon baho qo'ygansiz.",
+    },
+    "rating_thanks": {
+        "ru": "Спасибо за оценку: {stars}\n\nРасскажете, как всё прошло? Несколько слов помогут тем, кто выбирает мастера впервые.",
+        "uz": "Baho uchun rahmat: {stars}\n\nQanday o'tganini aytib berasizmi? Bir necha so'z maestroni birinchi marta tanlayotganlarga yordam beradi.",
+    },
+    "rating_thanks_short": {
+        "ru": "Спасибо за оценку: {stars}",
+        "uz": "Baho uchun rahmat: {stars}",
+    },
+    "kb_write_review": {
+        "ru": "✍️ Написать отзыв",
+        "uz": "✍️ Sharh yozish",
+    },
+    "kb_skip_review": {
+        "ru": "Пропустить",
+        "uz": "O'tkazib yuborish",
+    },
+    "review_prompt": {
+        "ru": "Напишите отзыв одним сообщением — до {limit} символов.\n\nЕго увидят другие клиенты рядом с вашей оценкой.",
+        "uz": "Sharhni bitta xabar bilan yozing — {limit} belgigacha.\n\nUni boshqa mijozlar bahoingiz yonida ko'radi.",
+    },
+    "review_saved": {
+        "ru": "Отзыв сохранён. Спасибо — он поможет другим выбрать мастера.",
+        "uz": "Sharh saqlandi. Rahmat — u boshqalarga maestro tanlashda yordam beradi.",
+    },
+    "review_empty": {
+        "ru": "Пустой отзыв сохранять нечего. Напишите пару слов или нажмите «Пропустить».",
+        "uz": "Bo'sh sharhni saqlab bo'lmaydi. Bir necha so'z yozing yoki «O'tkazib yuborish»ni bosing.",
+    },
+    "review_skipped": {
+        "ru": "Хорошо, обойдёмся оценкой.",
+        "uz": "Yaxshi, baho bilan cheklanamiz.",
+    },
+    "review_denied_not_completed": {
+        "ru": "Отзыв можно оставить только о завершённом визите.",
+        "uz": "Sharhni faqat yakunlangan tashrif haqida qoldirish mumkin.",
+    },
+    "review_denied_no_rating": {
+        "ru": "Сначала поставьте оценку.",
+        "uz": "Avval baho qo'ying.",
+    },
+    "review_denied_already_left": {
+        "ru": "Вы уже оставили отзыв об этом визите.",
+        "uz": "Siz bu tashrif haqida sharh qoldirgansiz.",
+    },
+    "kb_stylist_reviews": {
+        "ru": "💬 Отзывы ({count})",
+        "uz": "💬 Sharhlar ({count})",
+    },
+    "reviews_title": {
+        "ru": "<b>Отзывы: {name}</b>",
+        "uz": "<b>Sharhlar: {name}</b>",
+    },
+    "reviews_empty": {
+        "ru": "Об этом мастере пока никто не написал. Будете первым?",
+        "uz": "Bu maestro haqida hozircha hech kim yozmagan. Birinchi bo'lasizmi?",
+    },
+    "reviews_more": {
+        "ru": "И ещё {count}. Показаны последние {shown}.",
+        "uz": "Yana {count} ta. Oxirgi {shown} tasi ko'rsatilgan.",
+    },
+    "reviews_anonymous": {
+        "ru": "Клиент",
+        "uz": "Mijoz",
+    },
     "offline_badge": {
         "ru": "🚶 Офлайн-запись",
         "uz": "🚶 Oflayn yozuv",

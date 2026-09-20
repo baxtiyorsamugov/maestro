@@ -207,6 +207,13 @@ class Booking(Base, TimestampMixin):
 
     rating: Mapped[int] = mapped_column(Integer, nullable=True)  # Оценка от 1 до 5
     review_text: Mapped[str] = mapped_column(String(500), nullable=True)  # Текст отзыва
+
+    # Постмодерация: отзыв виден сразу, владелец сервиса может его скрыть.
+    # Премодерация для сервиса с одним администратором означала бы, что отзывы
+    # не появляются вообще — очередь некому разбирать.
+    review_hidden: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     
     reminder_day_sent: Mapped[bool] = mapped_column(Boolean, default=False)   # За 24 часа
     reminder_hour_sent: Mapped[bool] = mapped_column(Boolean, default=False)  # За 1 час

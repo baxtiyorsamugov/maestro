@@ -15,12 +15,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 import database as db
+import texts
 from guards import (
     get_user_lang,
 )
+from presenters import build_reviews_text
 from services.access import (
     is_stylist_subscription_active,
 )
+from services.reviews import count_reviews_for_stylist, load_reviews_for_stylist
 
 router = Router(name="client_stylist_card")
 
@@ -66,11 +69,21 @@ async def load_stylist_card(stylist_id: int, lang: str):
             f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {escape(stylist.barbershop.district)}\n"
             f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {escape(stylist.barbershop.address)}"
         )
-        kb = InlineKeyboardMarkup(inline_keyboard=[
+        reviews_total = await count_reviews_for_stylist(session, stylist.id)
+
+        rows = [
             [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
-            [InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
-            [InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
-        ])
+        ]
+        # Кнопку показываем только когда есть что читать: пустой экран
+        # «отзывов пока нет» — тупик, за который человек зря нажал.
+        if reviews_total:
+            rows.append([InlineKeyboardButton(
+                text=texts.get_text("kb_stylist_reviews", lang).format(count=reviews_total),
+                callback_data=f"reviews_{stylist.id}",
+            )])
+        rows.append([InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")])
+        rows.append([InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")])
+        kb = InlineKeyboardMarkup(inline_keyboard=rows)
 
     return {"caption": caption, "keyboard": kb, "photos": photos}, None
 
@@ -155,6 +168,38 @@ async def back_to_stylist_card(cb: CallbackQuery):
         await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
 
     await cb.message.delete()
+    await cb.answer()
+
+@router.callback_query(F.data.startswith("reviews_"))
+async def show_reviews(cb: CallbackQuery):
+    """
+    Отзывы о мастере: последние REVIEWS_PREVIEW_LIMIT и счётчик остальных.
+
+    Скрытые модератором сюда не попадают — фильтр в самом запросе,
+    а не после выборки: так отзыв нельзя случайно показать, забыв проверку.
+    """
+    lang = await get_user_lang(cb.from_user.id)
+    stylist_id = int(cb.data.split("_")[-1])
+
+    async with db.async_session() as session:
+        stylist = await session.get(db.Stylist, stylist_id)
+        if not stylist:
+            await cb.answer(texts.get_text("booking_stylist_closed", lang), show_alert=True)
+            return
+        reviews = await load_reviews_for_stylist(session, stylist_id)
+        total = await count_reviews_for_stylist(session, stylist_id)
+        stylist_name = stylist.name
+
+    await cb.message.edit_text(
+        build_reviews_text(stylist_name, reviews, total, lang),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(
+                text=texts.get_text("kb_back", lang),
+                callback_data=f"back_to_stylist_{stylist_id}",
+            )
+        ]]),
+        parse_mode="HTML",
+    )
     await cb.answer()
 
 @router.callback_query(F.data.startswith("map_"))

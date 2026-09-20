@@ -179,6 +179,45 @@ def build_booking_card(
     return card
 
 
+def build_reviews_text(
+    stylist_name: str,
+    reviews: list[db.Booking],
+    total: int,
+    lang: str = DEFAULT_LANGUAGE,
+) -> str:
+    """
+    Список отзывов о мастере.
+
+    Подписываем именем клиента, без фамилии и телефона: отзыв — публичный
+    текст, и превращать его в способ найти человека не нужно.
+    """
+    lines = [f"<b>{texts.get_text('reviews_title', lang).format(name=escape(stylist_name))}</b>"]
+
+    if not reviews:
+        lines.append("")
+        lines.append(texts.get_text("reviews_empty", lang))
+        return "\n".join(lines)
+
+    for booking in reviews:
+        author = (
+            booking.user.first_name
+            if booking.user and booking.user.first_name
+            else texts.get_text("reviews_anonymous", lang)
+        )
+        stars = "★" * (booking.rating or 0)
+        lines.append("")
+        lines.append(f"{stars} — <b>{escape(author)}</b>, {timeutils.format_slot(booking.starts_at)[:10]}")
+        lines.append(escape(booking.review_text))
+
+    if total > len(reviews):
+        lines.append("")
+        lines.append(texts.get_text("reviews_more", lang).format(
+            count=total - len(reviews), shown=len(reviews)
+        ))
+
+    return "\n".join(lines)
+
+
 def plural_days(count: int, lang: str) -> str:
     """
     Слово «день» в нужной форме.

@@ -36,6 +36,8 @@ from services.access import (
 )
 from services.booking import can_change_booking
 from services.rating import recalculate_stylist_rating
+from services.reviews import REVIEW_MAX_LEN, can_leave_review, normalize_review
+from states import ReviewForm
 
 router = Router(name="client_profile")
 
@@ -230,10 +232,11 @@ async def remove_favorite(cb: CallbackQuery):
             await cb.message.delete()
 
 @router.callback_query(F.data.startswith("rate_"))
-async def handle_rating(cb: CallbackQuery):
+async def handle_rating(cb: CallbackQuery, state: FSMContext):
     booking_id, rating = map(int, cb.data.split("_")[1:])
+    lang = await get_user_lang(cb.from_user.id)
     if not 1 <= rating <= 5:
-        await cb.answer("Некорректная оценка.", show_alert=True)
+        await cb.answer(texts.get_text("rating_invalid", lang), show_alert=True)
         return
 
     async with db.async_session() as session:
@@ -243,10 +246,12 @@ async def handle_rating(cb: CallbackQuery):
             await deny_access(cb)
             return
         if booking.status != BOOKING_COMPLETED:
-            await cb.answer("Оценить можно только завершённый визит.", show_alert=True)
+            await cb.answer(
+                texts.get_text("review_denied_not_completed", lang), show_alert=True
+            )
             return
         if booking.rating is not None:
-            await cb.message.edit_text("Вы уже оставили оценку.")
+            await cb.message.edit_text(texts.get_text("rating_already_left", lang))
             await cb.answer()
             return
 
@@ -254,6 +259,91 @@ async def handle_rating(cb: CallbackQuery):
         await session.commit()
         await recalculate_stylist_rating(session, booking.stylist_id)
 
-        await cb.message.edit_text(f"Спасибо за вашу оценку: {rating} ★")
-
+    # Звёзды сразу после оценки: человек видит, что именно он поставил.
+    stars = "★" * rating
+    await state.set_state(ReviewForm.text)
+    await state.update_data(review_booking_id=booking_id)
+    await cb.message.edit_text(
+        texts.get_text("rating_thanks", lang).format(stars=stars),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(
+                text=texts.get_text("kb_write_review", lang),
+                callback_data=f"review_write_{booking_id}",
+            ),
+            InlineKeyboardButton(
+                text=texts.get_text("kb_skip_review", lang),
+                callback_data="review_skip",
+            ),
+        ]]),
+    )
     await cb.answer()
+
+
+@router.callback_query(F.data == "review_skip")
+async def skip_review(cb: CallbackQuery, state: FSMContext):
+    lang = await get_user_lang(cb.from_user.id)
+    await state.clear()
+    await cb.message.edit_text(texts.get_text("review_skipped", lang))
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("review_write_"))
+async def ask_for_review(cb: CallbackQuery, state: FSMContext):
+    lang = await get_user_lang(cb.from_user.id)
+    booking_id = int(cb.data.split("_")[-1])
+
+    async with db.async_session() as session:
+        # Идентификатор из callback_data — недоверенный ввод.
+        booking = await load_booking_for_client(session, booking_id, cb.from_user.id)
+        if not booking:
+            await deny_access(cb)
+            return
+        allowed, reason = can_leave_review(booking)
+
+    if not allowed:
+        await state.clear()
+        await cb.answer(texts.get_text(reason, lang), show_alert=True)
+        return
+
+    await state.set_state(ReviewForm.text)
+    await state.update_data(review_booking_id=booking_id)
+    await cb.message.edit_text(
+        texts.get_text("review_prompt", lang).format(limit=REVIEW_MAX_LEN)
+    )
+    await cb.answer()
+
+
+@router.message(ReviewForm.text)
+async def save_review(message: Message, state: FSMContext):
+    lang = await get_user_lang(message.from_user.id)
+    booking_id = (await state.get_data()).get("review_booking_id")
+    if not booking_id:
+        await state.clear()
+        await message.answer(texts.get_text("booking_session_expired", lang))
+        return
+
+    text = normalize_review(message.text)
+    if not text:
+        # Состояние не сбрасываем: человек просто отправил пустое сообщение
+        # или стикер, и выкидывать его из формы за это незачем.
+        await message.answer(texts.get_text("review_empty", lang))
+        return
+
+    async with db.async_session() as session:
+        booking = await load_booking_for_client(session, booking_id, message.from_user.id)
+        if not booking:
+            await state.clear()
+            await message.answer(texts.get_text("booking_session_expired", lang))
+            return
+        allowed, reason = can_leave_review(booking)
+        if not allowed:
+            await state.clear()
+            await message.answer(texts.get_text(reason, lang))
+            return
+
+        booking.review_text = text
+        await session.commit()
+
+    await state.clear()
+    logging.info("review.saved booking_id=%s length=%s", booking_id, len(text))
+    await message.answer(texts.get_text("review_saved", lang))
