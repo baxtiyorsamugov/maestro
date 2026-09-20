@@ -62,14 +62,20 @@ async def load_stylist_card(stylist_id: int, lang: str):
         if stylist.reviews_count:
             rating_text += f" ({stylist.reviews_count})"
 
+        # Описание идёт сразу под именем: это то, ради чего человек
+        # задержится на карточке, а адрес салона он прочитает и ниже.
+        about_block = f"\n{escape(stylist.about)}\n" if stylist.about else ""
+
         caption = (
             f"<b>{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]}: {escape(stylist.name)}</b>\n"
-            f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n\n"
+            f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n"
+            f"{about_block}\n"
             f"<b>{({'ru': 'Салон', 'uz': 'Salon'})[lang]}:</b> {escape(stylist.barbershop.name)}\n"
             f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {escape(stylist.barbershop.district)}\n"
             f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {escape(stylist.barbershop.address)}"
         )
         reviews_total = await count_reviews_for_stylist(session, stylist.id)
+        portrait = stylist.photo_file_id
 
         rows = [
             [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
@@ -85,7 +91,33 @@ async def load_stylist_card(stylist_id: int, lang: str):
         rows.append([InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
 
-    return {"caption": caption, "keyboard": kb, "photos": photos}, None
+    return {"caption": caption, "keyboard": kb, "photos": photos, "portrait": portrait}, None
+
+
+async def send_card_body(target: Message, card: dict) -> None:
+    """
+    Отправка собранной карточки.
+
+    Фото мастера уходит вместе с текстом одним сообщением: так человек видит
+    лицо и описание разом, а не двумя отдельными уведомлениями. Портфолио
+    остаётся отдельной галереей — это работы, а не портрет.
+    """
+    if card["photos"]:
+        await target.answer_media_group(
+            media=[InputMediaPhoto(media=p.telegram_photo_file_id) for p in card["photos"]]
+        )
+
+    if card["portrait"]:
+        await target.answer_photo(
+            photo=card["portrait"],
+            caption=card["caption"],
+            reply_markup=card["keyboard"],
+            parse_mode="HTML",
+        )
+        return
+
+    await target.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
+
 
 async def send_stylist_card(message: Message, stylist_id: int, lang: str) -> bool:
     """Отправляет карточку мастера новым сообщением. False — если показать нечего."""
@@ -94,11 +126,7 @@ async def send_stylist_card(message: Message, stylist_id: int, lang: str) -> boo
         await message.answer(error)
         return False
 
-    if card["photos"]:
-        await message.answer_media_group(
-            media=[InputMediaPhoto(media=p.telegram_photo_file_id) for p in card["photos"]]
-        )
-    await message.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
+    await send_card_body(message, card)
     return True
 
 @router.callback_query(F.data.startswith("stylist_"))
@@ -111,61 +139,31 @@ async def show_maestro_card(cb: CallbackQuery):
         await cb.answer(error, show_alert=True)
         return
 
-    if card["photos"]:
-        await cb.message.answer_media_group(
-            media=[InputMediaPhoto(media=p.telegram_photo_file_id) for p in card["photos"]]
-        )
-    await cb.message.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
+    await send_card_body(cb.message, card)
 
     await cb.message.delete()
     await cb.answer()
 
 @router.callback_query(F.data.startswith("back_to_stylist_"))
 async def back_to_stylist_card(cb: CallbackQuery):
+    """
+    Возврат к карточке мастера.
+
+    Раньше здесь лежала своя, вторая сборка карточки — сорок строк, почти
+    повторяющих load_stylist_card. Разошлись они уже по четырём пунктам:
+    не было кнопки отзывов, поля барбершопа уходили в HTML без экранирования,
+    текст сидел в legacy-escape'ах, и описание с фото мастера сюда бы
+    тоже не доехали. Теперь дорога одна.
+    """
     lang = await get_user_lang(cb.from_user.id)
     stylist_id = int(cb.data.split("_")[-1])
-    await cb.message.edit_text({'ru': '\u041f\u0440\u043e\u0444\u0438\u043b\u044c \u043c\u0430\u0441\u0442\u0435\u0440\u0430 \u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044f...', 'uz': 'Maestro profili yuklanmoqda...'}[lang])
 
-    async with db.async_session() as session:
-        query = select(db.Stylist).where(db.Stylist.id == stylist_id).options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
-        stylist = await session.scalar(query)
-        if not stylist:
-            await cb.answer({'ru': '\u041c\u0430\u0441\u0442\u0435\u0440 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.', 'uz': 'Maestro topilmadi.'}[lang], show_alert=True)
-            return
-        if not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({'ru': '\u042d\u0442\u043e\u0442 \u043c\u0430\u0441\u0442\u0435\u0440 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438.', 'uz': 'Bu maestro hozircha yozuv uchun yopiq.'}[lang], show_alert=True)
-            return
-        photos = (await session.execute(
-            select(db.Portfolio).where(db.Portfolio.stylist_id == stylist.id).order_by(db.Portfolio.id.desc()).limit(3)
-        )).scalars().all()
+    card, error = await load_stylist_card(stylist_id, lang)
+    if not card:
+        await cb.answer(error, show_alert=True)
+        return
 
-    rating_text = ("★ " * int(round(stylist.avg_rating))) if stylist.avg_rating > 0 else ({'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang])
-    labels = {
-        "master": {"ru": "Мастер", "uz": "Maestro"}[lang],
-        "rating": {"ru": "Рейтинг", "uz": "Reyting"}[lang],
-        "salon": {"ru": "Салон", "uz": "Salon"}[lang],
-        "district": {"ru": "Район", "uz": "Tuman"}[lang],
-        "address": {"ru": "Адрес", "uz": "Manzil"}[lang],
-    }
-    caption = (
-        f"<b>{labels['master']}: {escape(stylist.name)}</b>\n"
-        f"{labels['rating']}: {rating_text}\n\n"
-        f"<b>{labels['salon']}:</b> {stylist.barbershop.name}\n"
-        f"<b>{labels['district']}:</b> {stylist.barbershop.district}\n"
-        f"<b>{labels['address']}:</b> {stylist.barbershop.address}"
-    )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text={'ru': '\u0417\u0430\u043f\u0438\u0441\u0430\u0442\u044c\u0441\u044f \u043a \u043c\u0430\u0441\u0442\u0435\u0440\u0443', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
-        [InlineKeyboardButton(text={'ru': '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043d\u0430 \u043a\u0430\u0440\u0442\u0435', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")],
-        [InlineKeyboardButton(text={'ru': '\u041d\u0430\u0437\u0430\u0434 \u043a \u0441\u043f\u0438\u0441\u043a\u0443 \u043c\u0430\u0441\u0442\u0435\u0440\u043e\u0432', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")],
-    ])
-
-    if photos:
-        media_group = [InputMediaPhoto(media=p.telegram_photo_file_id) for p in photos]
-        await cb.message.answer_media_group(media=media_group)
-        await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
-    else:
-        await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
+    await send_card_body(cb.message, card)
 
     await cb.message.delete()
     await cb.answer()
@@ -201,6 +199,7 @@ async def show_reviews(cb: CallbackQuery):
         parse_mode="HTML",
     )
     await cb.answer()
+
 
 @router.callback_query(F.data.startswith("map_"))
 async def show_map(cb: CallbackQuery):

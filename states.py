@@ -13,6 +13,12 @@ class ScheduleForm(StatesGroup):
     start_time = State()
     end_time = State()
 
+class StylistProfileForm(StatesGroup):
+    """Карточка мастера: описание о себе и фото."""
+
+    about = State()
+    photo = State()
+
 class ReviewForm(StatesGroup):
     """Текстовый отзыв после оценки визита."""
 

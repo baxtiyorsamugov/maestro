@@ -232,6 +232,74 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    "profile_card_title": {
+        "ru": "<b>Ваша карточка</b>\n\nЕё видит клиент до того, как нажмёт «Записаться».",
+        "uz": "<b>Sizning kartangiz</b>\n\nUni mijoz «Yozilish»ni bosishdan oldin ko'radi.",
+    },
+    "profile_card_about": {
+        "ru": "О себе: {about}",
+        "uz": "O'zim haqimda: {about}",
+    },
+    "profile_card_no_about": {
+        "ru": "О себе: не заполнено. Пара строк помогает клиенту выбрать — без них карточки мастеров неотличимы.",
+        "uz": "O'zim haqimda: to'ldirilmagan. Bir necha satr mijozga tanlashda yordam beradi — ularsiz maestrolar kartalari bir xil.",
+    },
+    "profile_card_no_photo": {
+        "ru": "Фото: нет.",
+        "uz": "Foto: yo'q.",
+    },
+    "profile_card_has_photo": {
+        "ru": "Фото: загружено.",
+        "uz": "Foto: yuklangan.",
+    },
+    "kb_edit_about": {
+        "ru": "✏️ О себе",
+        "uz": "✏️ O'zim haqimda",
+    },
+    "kb_edit_photo": {
+        "ru": "🖼 Фото",
+        "uz": "🖼 Foto",
+    },
+    "kb_clear_photo": {
+        "ru": "🚫 Убрать фото",
+        "uz": "🚫 Fotoni olib tashlash",
+    },
+    "kb_clear_about": {
+        "ru": "🚫 Очистить",
+        "uz": "🚫 Tozalash",
+    },
+    "profile_ask_about": {
+        "ru": "Напишите пару строк о себе — до {limit} символов.\n\nЧто вы делаете лучше всего, сколько лет в профессии, чем отличаетесь. Это увидят клиенты.",
+        "uz": "O'zingiz haqingizda bir necha satr yozing — {limit} belgigacha.\n\nNimani eng yaxshi bajarasiz, kasbda necha yil, nimangiz bilan ajralib turasiz. Buni mijozlar ko'radi.",
+    },
+    "profile_about_saved": {
+        "ru": "Описание сохранено.",
+        "uz": "Tavsif saqlandi.",
+    },
+    "profile_about_empty": {
+        "ru": "Пустое описание сохранять нечего. Напишите текст или нажмите «Очистить».",
+        "uz": "Bo'sh tavsifni saqlab bo'lmaydi. Matn yozing yoki «Tozalash»ni bosing.",
+    },
+    "profile_about_cleared": {
+        "ru": "Описание убрано.",
+        "uz": "Tavsif olib tashlandi.",
+    },
+    "profile_ask_photo": {
+        "ru": "Пришлите фото одним сообщением. Лучше своё рабочее, а не логотип — клиенты выбирают человека.",
+        "uz": "Bitta xabar bilan foto yuboring. Logotip emas, o'zingizning ish fotongiz yaxshiroq — mijozlar odamni tanlaydi.",
+    },
+    "profile_photo_saved": {
+        "ru": "Фото сохранено.",
+        "uz": "Foto saqlandi.",
+    },
+    "profile_photo_cleared": {
+        "ru": "Фото убрано.",
+        "uz": "Foto olib tashlandi.",
+    },
+    "profile_photo_expected": {
+        "ru": "Это не фото. Пришлите изображение или вернитесь назад.",
+        "uz": "Bu foto emas. Rasm yuboring yoki ortga qayting.",
+    },
     "rating_invalid": {
         "ru": "Некорректная оценка.",
         "uz": "Noto'g'ri baho.",
@@ -897,6 +965,10 @@ STYLIST_BUTTONS = {
     "my_services": {
         "ru": "✂️ Мои услуги",
         "uz": "✂️ Mening xizmatlarim",
+    },
+    "my_profile_card": {
+        "ru": "👤 Моя карточка",
+        "uz": "👤 Mening kartam",
     },
     "my_portfolio": {
         "ru": "🖼 Мое портфолио",
