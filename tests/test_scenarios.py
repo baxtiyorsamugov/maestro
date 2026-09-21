@@ -283,6 +283,84 @@ class TestApprovalAndCancellation:
         assert [e.actor_kind for e in history] == ["client", "stylist", "client"]
 
 
+CYRILLIC = __import__("re").compile(r"[а-яА-ЯёЁ]")
+
+
+class TestStylistLanguage:
+    """
+    Уведомления читает мастер, а не клиент. Раньше «Новая заявка» и
+    «Запись отменена» уходили мастеру по-русски при любом его языке —
+    хотя кнопки под заявкой уже были на его языке.
+    """
+
+    async def _uzbek_stylist(self, fixture_data):
+        await _open_workday(fixture_data)
+        fixture_data["stylist_user"].language_code = "uz"
+        await fixture_data["session"].commit()
+
+    async def test_new_request_reaches_uzbek_stylist_in_uzbek(self, world, fixture_data):
+        await self._uzbek_stylist(fixture_data)
+        client = person(world, fixture_data["client_user"].telegram_id, "Клиент")
+        target = await _free_date(fixture_data)
+
+        await client.press(f"book_{fixture_data['stylist'].id}")
+        await client.press(f"srv_{fixture_data['service'].id}")
+        await client.press(f"date_{target:%Y-%m-%d}")
+        final = await client.press("time_13:00")
+
+        notices = final.sent_to(fixture_data["stylist_user"].telegram_id)
+        assert notices, "мастеру ничего не пришло"
+        # Имя клиента и название услуги — данные, а не интерфейс: вырезаем их.
+        chrome = notices[-1].replace("Клиент", "").replace("Стрижка", "")
+        assert not CYRILLIC.search(chrome), f"русский в уведомлении мастеру-узбеку: {notices[-1]!r}"
+
+    async def test_cancellation_reaches_uzbek_stylist_in_uzbek(self, world, fixture_data):
+        await self._uzbek_stylist(fixture_data)
+        client = person(world, fixture_data["client_user"].telegram_id, "Клиент")
+
+        replies = await client.press(f"booking_cancel_{fixture_data['booking'].id}")
+
+        notices = replies.sent_to(fixture_data["stylist_user"].telegram_id)
+        assert notices, "мастер не узнал об отмене"
+        chrome = notices[-1].replace("Клиент", "")
+        assert not CYRILLIC.search(chrome), f"русский в уведомлении мастеру-узбеку: {notices[-1]!r}"
+
+
+class TestFavorites:
+    async def test_add_then_remove_from_list(self, world, fixture_data):
+        """
+        Удаление из избранного раньше падало: хендлер звал show_favorites()
+        без state и с сообщением бота вместо сообщения клиента.
+        """
+        from sqlalchemy import select
+
+        await _open_workday(fixture_data)
+        client = person(world, fixture_data["client_user"].telegram_id, "Клиент")
+        stylist_id = fixture_data["stylist"].id
+
+        added = await client.press(f"fav_add_{stylist_id}")
+        assert added.alerts, "добавление не подтверждено"
+
+        removed = await client.press(f"fav_rem_{stylist_id}")
+        assert removed.answered_callback
+        assert removed.texts, "список не перерисован после удаления"
+
+        async with db.async_session() as s:
+            left = await s.scalar(select(db.Favorite).where(
+                db.Favorite.user_id == fixture_data["client_user"].id
+            ))
+        assert left is None
+
+    async def test_unregistered_person_gets_an_answer(self, world, fixture_data):
+        """Кнопка из пересланной карточки: раньше AttributeError и «часики»."""
+        stranger = person(world, 7777, "Новичок")
+        replies = await stranger.press(f"fav_add_{fixture_data['stylist'].id}")
+        # Именно просьба зарегистрироваться, а не «что-то пошло не так»:
+        # общий обработчик ошибок тоже отвечает всплывашкой, и проверка
+        # «ответ был» проходила бы на упавшем хендлере.
+        assert any("/start" in alert for alert in replies.alerts), replies.alerts
+
+
 class TestAccountDeletion:
     async def test_client_deletes_account_through_the_bot(self, world, fixture_data):
         """

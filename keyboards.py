@@ -255,14 +255,8 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def get_contact_request_keyboard(lang: str) -> ReplyKeyboardMarkup:
-    share_text = {
-        "ru": "📱 Поделиться контактом",
-        "uz": "📱 Kontaktni ulashish",
-    }[lang]
-    manual_text = {
-        "ru": "✍️ Ввести вручную",
-        "uz": "✍️ Qo'lda kiritish",
-    }[lang]
+    share_text = texts.get_text("kb_share_contact", lang)
+    manual_text = texts.get_text("kb_enter_phone_manually", lang)
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=share_text, request_contact=True)],

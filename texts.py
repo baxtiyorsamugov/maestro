@@ -1105,6 +1105,237 @@ TEXTS = {
         "ru": "Время выбора истекло. Начните запись заново.",
         "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang.",
     },
+    # --- Клиентская часть: регистрация -----------------------------------
+    "welcome_fallback_name": {
+        "ru": "друг",
+        "uz": "do'stim",
+    },
+    "deeplink_opening_card": {
+        "ru": "Открываю карточку мастера...",
+        "uz": "Maestro kartasi ochilmoqda...",
+    },
+    "kb_share_contact": {
+        "ru": "📱 Поделиться контактом",
+        "uz": "📱 Kontaktni ulashish",
+    },
+    "kb_enter_phone_manually": {
+        "ru": "✍️ Ввести вручную",
+        "uz": "✍️ Qo'lda kiritish",
+    },
+    # --- Клиентская часть: карточка мастера -------------------------------
+    "stylist_not_found": {
+        "ru": "Мастер не найден.",
+        "uz": "Maestro topilmadi.",
+    },
+    "stylist_unavailable": {
+        "ru": "Этот мастер временно недоступен для записи.",
+        "uz": "Bu maestro hozircha yozuv uchun yopiq.",
+    },
+    "card_no_rating": {
+        "ru": "Нет оценок",
+        "uz": "Baholar yo'q",
+    },
+    "card_rating": {
+        "ru": "Рейтинг",
+        "uz": "Reyting",
+    },
+    "card_salon": {
+        "ru": "Салон",
+        "uz": "Salon",
+    },
+    "card_district": {
+        "ru": "Район",
+        "uz": "Tuman",
+    },
+    "card_address": {
+        "ru": "Адрес",
+        "uz": "Manzil",
+    },
+    "kb_book_stylist": {
+        "ru": "Записаться к мастеру",
+        "uz": "Maestroga yozilish",
+    },
+    "kb_show_on_map": {
+        "ru": "Показать на карте",
+        "uz": "Xaritada ko'rsatish",
+    },
+    "kb_back_to_stylists": {
+        "ru": "Назад к списку мастеров",
+        "uz": "Maestrolar ro'yxatiga qaytish",
+    },
+    "map_sent": {
+        "ru": "Карта отправлена",
+        "uz": "Xarita yuborildi",
+    },
+    "map_no_coordinates": {
+        "ru": "Для этого салона координаты не указаны.",
+        "uz": "Bu salon uchun koordinatalar kiritilmagan.",
+    },
+    # --- Клиентская часть: поиск -----------------------------------------
+    "search_results_by_name": {
+        "ru": "Результаты поиска по имени:",
+        "uz": "Ism bo'yicha qidiruv natijalari:",
+    },
+    "search_results_by_id": {
+        "ru": "Результат поиска по ID:",
+        "uz": "ID bo'yicha qidiruv natijasi:",
+    },
+    "search_id_digits_only": {
+        "ru": "ID должен состоять только из цифр. Попробуйте ещё раз.",
+        "uz": "ID faqat raqamlardan iborat bo'lishi kerak. Qayta urinib ko'ring.",
+    },
+    "search_stylist_expired": {
+        "ru": "Мастер найден, но сейчас недоступен для записи. Срок тарифа истёк: {expiry}.",
+        "uz": "Maestro topildi, lekin hozir yozilish uchun mavjud emas. Tarif muddati tugagan: {expiry}.",
+    },
+    "search_failed": {
+        "ru": "Не удалось выполнить поиск. Попробуйте ещё раз.",
+        "uz": "Qidiruvda xatolik yuz berdi. Qayta urinib ko'ring.",
+    },
+    "search_id_not_found": {
+        "ru": "Мастер не найден. Отправьте другой ID или вернитесь в меню поиска.",
+        "uz": "Maestro topilmadi. Boshqa ID yuboring yoki qidiruv menyusiga qayting.",
+    },
+    "search_name_not_found": {
+        "ru": "По вашему запросу никого не нашли. Попробуйте другое имя.",
+        "uz": "So'rovingiz bo'yicha hech kim topilmadi. Boshqa ism bilan urinib ko'ring.",
+    },
+    "search_ask_name": {
+        "ru": "Введите имя или часть имени мастера:",
+        "uz": "Maestroning ismini yoki bir qismini kiriting:",
+    },
+    "search_ask_id": {
+        "ru": "Введите ID мастера (только цифры):",
+        "uz": "Maestro ID sini kiriting (faqat raqam):",
+    },
+    "search_no_districts": {
+        "ru": "Пока нет доступных районов для поиска.",
+        "uz": "Hozircha qidiruv uchun tumanlar yo'q.",
+    },
+    "search_pick_district": {
+        "ru": "Выберите район. Потом можно открыть список подходящих барбершопов.",
+        "uz": "Tumanni tanlang. Keyin mos barbershoplar ro'yxatini ochishingiz mumkin.",
+    },
+    "search_id_intro": {
+        "ru": (
+            "✨ <b>Добро пожаловать в мир Maestro!</b>\n\n"
+            "Чтобы мгновенно найти своего мастера и забронировать время, "
+            "просто <b>введите его ID номер</b> ниже:\n\n"
+            "🆔 <i>Номер указан на табличке с QR-кодом или визитке мастера.</i>"
+        ),
+        "uz": (
+            "✨ <b>Maestro olamiga xush kelibsiz!</b>\n\n"
+            "O'z maestroingizni bir zumda topish va vaqtni band qilish uchun "
+            "uning <b>ID raqamini</b> pastga yuboring:\n\n"
+            "🆔 <i>ID raqami Maestro peshlavhasidagi QR-kod ostida yoki instagram biosida ko'rsatilgan.</i>"
+        ),
+    },
+    "search_district_no_shops": {
+        "ru": "В этом районе пока нет барбершопов.",
+        "uz": "Bu tumanda hozircha barbershoplarimiz yo'q.",
+    },
+    "search_district_no_stylists": {
+        "ru": "В этом районе пока нет активных мастеров.",
+        "uz": "Bu tumanda hozircha faol maestrolar yo'q.",
+    },
+    "search_pick_shop": {
+        "ru": "Выберите барбершоп в районе <b>{district}</b>.\nКарту можно открыть в карточке мастера.",
+        "uz": "<b>{district}</b> tumanidagi barbershopni tanlang.\nXaritani usta kartasidan ochishingiz mumkin.",
+    },
+    "search_shop_no_stylists": {
+        "ru": "В этом салоне пока нет активных мастеров.",
+        "uz": "Bu salonda hozircha faol maestrolar yo'q.",
+    },
+    # --- Клиентская часть: запись ----------------------------------------
+    "booking_stylist_expired": {
+        "ru": "У этого мастера истёк срок тарифа. Выберите другого мастера.",
+        "uz": "Bu maestroning tarifi tugagan. Boshqa maestroni tanlang.",
+    },
+    "kb_back_to_stylist": {
+        "ru": "Назад к мастеру",
+        "uz": "Maestroga qaytish",
+    },
+    "booking_no_services": {
+        "ru": "У <b>{name}</b> пока нет добавленных услуг.\nВыберите другого мастера или загляните позже.",
+        "uz": "<b>{name}</b> uchun hozircha xizmatlar mavjud emas.\nBoshqa maestroni tanlang yoki keyinroq qayting.",
+    },
+    "kb_add_favorite": {
+        "ru": "Добавить в избранное",
+        "uz": "Sevimlilarga qo'shish",
+    },
+    "booking_pick_service": {
+        "ru": "<b>{name}</b>\nВыберите услугу для записи.",
+        "uz": "<b>{name}</b>\nYozilish uchun xizmatni tanlang.",
+    },
+    "booking_closed_pick_other": {
+        "ru": "Запись к этому мастеру временно закрыта. Выберите другого мастера.",
+        "uz": "Bu maestroga yozilish vaqtincha yopiq. Boshqa maestroni tanlang.",
+    },
+    "booking_slot_taken": {
+        "ru": "Это время уже заняли. Выберите другое.",
+        "uz": "Bu vaqt endi mavjud emas. Boshqa vaqtni tanlang.",
+    },
+    "booking_slot_just_taken": {
+        "ru": "Это время только что заняли. Выберите другое.",
+        "uz": "Bu vaqtni hozirgina band qilishdi. Boshqa vaqtni tanlang.",
+    },
+    "booking_dayoff_notice": {
+        "ru": "На {date} у мастера нет доступного времени. Выберите другой день.",
+        "uz": "{date} sanasida maestro bo'sh emas yoki ishlamaydi. Boshqa kunni tanlang.",
+    },
+    "calendar_open_failed": {
+        "ru": "Не удалось открыть календарь.",
+        "uz": "Kalendarni ochib bo'lmadi.",
+    },
+    "booking_day_not_working": {
+        "ru": "Мастер в этот день не работает.",
+        "uz": "Maestro bu kuni ishlamaydi.",
+    },
+    "booking_no_slots_on": {
+        "ru": "На {date} свободных слотов нет.\nВыберите другую дату.",
+        "uz": "{date} sanasida bo'sh slotlar yo'q.\nBoshqa sanani tanlang.",
+    },
+    "booking_pick_time": {
+        "ru": "Дата: {date}\nВыберите время:",
+        "uz": "Sana: {date}\nVaqtni tanlang:",
+    },
+    "booking_request_sent": {
+        "ru": "Заявка отправлена.\n{slot}\n\nМастер посмотрит заявку и ответит в ближайшее время.",
+        "uz": "So'rovingiz yuborildi.\n{slot}\n\nMaestro so'rovni ko'rib chiqadi va tez orada javob beradi.",
+    },
+    # --- Клиентская часть: мои записи и избранное ------------------------
+    "booking_barbershop": {
+        "ru": "Барбершоп",
+        "uz": "Barbershop",
+    },
+    "booking_cannot_cancel": {
+        "ru": "Эту запись уже нельзя отменить.",
+        "uz": "Bu yozuvni endi bekor qilib bo'lmaydi.",
+    },
+    "booking_cancelled_notice_stylist": {
+        "ru": "<b>Запись отменена</b>\n\n{client_label}: {client}\n{datetime_label}: {slot}\n\nЭто окно снова свободно для записи.",
+        "uz": "<b>Yozuv bekor qilindi</b>\n\n{client_label}: {client}\n{datetime_label}: {slot}\n\nBu vaqt yana yozilish uchun bo'sh.",
+    },
+    "booking_cancelled_toast": {
+        "ru": "Запись отменена.",
+        "uz": "Yozuv bekor qilindi.",
+    },
+    "booking_cancelled_client": {
+        "ru": "Ваша запись успешно отменена.",
+        "uz": "Yozuvingiz muvaffaqiyatli bekor qilindi.",
+    },
+    "favorite_added": {
+        "ru": "Мастер добавлен в избранное!",
+        "uz": "Maestro sevimlilarga qo'shildi!",
+    },
+    "favorite_already": {
+        "ru": "Этот мастер уже в избранном.",
+        "uz": "Bu maestro allaqachon sevimlilarda.",
+    },
+    "favorite_removed": {
+        "ru": "Мастер удалён из избранного.",
+        "uz": "Maestro sevimlilardan olib tashlandi.",
+    },
 }
 
 BUTTONS = {

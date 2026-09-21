@@ -40,12 +40,9 @@ async def load_stylist_card(stylist_id: int, lang: str):
             .options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
         )
         if not stylist:
-            return None, {'ru': 'Мастер не найден.', 'uz': 'Maestro topilmadi.'}[lang]
+            return None, texts.get_text("stylist_not_found", lang)
         if not is_stylist_subscription_active(stylist.user_account):
-            return None, {
-                'ru': 'Этот мастер временно недоступен для записи.',
-                'uz': 'Bu maestro hozircha yozuv uchun yopiq.',
-            }[lang]
+            return None, texts.get_text("stylist_unavailable", lang)
 
         photos = (await session.execute(
             select(db.Portfolio)
@@ -57,7 +54,7 @@ async def load_stylist_card(stylist_id: int, lang: str):
         rating_text = (
             ("★ " * int(round(stylist.avg_rating)))
             if stylist.avg_rating > 0
-            else {'ru': 'Нет оценок', 'uz': "Baholar yo'q"}[lang]
+            else texts.get_text("card_no_rating", lang)
         )
         if stylist.reviews_count:
             rating_text += f" ({stylist.reviews_count})"
@@ -66,19 +63,20 @@ async def load_stylist_card(stylist_id: int, lang: str):
         # задержится на карточке, а адрес салона он прочитает и ниже.
         about_block = f"\n{escape(stylist.about)}\n" if stylist.about else ""
 
+        t = lambda key: texts.get_text(key, lang)  # noqa: E731 — локальное сокращение
         caption = (
-            f"<b>{({'ru': 'Мастер', 'uz': 'Maestro'})[lang]}: {escape(stylist.name)}</b>\n"
-            f"{({'ru': 'Рейтинг', 'uz': 'Reyting'})[lang]}: {rating_text}\n"
+            f"<b>{t('master_label')}: {escape(stylist.name)}</b>\n"
+            f"{t('card_rating')}: {rating_text}\n"
             f"{about_block}\n"
-            f"<b>{({'ru': 'Салон', 'uz': 'Salon'})[lang]}:</b> {escape(stylist.barbershop.name)}\n"
-            f"<b>{({'ru': 'Район', 'uz': 'Tuman'})[lang]}:</b> {escape(stylist.barbershop.district)}\n"
-            f"<b>{({'ru': 'Адрес', 'uz': 'Manzil'})[lang]}:</b> {escape(stylist.barbershop.address)}"
+            f"<b>{t('card_salon')}:</b> {escape(stylist.barbershop.name)}\n"
+            f"<b>{t('card_district')}:</b> {escape(stylist.barbershop.district)}\n"
+            f"<b>{t('card_address')}:</b> {escape(stylist.barbershop.address)}"
         )
         reviews_total = await count_reviews_for_stylist(session, stylist.id)
         portrait = stylist.photo_file_id
 
         rows = [
-            [InlineKeyboardButton(text={'ru': 'Записаться к мастеру', 'uz': 'Maestroga yozilish'}[lang], callback_data=f"book_{stylist.id}")],
+            [InlineKeyboardButton(text=t("kb_book_stylist"), callback_data=f"book_{stylist.id}")],
         ]
         # Кнопку показываем только когда есть что читать: пустой экран
         # «отзывов пока нет» — тупик, за который человек зря нажал.
@@ -87,8 +85,8 @@ async def load_stylist_card(stylist_id: int, lang: str):
                 text=texts.get_text("kb_stylist_reviews", lang).format(count=reviews_total),
                 callback_data=f"reviews_{stylist.id}",
             )])
-        rows.append([InlineKeyboardButton(text={'ru': 'Показать на карте', 'uz': "Xaritada ko'rsatish"}[lang], callback_data=f"map_{stylist.barbershop.id}")])
-        rows.append([InlineKeyboardButton(text={'ru': 'Назад к списку мастеров', 'uz': "Maestrolar ro'yxatiga qaytish"}[lang], callback_data=f"shop_{stylist.barbershop.id}")])
+        rows.append([InlineKeyboardButton(text=t("kb_show_on_map"), callback_data=f"map_{stylist.barbershop.id}")])
+        rows.append([InlineKeyboardButton(text=t("kb_back_to_stylists"), callback_data=f"shop_{stylist.barbershop.id}")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
 
     return {"caption": caption, "keyboard": kb, "photos": photos, "portrait": portrait}, None
@@ -209,6 +207,6 @@ async def show_map(cb: CallbackQuery):
         shop = await session.get(db.Barbershop, shop_id)
     if shop and shop.latitude and shop.longitude:
         await cb.message.answer_location(latitude=shop.latitude, longitude=shop.longitude)
-        await cb.answer({'ru': 'Карта отправлена', 'uz': 'Xarita yuborildi'}[lang])
+        await cb.answer(texts.get_text("map_sent", lang))
     else:
-        await cb.answer({'ru': 'Для этого салона координаты не указаны.', 'uz': 'Bu salon uchun koordinatalar kiritilmagan.'}[lang], show_alert=True)
+        await cb.answer(texts.get_text("map_no_coordinates", lang), show_alert=True)

@@ -85,7 +85,10 @@ async def prompt_registration_step(message: Message, user: db.User | None, state
 
     if user and (user.role == "stylist" or is_registration_complete(user)):
         keyboard = await get_main_keyboard(message.from_user.id)
-        welcome_name = user.first_name or message.from_user.first_name or "друг"
+        welcome_name = (
+            user.first_name or message.from_user.first_name
+            or texts.get_text("welcome_fallback_name", lang)
+        )
         welcome_text = texts.get_text('welcome_back', lang).format(welcome_name)
         await state.clear()
         await message.answer(welcome_text, reply_markup=keyboard)
@@ -151,7 +154,7 @@ async def start(message: Message, state: FSMContext, command: CommandObject | No
         lang = user.language_code if user and user.language_code else "ru"
         logging.info("deeplink.stylist user=%s stylist_id=%s", mask_user(message.from_user.id), stylist_id)
         await message.answer(
-            {"ru": "Открываю карточку мастера...", "uz": "Maestro kartasi ochilmoqda..."}[lang],
+            texts.get_text("deeplink_opening_card", lang),
             reply_markup=await get_main_keyboard(message.from_user.id),
         )
         if await send_stylist_card(message, stylist_id, lang):
@@ -276,14 +279,11 @@ async def process_registration_phone_text(message: Message, state: FSMContext):
         user = await session.scalar(select(db.User).where(db.User.telegram_id == message.from_user.id))
         lang = user.language_code if user and user.language_code else "ru"
 
-        manual_button = {
-            "ru": "✍️ Ввести вручную",
-            "uz": "✍️ Qo'lda kiritish",
-        }[lang]
-        share_button = {
-            "ru": "📱 Поделиться контактом",
-            "uz": "📱 Kontaktni ulashish",
-        }[lang]
+        # Те же ключи, что у клавиатуры (keyboards.get_contact_request_keyboard):
+        # два отдельных словаря однажды разошлись бы, и кнопка перестала бы
+        # узнаваться как кнопка.
+        manual_button = texts.get_text("kb_enter_phone_manually", lang)
+        share_button = texts.get_text("kb_share_contact", lang)
 
         if message.text == share_button:
             await message.answer(

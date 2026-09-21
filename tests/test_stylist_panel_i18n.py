@@ -19,7 +19,16 @@ import presenters
 import texts
 
 CYRILLIC = re.compile(r"[а-яА-ЯёЁ]")
-STYLIST_HANDLERS = Path(__file__).resolve().parent.parent / "handlers" / "stylist"
+HANDLERS = Path(__file__).resolve().parent.parent / "handlers"
+STYLIST_HANDLERS = HANDLERS / "stylist"
+# Клиентская часть переведена позже (B-9.1) и закреплена тем же правилом:
+# без теста инлайн-словари возвращались бы по одному, незаметно.
+CHECKED_MODULES = sorted(
+    str(p.relative_to(HANDLERS)).replace("\\", "/")
+    for p in [*STYLIST_HANDLERS.glob("*.py"), *(HANDLERS / "client").glob("*.py"),
+              HANDLERS / "fallback.py"]
+    if p.stem != "__init__"
+)
 
 
 def russian_literals(path: Path) -> list[tuple[int, str]]:
@@ -41,11 +50,9 @@ def russian_literals(path: Path) -> list[tuple[int, str]]:
 
 
 class TestNoHardcodedRussian:
-    @pytest.mark.parametrize(
-        "module", sorted(p.name for p in STYLIST_HANDLERS.glob("*.py") if p.stem != "__init__")
-    )
+    @pytest.mark.parametrize("module", CHECKED_MODULES)
     def test_module_has_no_russian_literals(self, module):
-        found = russian_literals(STYLIST_HANDLERS / module)
+        found = russian_literals(HANDLERS / module)
         assert found == [], (
             f"русский текст прямо в коде — он не переводится: "
             f"{[(line, value[:40]) for line, value in found]}"
