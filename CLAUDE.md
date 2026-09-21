@@ -39,9 +39,9 @@
 | `middlewares.py` | логирование апдейтов, кеш пользователя на апдейт, антифлуд (порядок задан в `loader.py`) |
 | `database.py` | SQLAlchemy 2.x async ORM-модели + `engine` + `async_session` |
 | `admin_panel.py` | FastAPI + sqladmin: CRUD с ролями, дашборд, отзывы, журнал, `/health`, `/metrics` |
-| `scheduler.py` | APScheduler-задачи: напоминания, follow-up, истечение тарифа |
+| `scheduler.py` | APScheduler-задачи: напоминания (каждые 15 минут), follow-up, истечение тарифа. Сессия не держится вокруг отправки, флаг «отправлено» — только после успеха |
 | `config.py` | `.env` через pydantic-settings: модели `BotSettings`/`AdminSettings`/`MySQLSettings`, `check_environment()` печатает все проблемы разом, сборка DSN |
-| `texts.py` | локализация: 306 ключей. Все хендлеры (`handlers/`) без инлайн-словарей — это проверяет тест. Остались `scheduler.py`, `guards.py`, `middlewares.py`, `bot.py` |
+| `texts.py` | локализация: 316 ключей. Инлайн-словарей нет ни в `handlers/`, ни в `bot`/`guards`/`middlewares`/`scheduler` — это проверяет тест. По-русски намеренно только то, что читает владелец (сводка проблем, веб-панель) |
 | `utils.py` | генератор inline-календаря |
 | `timeutils.py` | **вся работа со временем**: зона, разбор, границы периодов, формат |
 | `security.py` | хеширование пароля админки, роли (`owner` / `manager`), ограничение попыток входа |

@@ -1105,6 +1105,54 @@ TEXTS = {
         "ru": "Время выбора истекло. Начните запись заново.",
         "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang.",
     },
+    # --- Фоновые уведомления (scheduler.py) -------------------------------
+    "reminder_day": {
+        "ru": "👋 Привет! Напоминаем о вашей завтрашней записи в {time}.\nУслуга: {service}",
+        "uz": "👋 Salom! Ertaga soat {time} da sizni kutamiz.\nXizmat: {service}",
+    },
+    "reminder_hour": {
+        "ru": (
+            "⚡️ <b>Маэстро {stylist} уже ждёт вас!</b>\n\n"
+            "До нашей встречи остался всего один час. Мы уже вовсю готовимся "
+            "к вашему преображению. ✨\n\n"
+            "Пожалуйста, не опаздывайте, каждая минута важна для идеального результата! 😊"
+        ),
+        "uz": (
+            "⚡️ <b>Maestro {stylist} sizni kutmoqda!</b>\n\n"
+            "Bir soatdan keyin uchrashuvimiz boshlanadi. Biz sizning tashrifingizga "
+            "deyarli tayyormiz. ✨\n\n"
+            "Iltimos, kechikmang, har bir daqiqa sizning go'zalligingiz uchun muhim! 😊"
+        ),
+    },
+    "follow_up": {
+        "ru": "Привет, {name}! 👋\nПрошло 20 дней с визита к мастеру {stylist}. Пора обновить образ?\n👉 Записаться: {link}",
+        "uz": "Salom, {name}! 👋\nOxirgi marta {stylist} bilan ko'rishganingizdan beri 20 kun o'tdi. Balki yangilanish vaqti kelgandir?\n👉 Yozilish: {link}",
+    },
+    "subscription_expiring": {
+        "ru": "<b>Срок тарифа истекает!</b>\nОсталось дней: {days}. Не забудьте продлить доступ, чтобы не потерять записи клиентов.",
+        "uz": "<b>Tarif muddati yakunlanmoqda!</b>\nQolgan vaqt: {days} kun. Xizmatni uzaytirish uchun admin bilan bog'laning.",
+    },
+    # --- Общие ответы (guards, middlewares, bot.py) ----------------------
+    "access_denied": {
+        "ru": "Это действие доступно только участнику записи.",
+        "uz": "Bu amal faqat yozuv ishtirokchisiga ochiq.",
+    },
+    "stylist_profile_missing": {
+        "ru": "Профиль мастера не найден.",
+        "uz": "Maestro profili topilmadi.",
+    },
+    "stylist_subscription_expired": {
+        "ru": "Срок тарифа истёк. Продлите тариф у администраторов сервиса.",
+        "uz": "Tarif muddati tugagan. Tarifni xizmat administratorlari orqali uzaytiring.",
+    },
+    "throttled": {
+        "ru": "Слишком быстро. Подождите пару секунд.",
+        "uz": "Juda tez. Bir necha soniya kuting.",
+    },
+    "unexpected_error": {
+        "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
+        "uz": "Nimadir xato ketdi. Biz tekshiryapmiz, bir daqiqadan so'ng urinib ko'ring.",
+    },
     # --- Клиентская часть: регистрация -----------------------------------
     "welcome_fallback_name": {
         "ru": "друг",

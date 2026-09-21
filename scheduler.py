@@ -1,125 +1,195 @@
+"""
+Фоновые задачи: напоминания, «пора обновить образ», срок тарифа, сводка владельцу.
+
+Общее правило для всех задач: сессия с базой не держится открытой, пока
+идут запросы к Telegram (CLAUDE.md, 4.3). Сначала собираем, кому и что
+отправить, закрываем сессию, отправляем, и отдельной короткой сессией
+помечаем то, что действительно ушло. Флаг «отправлено» ставится только
+после успешной отправки: иначе заблокировавший бота человек навсегда
+числился бы напомненным, а временный сбой Telegram съедал бы напоминание.
+"""
 import logging
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from html import escape
 
 from aiogram import Bot
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import joinedload
 
 import database as db
+import texts
 import timeutils
 from config import get_optional_env
 from services import metrics
 
+#: Как часто запускается check_reminders (bot.py). Окно часового напоминания
+#: обязано быть не уже интервала, иначе часть визитов проскакивает между
+#: запусками — ровно так и было при ежечасном запуске и окне в 30 минут.
+REMINDER_INTERVAL_MIN = 15
+DAY_WINDOW = (timedelta(hours=23), timedelta(hours=25))
+HOUR_WINDOW = (timedelta(minutes=45), timedelta(minutes=75))
 
-# 1. Напоминания за 24 часа и за 1 час
-async def check_reminders(bot: Bot):
-    logging.info("Проверка напоминаний...")
-    now = timeutils.now()
+REMINDER_DAY = "day"
+REMINDER_HOUR = "hour"
+
+
+def reminder_due(time_left: timedelta, day_sent: bool, hour_sent: bool) -> str | None:
+    """Какое напоминание пора отправить, если пора. Чистая функция — ради тестов."""
+    if DAY_WINDOW[0] <= time_left <= DAY_WINDOW[1] and not day_sent:
+        return REMINDER_DAY
+    if HOUR_WINDOW[0] <= time_left <= HOUR_WINDOW[1] and not hour_sent:
+        return REMINDER_HOUR
+    return None
+
+
+@dataclass
+class _Outgoing:
+    booking_id: int
+    chat_id: int
+    text: str
+    kind: str
+    parse_mode: str | None = None
+
+
+def _reminder_text(booking: db.Booking, kind: str) -> _Outgoing:
+    lang = booking.user.language_code or "ru"
+    if kind == REMINDER_DAY:
+        service = (
+            booking.service.catalog_service.name
+            if booking.service and booking.service.catalog_service
+            else texts.get_text("booking_service_unknown", lang)
+        )
+        text = texts.get_text("reminder_day", lang).format(
+            time=booking.starts_at.strftime("%H:%M"), service=service,
+        )
+        return _Outgoing(booking.id, booking.user.telegram_id, text, kind)
+
+    # Часовое напоминание размечено <b>. Раньше оно уходило без parse_mode,
+    # и клиент видел теги буквально, а имя мастера шло в разметку без escape.
+    stylist = booking.stylist.name if booking.stylist else "Maestro"
+    text = texts.get_text("reminder_hour", lang).format(stylist=escape(stylist))
+    return _Outgoing(booking.id, booking.user.telegram_id, text, kind, parse_mode="HTML")
+
+
+async def check_reminders(bot: Bot, now: datetime | None = None) -> int:
+    """Напоминания за сутки и за час. Возвращает, сколько ушло."""
+    now = now or timeutils.now()
 
     async with db.async_session() as session:
-        # Берем только одобренные записи
-        # joinedload(stylist) обязателен: без него обращение к b.stylist.name ниже
-        # бросает MissingGreenlet и часовое напоминание не отправляется (docs/AUDIT.md, A-5).
-        query = select(db.Booking).where(
-            db.Booking.status == db.BOOKING_APPROVED,
-            db.Booking.starts_at >= now,
-            db.Booking.starts_at <= now + timedelta(hours=26),
-            # Запись офлайн-клиента напоминать некому: аккаунта в Telegram
-            # у него нет, а b.user.language_code на таком ряду упадёт.
-            db.Booking.user_id.is_not(None),
-        ).options(
-            joinedload(db.Booking.user),
-            joinedload(db.Booking.stylist),
-            joinedload(db.Booking.service).joinedload(db.Service.catalog_service)
-        )
-        bookings = (await session.execute(query)).scalars().all()
+        # joinedload обязателен для каждой связи: без него обращение к
+        # b.stylist.name бросает MissingGreenlet, и часовое напоминание
+        # молча не отправлялось несколько месяцев (docs/AUDIT.md, A-5).
+        bookings = (await session.execute(
+            select(db.Booking).where(
+                db.Booking.status == db.BOOKING_APPROVED,
+                db.Booking.starts_at >= now,
+                db.Booking.starts_at <= now + DAY_WINDOW[1] + timedelta(hours=1),
+                # Офлайн-клиенту напоминать некуда: аккаунта в Telegram нет.
+                db.Booking.user_id.is_not(None),
+            ).options(
+                joinedload(db.Booking.user),
+                joinedload(db.Booking.stylist),
+                joinedload(db.Booking.service).joinedload(db.Service.catalog_service),
+            )
+        )).scalars().all()
 
-        for b in bookings:
-            try:
-                b_time = b.starts_at
-                lang = b.user.language_code or "ru"
-                diff = b_time - now
+        outgoing = []
+        for booking in bookings:
+            kind = reminder_due(
+                booking.starts_at - now, booking.reminder_day_sent, booking.reminder_hour_sent
+            )
+            if kind:
+                outgoing.append(_reminder_text(booking, kind))
 
-                # Уведомление за 1 день (если осталось от 23 до 25 часов)
-                if timedelta(hours=23) <= diff <= timedelta(hours=25) and not b.reminder_day_sent:
-                    text = {
-                        "uz": f"👋 Salom! Ertaga soat {b_time.strftime('%H:%M')} da sizni kutamiz.\nXizmat: {b.service.catalog_service.name}",
-                        "ru": f"👋 Привет! Напоминаем о вашей завтрашней записи в {b_time.strftime('%H:%M')}.\nУслуга: {b.service.catalog_service.name}"
-                    }[lang]
-                    await bot.send_message(b.user.telegram_id, text)
-                    b.reminder_day_sent = True
+    sent = await _deliver(bot, outgoing, event="reminder")
 
-                # Уведомление за 1 час (если осталось от 45 до 75 минут)
-                elif timedelta(minutes=45) <= diff <= timedelta(minutes=75) and not b.reminder_hour_sent:
-                    stylist_name = b.stylist.name if b.stylist else "Maestro"
-                    text = {
-                        "uz": (
-                            f"⚡️ <b>Maestro {stylist_name} sizni kutmoqda!</b>\n\n"
-                            f"Bir soatdan keyin uchrashuvimiz boshlanadi. Biz sizning tashrifingizga "
-                            f"deyarli tayyormiz. ✨\n\n"
-                            f"Iltimos, kechikmang, har bir daqiqa sizning go'zalligingiz uchun muhim! 😊"
-                        ),
-                        "ru": (
-                            f"⚡️ <b>Маэстро {stylist_name} уже ждет вас!</b>\n\n"
-                            f"До нашей встречи остался всего один час. Мы уже вовсю готовимся "
-                            f"к вашему преображению. ✨\n\n"
-                            f"Пожалуйста, не опаздывайте, каждая минута важна для идеального результата! 😊"
-                        )
-                    }[lang]
-                    await bot.send_message(b.user.telegram_id, text)
-                    b.reminder_hour_sent = True
-                
-            except Exception as e:
-                logging.exception("reminder.failed booking_id=%s error=%s", b.id, e)
+    if sent:
+        async with db.async_session() as session:
+            for item in sent:
+                flag = "reminder_day_sent" if item.kind == REMINDER_DAY else "reminder_hour_sent"
+                await session.execute(
+                    update(db.Booking).where(db.Booking.id == item.booking_id).values({flag: True})
+                )
+            await session.commit()
 
-        await session.commit()
+    logging.info("reminders.done due=%s sent=%s", len(outgoing), len(sent))
+    return len(sent)
 
-# 2. Напоминание через 20 дней (Пора стричься)
-async def check_follow_ups(bot: Bot):
-    logging.info("Проверка 'Пора стричься'...")
-    # Ищем записи, которые были завершены ровно 20 дней назад
-    target_day = (timeutils.now() - timedelta(days=20)).date()
+
+async def _deliver(bot: Bot, outgoing: list[_Outgoing], event: str) -> list[_Outgoing]:
+    """Отправка по одному; неудача одного не мешает остальным."""
+    sent = []
+    for item in outgoing:
+        try:
+            await bot.send_message(
+                item.chat_id, item.text, parse_mode=item.parse_mode,
+                disable_web_page_preview=True,
+            )
+            sent.append(item)
+        except Exception as e:
+            # Не глушим: заблокированный бот — нормально, но видеть это нужно.
+            logging.warning(
+                "notify.%s_failed booking_id=%s kind=%s error=%s",
+                event, item.booking_id, item.kind, e,
+            )
+    return sent
+
+
+async def check_follow_ups(bot: Bot, now: datetime | None = None) -> int:
+    """«Пора обновить образ» через 20 дней после визита. Возвращает, сколько ушло."""
+    now = now or timeutils.now()
+    target_day = (now - timedelta(days=20)).date()
     day_start, day_end = timeutils.day_bounds(target_day)
+    # Имя бота берём у самого бота: захардкоженное молча ломается при переименовании.
     bot_username = (await bot.get_me()).username
 
     async with db.async_session() as session:
-        query = select(db.Booking).where(
-            db.Booking.status == db.BOOKING_COMPLETED,
-            db.Booking.starts_at >= day_start,
-            db.Booking.starts_at < day_end,
-            db.Booking.follow_up_sent.is_(False),
-            # Офлайн-клиенту «пора обновить образ» отправить некуда.
-            db.Booking.user_id.is_not(None),
-        ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
-        
-        bookings = (await session.execute(query)).scalars().all()
+        bookings = (await session.execute(
+            select(db.Booking).where(
+                db.Booking.status == db.BOOKING_COMPLETED,
+                db.Booking.starts_at >= day_start,
+                db.Booking.starts_at < day_end,
+                db.Booking.follow_up_sent.is_(False),
+                db.Booking.user_id.is_not(None),
+            ).options(joinedload(db.Booking.user), joinedload(db.Booking.stylist))
+        )).scalars().all()
 
-        for b in bookings:
-            # Проверяем, не записался ли он уже снова (чтобы не быть навязчивым)
-            recent = await session.scalar(
-                select(db.Booking).where(db.Booking.user_id == b.user_id, db.Booking.starts_at > b.starts_at)
+        outgoing = []
+        for booking in bookings:
+            # Уже записался снова — не напоминаем, чтобы не быть навязчивыми.
+            again = await session.scalar(
+                select(db.Booking.id).where(
+                    db.Booking.user_id == booking.user_id,
+                    db.Booking.starts_at > booking.starts_at,
+                ).limit(1)
             )
-            if recent:
+            if again:
                 continue
 
-            lang = b.user.language_code or "ru"
-            # Ссылка сразу на этого же мастера. Имя бота берём у самого бота:
-            # захардкоженное значение молча ломается при переименовании.
-            link = f"https://t.me/{bot_username}?start=stylist_{b.stylist_id}"
-            
-            text = {
-                "uz": f"Salom, {b.user.first_name}! 👋\nOxirgi marta {b.stylist.name} bilan ko'rishganingizdan beri 20 kun o'tdi. Balki yangilanish vaqti kelgandir?\n👉 Yozilish: {link}",
-                "ru": f"Привет, {b.user.first_name}! 👋\nПрошло 20 дней с визита к мастеру {b.stylist.name}. Пора обновить образ?\n👉 Записаться: {link}"
-            }[lang]
+            lang = booking.user.language_code or "ru"
+            link = f"https://t.me/{bot_username}?start=stylist_{booking.stylist_id}"
+            text = texts.get_text("follow_up", lang).format(
+                # Без имени было «Привет, None!».
+                name=booking.user.first_name or texts.get_text("welcome_fallback_name", lang),
+                stylist=booking.stylist.name if booking.stylist else "Maestro",
+                link=link,
+            )
+            outgoing.append(_Outgoing(booking.id, booking.user.telegram_id, text, "follow_up"))
 
-            try:
-                await bot.send_message(b.user.telegram_id, text, disable_web_page_preview=True)
-                b.follow_up_sent = True
-            except Exception as e:
-                logging.warning("notify.follow_up_failed booking_id=%s error=%s", b.id, e)
-        
-        await session.commit()
-        
+    sent = await _deliver(bot, outgoing, event="follow_up")
+    if sent:
+        async with db.async_session() as session:
+            await session.execute(
+                update(db.Booking)
+                .where(db.Booking.id.in_([item.booking_id for item in sent]))
+                .values(follow_up_sent=True)
+            )
+            await session.commit()
+    logging.info("follow_ups.done due=%s sent=%s", len(outgoing), len(sent))
+    return len(sent)
+
+
 async def send_health_alerts(bot: Bot):
     """
     Сводка проблем владельцу сервиса.
@@ -132,7 +202,8 @@ async def send_health_alerts(bot: Bot):
     перестают через неделю, и вместе с ним перестают читать настоящие
     предупреждения.
 
-    Без ALERT_CHAT_ID задача не делает ничего: адресата нет.
+    Без ALERT_CHAT_ID задача не делает ничего: адресата нет. Текст по-русски
+    сознательно: его читает владелец, как и веб-панель.
     """
     chat_id = get_optional_env("ALERT_CHAT_ID")
     if not chat_id:
@@ -156,32 +227,31 @@ async def send_health_alerts(bot: Bot):
         logging.warning("alerts.send_failed error=%s", e)
 
 
+#: За сколько дней до конца тарифа предупреждаем мастера.
+SUBSCRIPTION_WARN_DAYS = (7, 3, 1)
+
+
 async def check_subscription_expiry(bot: Bot):
     logging.info("subscription.check_started")
     today = timeutils.today()
-    
+
     async with db.async_session() as session:
-        # Ищем активных мастеров, у которых есть дата окончания подписки
         users = (await session.execute(
             select(db.User).where(
                 db.User.role == "stylist",
                 db.User.is_active.is_(True),
-                db.User.subscription_until.isnot(None)
+                db.User.subscription_until.isnot(None),
             )
         )).scalars().all()
+        outgoing = [
+            (user.id, user.telegram_id, user.language_code or "ru", (user.subscription_until - today).days)
+            for user in users
+            if (user.subscription_until - today).days in SUBSCRIPTION_WARN_DAYS
+        ]
 
-        for user in users:
-            days_left = (user.subscription_until - today).days
-            
-            # Напоминаем за 7, 3 и 1 день
-            if days_left in [7, 3, 1]:
-                lang = user.language_code or "ru"
-                text = {
-                    "uz": f"<b>Tarif muddati yakunlanmoqda!</b>\nQolgan vaqt: {days_left} kun. Xizmatni uzaytirish uchun admin bilan bog'laning.",
-                    "ru": f"<b>Срок тарифа истекает!</b>\nОсталось дней: {days_left}. Не забудьте продлить доступ, чтобы не потерять записи клиентов."
-                }[lang]
-                
-                try:
-                    await bot.send_message(user.telegram_id, text, parse_mode="HTML")
-                except Exception as e:
-                    logging.warning("notify.subscription_failed db_user_id=%s error=%s", user.id, e)
+    for db_user_id, telegram_id, lang, days_left in outgoing:
+        text = texts.get_text("subscription_expiring", lang).format(days=days_left)
+        try:
+            await bot.send_message(telegram_id, text, parse_mode="HTML")
+        except Exception as e:
+            logging.warning("notify.subscription_failed db_user_id=%s error=%s", db_user_id, e)

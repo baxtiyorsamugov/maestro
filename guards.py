@@ -15,6 +15,7 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 from sqlalchemy import select
 
 import database as db
+import texts
 from keyboards import get_main_keyboard
 from logutil import mask_user
 from presenters import get_registration_text, get_subscription_menu_text
@@ -24,10 +25,6 @@ from services.access import (
     is_stylist_subscription_active,
 )
 
-ACCESS_DENIED_TEXT = {
-    "ru": "Это действие доступно только участнику записи.",
-    "uz": "Bu amal faqat yozuv ishtirokchisiga ochiq.",
-}
 
 #: Пользователи, уже прочитанные в рамках текущего апдейта.
 #:
@@ -94,7 +91,7 @@ async def deny_access(cb: CallbackQuery) -> None:
     logging.warning(
         "access.denied user=%s callback=%s", mask_user(cb.from_user.id), cb.data
     )
-    await cb.answer(ACCESS_DENIED_TEXT[lang], show_alert=True)
+    await cb.answer(texts.get_text("access_denied", lang), show_alert=True)
 
 async def ensure_registered_message(message: Message) -> db.User | None:
     user = await get_user_by_telegram_id(message.from_user.id)
@@ -120,21 +117,28 @@ async def ensure_registered_callback(cb: CallbackQuery) -> db.User | None:
 async def ensure_active_stylist_message(message: Message):
     async with db.async_session() as session:
         user, stylist = await get_stylist_profile_by_telegram(session, message.from_user.id)
+    # \u0420\u0430\u043d\u044c\u0448\u0435 \u043e\u0431\u0430 \u043e\u0442\u043a\u0430\u0437\u0430 \u0431\u044b\u043b\u0438 \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e-\u0440\u0443\u0441\u0441\u043a\u0438, \u0430 \u0442\u0435\u043a\u0441\u0442 \u0442\u0430\u0440\u0438\u0444\u0430 \u0441\u043e\u0431\u0438\u0440\u0430\u043b\u0441\u044f
+    # \u0431\u0435\u0437 \u044f\u0437\u044b\u043a\u0430 \u2014 \u043c\u0430\u0441\u0442\u0435\u0440-\u0443\u0437\u0431\u0435\u043a \u043f\u043e\u043b\u0443\u0447\u0430\u043b \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u044d\u043a\u0440\u0430\u043d.
+    lang = (user.language_code if user else None) or "ru"
     if not (user and stylist):
-        await message.answer("\u041f\u0440\u043e\u0444\u0438\u043b\u044c \u043c\u0430\u0441\u0442\u0435\u0440\u0430 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.")
+        await message.answer(texts.get_text("stylist_profile_missing", lang))
         return None, None
     if not is_stylist_subscription_active(user):
-        await message.answer(get_subscription_menu_text(user), parse_mode="HTML", reply_markup=await get_main_keyboard(message.from_user.id))
+        await message.answer(
+            get_subscription_menu_text(user, lang), parse_mode="HTML",
+            reply_markup=await get_main_keyboard(message.from_user.id),
+        )
         return None, None
     return user, stylist
 
 async def ensure_active_stylist_callback(cb: CallbackQuery):
     async with db.async_session() as session:
         user, stylist = await get_stylist_profile_by_telegram(session, cb.from_user.id)
+    lang = (user.language_code if user else None) or "ru"
     if not (user and stylist):
-        await cb.answer("\u041f\u0440\u043e\u0444\u0438\u043b\u044c \u043c\u0430\u0441\u0442\u0435\u0440\u0430 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.", show_alert=True)
+        await cb.answer(texts.get_text("stylist_profile_missing", lang), show_alert=True)
         return None, None
     if not is_stylist_subscription_active(user):
-        await cb.answer("\u0421\u0440\u043e\u043a \u0442\u0430\u0440\u0438\u0444\u0430 \u0438\u0441\u0442\u0451\u043a. \u041f\u0440\u043e\u0434\u043b\u0438\u0442\u0435 \u0442\u0430\u0440\u0438\u0444 \u0443 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u043e\u0432 \u0441\u0435\u0440\u0432\u0438\u0441\u0430.", show_alert=True)
+        await cb.answer(texts.get_text("stylist_subscription_expired", lang), show_alert=True)
         return None, None
     return user, stylist

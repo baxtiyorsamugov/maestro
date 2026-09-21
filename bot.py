@@ -22,6 +22,7 @@ import handlers
 import observability
 import scheduler
 import security
+import texts
 from config import WebhookSettings, load_sentry_settings, load_webhook_settings
 from guards import get_user_lang
 from keyboards import get_main_keyboard
@@ -31,11 +32,6 @@ from loader import bot, dp
 # не видит, пока не пойдёт смотреть. Без SENTRY_DSN ничего не включается.
 _sentry = load_sentry_settings()
 observability.init_sentry(_sentry.dsn, _sentry.environment, component="bot")
-
-ERROR_TEXT = {
-    "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
-    "uz": "Nimadir xato ketdi. Biz tekshiryapmiz, bir daqiqadan so'ng urinib ko'ring.",
-}
 
 
 def register_routers() -> None:
@@ -76,11 +72,13 @@ async def handle_unexpected_error(event: ErrorEvent) -> bool:
     try:
         if update.callback_query:
             lang = await get_user_lang(update.callback_query.from_user.id)
-            await update.callback_query.answer(ERROR_TEXT[lang], show_alert=True)
+            await update.callback_query.answer(
+                texts.get_text("unexpected_error", lang), show_alert=True
+            )
         elif update.message:
             lang = await get_user_lang(update.message.from_user.id)
             await update.message.answer(
-                ERROR_TEXT[lang],
+                texts.get_text("unexpected_error", lang),
                 reply_markup=await get_main_keyboard(update.message.from_user.id),
             )
     except Exception as e:
@@ -92,7 +90,13 @@ async def handle_unexpected_error(event: ErrorEvent) -> bool:
 def start_scheduler() -> AsyncIOScheduler:
     """Фоновые задачи: напоминания, follow-up, контроль срока тарифа."""
     tasks = AsyncIOScheduler(timezone="Asia/Tashkent")
-    tasks.add_job(scheduler.check_reminders, "cron", hour="*", minute=0, args=(bot,))
+    # Каждые 15 минут, а не раз в час: слоты идут с шагом «длительность +
+    # буфер», и визит в 11:30 при ежечасном запуске не попадал в окно
+    # часового напоминания ни в 10:00 (осталось 90 минут), ни в 11:00 (30).
+    tasks.add_job(
+        scheduler.check_reminders, "cron",
+        minute=f"*/{scheduler.REMINDER_INTERVAL_MIN}", args=(bot,),
+    )
     tasks.add_job(scheduler.check_follow_ups, "cron", hour=10, minute=0, args=(bot,))
     tasks.add_job(scheduler.check_subscription_expiry, "cron", hour=10, minute=5, args=(bot,))
     # Раз в день, утром: сводка проблем владельцу. Молчит, когда сказать нечего —
