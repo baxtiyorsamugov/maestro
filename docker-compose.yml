@@ -60,6 +60,10 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME обязателен}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD обязателен}
       ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:?ADMIN_SECRET_KEY обязателен}
+      # Вторая учётная запись с урезанными правами: смотреть всё,
+      # менять только записи. Необязательна.
+      ADMIN_MANAGER_USERNAME: ${ADMIN_MANAGER_USERNAME:-}
+      ADMIN_MANAGER_PASSWORD: ${ADMIN_MANAGER_PASSWORD:-}
       LOG_SALT: ${LOG_SALT:-}
       # json в контейнере: лог читает не только человек, но и сборщик.
       LOG_FORMAT: ${LOG_FORMAT:-json}

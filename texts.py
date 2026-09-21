@@ -232,6 +232,147 @@ TEXTS = {
         "ru": "Клиент увидит в календаре только реально доступные слоты. Для разовых изменений используйте кнопку «Особые даты».",
         "uz": "Mijoz kalendarda faqat haqiqatda bo'sh vaqtlarni ko'radi. Bir martalik o'zgarishlar uchun «Maxsus sanalar» tugmasidan foydalaning.",
     },
+    # --- Персональные данные -------------------------------------------------
+    #
+    # Текст политики описывает то, что делает код (services/privacy.py), и ничего
+    # сверх того: сроков хранения, которых в коде нет, здесь не обещается.
+    # Меняется поведение удаления — меняется и этот текст, в том же коммите.
+    #
+    # Перед публикацией текст стоит показать юристу: в Узбекистане действует
+    # закон «О персональных данных» (ЗРУ-547), в том числе с требованием
+    # хранить данные граждан на серверах внутри страны.
+    "privacy_policy": {
+        "ru": (
+            "<b>Как Maestro обращается с вашими данными</b>\n\n"
+            "<b>Что храним</b>\n"
+            "• имя и номер телефона — чтобы мастер мог с вами связаться;\n"
+            "• Telegram ID — чтобы бот мог присылать подтверждения и напоминания;\n"
+            "• язык интерфейса;\n"
+            "• ваши записи, оценки и отзывы;\n"
+            "• избранных мастеров.\n\n"
+            "<b>Кто видит</b>\n"
+            "Мастер — ваше имя, телефон и записи к нему. Администратор сервиса — "
+            "когда нужно разобраться в спорной ситуации.\n\n"
+            "<b>Зачем</b>\n"
+            "Только для записи к мастерам и напоминаний о визитах. "
+            "Мы не продаём данные и не используем их для рекламы.\n\n"
+            "<b>Сколько храним</b>\n"
+            "Пока существует ваш аккаунт.\n\n"
+            "<b>Как удалить</b>\n"
+            "В разделе «Мои данные» — кнопка «Удалить аккаунт». Удаляются имя, "
+            "телефон, Telegram ID, тексты отзывов и избранное. Будущие записи "
+            "отменяются, мастеров об этом предупреждаем.\n\n"
+            "Без привязки к вам остаются факт прошлых визитов (на нём держится учёт "
+            "мастера) и оценки звёздами (на них держится рейтинг мастера)."
+        ),
+        "uz": (
+            "<b>Maestro ma'lumotlaringiz bilan qanday ishlaydi</b>\n\n"
+            "<b>Nimani saqlaymiz</b>\n"
+            "• ism va telefon raqami — maestro siz bilan bog'lana olishi uchun;\n"
+            "• Telegram ID — bot tasdiqlash va eslatmalar yubora olishi uchun;\n"
+            "• interfeys tili;\n"
+            "• yozuvlaringiz, baholaringiz va sharhlaringiz;\n"
+            "• sevimli maestrolar.\n\n"
+            "<b>Kim ko'radi</b>\n"
+            "Maestro — ismingiz, telefoningiz va unga yozuvlaringiz. Xizmat ma'muri — "
+            "bahsli vaziyatni hal qilish kerak bo'lganda.\n\n"
+            "<b>Nima uchun</b>\n"
+            "Faqat maestrolarga yozilish va tashrif haqida eslatish uchun. "
+            "Ma'lumotlarni sotmaymiz va reklama uchun ishlatmaymiz.\n\n"
+            "<b>Qancha saqlaymiz</b>\n"
+            "Akkauntingiz mavjud ekan.\n\n"
+            "<b>Qanday o'chirish mumkin</b>\n"
+            "«Mening ma'lumotlarim» bo'limida — «Akkauntni o'chirish» tugmasi. "
+            "Ism, telefon, Telegram ID, sharh matnlari va sevimlilar o'chiriladi. "
+            "Kelgusi yozuvlar bekor qilinadi, maestrolarni ogohlantiramiz.\n\n"
+            "Sizga bog'lanmagan holda o'tgan tashriflar (maestro hisobi shunga tayanadi) "
+            "va yulduzcha baholar (maestro reytingi shunga tayanadi) qoladi."
+        ),
+    },
+    "kb_privacy_policy": {
+        "ru": "📄 Политика данных",
+        "uz": "📄 Ma'lumotlar siyosati",
+    },
+    "privacy_summary": {
+        "ru": (
+            "<b>Что о вас хранится</b>\n\n"
+            "Телефон: {phone}\n"
+            "Записей всего: {bookings}\n"
+            "Из них предстоящих: {upcoming}\n"
+            "Отзывов с текстом: {reviews}\n"
+            "Избранных мастеров: {favorites}"
+        ),
+        "uz": (
+            "<b>Siz haqingizda nima saqlanadi</b>\n\n"
+            "Telefon: {phone}\n"
+            "Jami yozuvlar: {bookings}\n"
+            "Ulardan kelgusi: {upcoming}\n"
+            "Matnli sharhlar: {reviews}\n"
+            "Sevimli maestrolar: {favorites}"
+        ),
+    },
+    "privacy_phone_yes": {"ru": "указан", "uz": "ko'rsatilgan"},
+    "privacy_phone_no": {"ru": "не указан", "uz": "ko'rsatilmagan"},
+    "kb_delete_account": {
+        "ru": "🗑 Удалить аккаунт",
+        "uz": "🗑 Akkauntni o'chirish",
+    },
+    "privacy_delete_confirm": {
+        "ru": (
+            "<b>Удалить аккаунт навсегда?</b>\n\n"
+            "Будут удалены имя, телефон, Telegram ID, тексты отзывов и избранное.\n"
+            "{upcoming_line}"
+            "Восстановить это будет нельзя. Чтобы снова записываться, "
+            "понадобится пройти регистрацию заново."
+        ),
+        "uz": (
+            "<b>Akkauntni butunlay o'chirasizmi?</b>\n\n"
+            "Ism, telefon, Telegram ID, sharh matnlari va sevimlilar o'chiriladi.\n"
+            "{upcoming_line}"
+            "Buni tiklab bo'lmaydi. Yana yozilish uchun qaytadan ro'yxatdan "
+            "o'tish kerak bo'ladi."
+        ),
+    },
+    "privacy_upcoming_warning": {
+        "ru": "Предстоящих записей: {count} — они будут отменены, мастеров предупредим.\n\n",
+        "uz": "Kelgusi yozuvlar: {count} — ular bekor qilinadi, maestrolarni ogohlantiramiz.\n\n",
+    },
+    "kb_delete_confirm": {
+        "ru": "Да, удалить навсегда",
+        "uz": "Ha, butunlay o'chirish",
+    },
+    "kb_delete_cancel": {
+        "ru": "Нет, оставить",
+        "uz": "Yo'q, qoldirish",
+    },
+    "privacy_deleted": {
+        "ru": (
+            "Аккаунт удалён. Ваших имени, телефона и Telegram ID у нас больше нет.\n\n"
+            "Если захотите вернуться — просто нажмите /start."
+        ),
+        "uz": (
+            "Akkaunt o'chirildi. Ismingiz, telefoningiz va Telegram ID endi bizda yo'q.\n\n"
+            "Qaytmoqchi bo'lsangiz — /start ni bosing."
+        ),
+    },
+    "privacy_delete_cancelled": {
+        "ru": "Хорошо, ничего не удаляем.",
+        "uz": "Yaxshi, hech narsa o'chirilmaydi.",
+    },
+    "privacy_stylist_refused": {
+        "ru": (
+            "Аккаунт мастера удаляется через администратора сервиса: за ним стоят "
+            "подписка, расписание и записи клиентов на будущее. Напишите администратору."
+        ),
+        "uz": (
+            "Maestro akkaunti xizmat ma'muri orqali o'chiriladi: uning ortida obuna, "
+            "jadval va mijozlarning kelgusi yozuvlari turadi. Ma'murga yozing."
+        ),
+    },
+    "privacy_stylist_notice": {
+        "ru": "Клиент удалил свой аккаунт. Запись на {slot} отменена — это время снова свободно.",
+        "uz": "Mijoz akkauntini o'chirdi. {slot} dagi yozuv bekor qilindi — bu vaqt yana bo'sh.",
+    },
     "search_nobody_found": {
         "ru": "Мастера по вашему запросу не найдены.",
         "uz": "So'rovingiz bo'yicha maestrolar topilmadi.",
@@ -978,6 +1119,10 @@ BUTTONS = {
     "my_profile": {
         "ru": "👤 Мой профиль",
         "uz": "👤 Mening profilim",
+    },
+    "my_data": {
+        "ru": "🔒 Мои данные",
+        "uz": "🔒 Mening ma'lumotlarim",
     },
     "change_language": {
         "ru": "🌐 Язык",

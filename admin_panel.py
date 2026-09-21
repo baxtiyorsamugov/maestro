@@ -1,5 +1,4 @@
 import logging
-import secrets
 from datetime import datetime, timedelta
 from html import escape
 
@@ -63,18 +62,24 @@ class MyBackend(AuthenticationBackend):
             logging.warning("admin.login_blocked client=%s seconds_left=%s", client, locked_for)
             return False
 
-        # Сравниваем оба поля константно по времени и всегда целиком:
-        # ранний выход по неверному логину выдал бы существование учётной записи.
-        username_ok = secrets.compare_digest(username, ADMIN_SETTINGS.username)
-        if security.looks_like_hash(ADMIN_SETTINGS.password):
-            password_ok = security.verify_password(password, ADMIN_SETTINGS.password)
-        else:
-            password_ok = secrets.compare_digest(password, ADMIN_SETTINGS.password)
+        # Сравнение обеих учётных записей целиком и константно по времени
+        # живёт в security.authenticate_admin — там же объяснено, почему
+        # ранний выход по неверному логину недопустим.
+        role = security.authenticate_admin(username, password, ADMIN_SETTINGS)
 
-        if username_ok and password_ok:
+        if role:
             login_throttle.reset(client)
-            request.session.update({"token": ADMIN_SETTINGS.secret_key})
-            logging.info("admin.login_success client=%s user=%s", client, username)
+            # Роль и логин кладём в сессию: по роли решается доступ, а логином
+            # подписывается журнал действий. Без логина действие помощника
+            # записалось бы на владельца.
+            request.session.update({
+                "token": ADMIN_SETTINGS.secret_key,
+                "role": role,
+                "username": username,
+            })
+            logging.info(
+                "admin.login_success client=%s user=%s role=%s", client, username, role
+            )
             return True
 
         left = login_throttle.register_failure(client)
@@ -89,8 +94,40 @@ class MyBackend(AuthenticationBackend):
         return True
 
     async def authenticate(self, request: Request) -> bool:
-        token = request.session.get("token")
-        return bool(token) and secrets.compare_digest(str(token), ADMIN_SETTINGS.secret_key)
+        return current_role(request) is not None
+
+
+#: Части пути sqladmin, означающие изменение данных. Отличать чтение от записи
+#: приходится по пути: sqladmin зовёт is_accessible() одинаково на всех
+#: эндпоинтах, а can_edit и соседние — атрибуты класса, до запроса им не
+#: добраться.
+WRITE_PATH_MARKERS = ("/create", "/edit", "/delete")
+
+
+def current_role(request: Request) -> str | None:
+    """
+    Роль вошедшего или None.
+
+    Сессия без роли считается недействительной. Такие остались у тех, кто
+    вошёл до появления ролей: пусть перелогинятся. Считать их владельцами
+    было бы удобнее и неправильно — права не выдают по умолчанию.
+    """
+    token = request.session.get("token")
+    # Через constant_time_equals: ADMIN_SECRET_KEY задаёт человек,
+    # и не-ASCII в нём уронил бы проверку сессии, а не отклонил её.
+    if not token or not security.constant_time_equals(str(token), ADMIN_SETTINGS.secret_key):
+        return None
+    role = request.session.get("role")
+    return role if role in (security.ROLE_OWNER, security.ROLE_MANAGER) else None
+
+
+def current_username(request: Request) -> str:
+    """Логин вошедшего — для подписи в журнале действий."""
+    return str(request.session.get("username") or "?")
+
+
+def is_write_request(request: Request) -> bool:
+    return any(marker in request.url.path for marker in WRITE_PATH_MARKERS)
 
 
 authentication_backend = MyBackend(secret_key=ADMIN_SETTINGS.secret_key)
@@ -106,8 +143,8 @@ async def startup_create_tables():
 
 
 def _is_admin_authenticated(request: Request) -> bool:
-    token = request.session.get("token")
-    return bool(token) and secrets.compare_digest(str(token), ADMIN_SETTINGS.secret_key)
+    """Вошёл ли вообще кто-нибудь. Роль проверяется отдельно, где она важна."""
+    return current_role(request) is not None
 
 
 def _format_money(value: float | int | None) -> str:
@@ -356,7 +393,23 @@ def _render_audit(rows: list[dict]) -> str:
 </html>"""
 
 
-def _render_reviews(rows: list[dict]) -> str:
+def _review_form(row: dict, can_moderate: bool) -> str:
+    """
+    Кнопка скрытия — только тому, кто вправе ею пользоваться.
+
+    Показать помощнику кнопку, которая ответит отказом, хуже, чем не показать
+    её вовсе: он решит, что панель сломана, а не что у него нет прав.
+    """
+    if not can_moderate:
+        return ""
+    label = "Показать" if row["hidden"] else "Скрыть"
+    return (
+        f'<form method="post" action="/reviews/{row["id"]}/toggle">'
+        f'<button type="submit">{label}</button></form>'
+    )
+
+
+def _render_reviews(rows: list[dict], can_moderate: bool = True) -> str:
     """
     Страница модерации отзывов.
 
@@ -364,6 +417,11 @@ def _render_reviews(rows: list[dict]) -> str:
     чужая строка попадает в HTML. Переносы восстанавливаем уже после
     экранирования — иначе <br> съест сам escape.
     """
+    hint = (
+        "Отзыв виден клиентам сразу — скрытие убирает его из карточки мастера."
+        if can_moderate
+        else "Только просмотр: скрывать отзывы может владелец."
+    )
     if rows:
         cards = "".join(
             f"""
@@ -375,9 +433,7 @@ def _render_reviews(rows: list[dict]) -> str:
           {'<span class="status status-declined">скрыт</span>' if row['hidden'] else ''}
         </div>
         <p>{escape(row['text']).replace(chr(10), '<br>')}</p>
-        <form method="post" action="/reviews/{row['id']}/toggle">
-          <button type="submit">{'Показать' if row['hidden'] else 'Скрыть'}</button>
-        </form>
+        {_review_form(row, can_moderate)}
       </article>"""
             for row in rows
         )
@@ -412,7 +468,7 @@ def _render_reviews(rows: list[dict]) -> str:
 </head>
 <body>
   <header>
-    <div><h1>Модерация отзывов</h1><div class="muted">Отзыв виден клиентам сразу — скрытие убирает его из карточки мастера.</div></div>
+    <div><h1>Модерация отзывов</h1><div class="muted">{hint}</div></div>
     <a class="button" href="/dashboard">К дашборду</a>
   </header>
   <main>{cards}</main>
@@ -539,7 +595,31 @@ async def _check_database() -> tuple[str, str | None]:
         return "error", f"{type(exc).__name__}: {exc}"
 
 
-class CatalogServiceAdmin(ModelView, model=db.CatalogService):
+class RoleAwareView(ModelView):
+    """
+    Представление, знающее про роли.
+
+    Смотреть может любой вошедший. Менять — только тот, чья роль указана
+    в `writable_by`. По умолчанию это один владелец: право на запись
+    выдаётся явно, а не отбирается.
+
+    Зачем так, а не через can_edit: sqladmin проверяет can_edit как атрибут
+    класса, у которого нет доступа к запросу, и на все эндпоинты зовёт один
+    и тот же is_accessible(). Поэтому чтение от записи отличаем по пути.
+    """
+
+    writable_by: tuple[str, ...] = (security.ROLE_OWNER,)
+
+    def is_accessible(self, request: Request) -> bool:
+        role = current_role(request)
+        if role is None:
+            return False
+        if is_write_request(request):
+            return role in self.writable_by
+        return True
+
+
+class CatalogServiceAdmin(RoleAwareView, model=db.CatalogService):
     name = "Услуга каталога"
     name_plural = "Каталог услуг"
     icon = "fa-solid fa-book"
@@ -549,7 +629,7 @@ class CatalogServiceAdmin(ModelView, model=db.CatalogService):
     column_sortable_list = [db.CatalogService.id, db.CatalogService.name]
 
 
-class BarbershopAdmin(ModelView, model=db.Barbershop):
+class BarbershopAdmin(RoleAwareView, model=db.Barbershop):
     name = "Барбершоп"
     name_plural = "Барбершопы"
     icon = "fa-solid fa-shop"
@@ -570,7 +650,7 @@ class BarbershopAdmin(ModelView, model=db.Barbershop):
     column_sortable_list = [db.Barbershop.id, db.Barbershop.name, db.Barbershop.district]
 
 
-class UserAdmin(ModelView, model=db.User):
+class UserAdmin(RoleAwareView, model=db.User):
     name = "Пользователь"
     name_plural = "Пользователи"
     icon = "fa-solid fa-user"
@@ -648,7 +728,7 @@ class UserAdmin(ModelView, model=db.User):
             await session.commit()
 
 
-class StylistAdmin(ModelView, model=db.Stylist):
+class StylistAdmin(RoleAwareView, model=db.Stylist):
     name = "Мастер"
     name_plural = "Мастера"
     icon = "fa-solid fa-scissors"
@@ -678,7 +758,7 @@ class StylistAdmin(ModelView, model=db.Stylist):
     column_sortable_list = [db.Stylist.id, db.Stylist.name, db.Stylist.avg_rating]
 
 
-class ServiceAdmin(ModelView, model=db.Service):
+class ServiceAdmin(RoleAwareView, model=db.Service):
     name = "Услуга мастера"
     name_plural = "Услуги мастеров"
     icon = "fa-solid fa-tag"
@@ -699,7 +779,7 @@ class ServiceAdmin(ModelView, model=db.Service):
     column_sortable_list = [db.Service.id, db.Service.price, db.Service.duration_min]
 
 
-class ScheduleAdmin(ModelView, model=db.Schedule):
+class ScheduleAdmin(RoleAwareView, model=db.Schedule):
     name = "График"
     name_plural = "Графики мастеров"
     icon = "fa-solid fa-calendar-days"
@@ -720,7 +800,11 @@ class ScheduleAdmin(ModelView, model=db.Schedule):
     column_sortable_list = [db.Schedule.id, db.Schedule.day_of_week, db.Schedule.start_time]
 
 
-class BookingAdmin(ModelView, model=db.Booking):
+class BookingAdmin(RoleAwareView, model=db.Booking):
+    # Разбор заявок — и есть работа помощника. Всё остальное
+    # (тарифы, учётные записи, справочники) ему только на чтение.
+    writable_by = (security.ROLE_OWNER, security.ROLE_MANAGER)
+
     name = "Запись"
     name_plural = "Записи"
     icon = "fa-solid fa-calendar-check"
@@ -751,7 +835,7 @@ class BookingAdmin(ModelView, model=db.Booking):
     column_default_sort = [(db.Booking.starts_at, True)]
 
 
-class PortfolioAdmin(ModelView, model=db.Portfolio):
+class PortfolioAdmin(RoleAwareView, model=db.Portfolio):
     name = "Фото портфолио"
     name_plural = "Портфолио"
     icon = "fa-solid fa-images"
@@ -816,7 +900,9 @@ async def reviews_moderation(request: Request):
             ]
     except SQLAlchemyError as exc:
         return HTMLResponse(_render_dashboard_error(exc), status_code=503)
-    return HTMLResponse(_render_reviews(data))
+    return HTMLResponse(
+        _render_reviews(data, can_moderate=current_role(request) == security.ROLE_OWNER)
+    )
 
 
 @app.post("/reviews/{booking_id}/toggle")
@@ -825,8 +911,14 @@ async def toggle_review_visibility(booking_id: int, request: Request):
     Скрыть отзыв или вернуть его. Текст при этом не трогаем: разбирать
     жалобу «почему скрыли мой отзыв» по пустой колонке невозможно.
     """
-    if not _is_admin_authenticated(request):
-        return RedirectResponse("/admin/login")
+    # Скрытие отзыва — не работа помощника: он разбирает заявки, а не решает,
+    # чьё мнение о мастере увидят клиенты.
+    if current_role(request) != security.ROLE_OWNER:
+        logging.warning(
+            "review.moderation_denied user=%s role=%s booking_id=%s",
+            current_username(request), current_role(request), booking_id,
+        )
+        return RedirectResponse("/reviews", status_code=303)
 
     async with db.async_session() as session:
         booking = await session.get(db.Booking, booking_id)
@@ -834,10 +926,12 @@ async def toggle_review_visibility(booking_id: int, request: Request):
             booking.review_hidden = not booking.review_hidden
             # Скрытие чужого отзыва — именно то действие, о котором потом
             # спрашивают «кто и почему». Журнал уезжает тем же commit'ом.
+            # Подписываем тем, кто вошёл, а не владельцем из настроек:
+            # иначе действие помощника записалось бы на владельца.
             audit.record_admin(
                 session,
                 audit.REVIEW_HIDDEN if booking.review_hidden else audit.REVIEW_RESTORED,
-                ADMIN_SETTINGS.username,
+                current_username(request),
                 booking_id=booking_id,
             )
             await session.commit()

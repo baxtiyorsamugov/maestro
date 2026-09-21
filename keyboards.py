@@ -319,7 +319,7 @@ async def get_main_keyboard(user_id: int):
 
     kb = [
         [KeyboardButton(text=buttons["search_menu"])],
-        [KeyboardButton(text=buttons["my_masters"])],
+        [KeyboardButton(text=buttons["my_masters"]), KeyboardButton(text=buttons["my_data"])],
         [KeyboardButton(text=buttons["my_profile"]), KeyboardButton(text=buttons["change_language"])]
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)

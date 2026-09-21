@@ -39,6 +39,33 @@ engine = create_async_engine(DATABASE_URL, echo=False, pool_recycle=60)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
+def enforce_sqlite_foreign_keys(target_engine) -> None:
+    """
+    Включает проверку внешних ключей в SQLite.
+
+    SQLite по умолчанию их не проверяет вовсе. Весь набор тестов идёт на ней,
+    и ошибка в порядке удаления там проходит почти незамеченной: при удалении
+    аккаунта с нарочно сломанным порядком шагов на SQLite упал один тест
+    из двадцати семи, на PostgreSQL — семнадцать. То есть без этой строки
+    локально и в основном прогоне CI всё зелёное, а на проде удаление падает.
+
+    На PostgreSQL и MySQL ключи проверяются и так — там ничего не делаем.
+    """
+    if target_engine.dialect.name != "sqlite":
+        return
+
+    from sqlalchemy import event
+
+    @event.listens_for(target_engine.sync_engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
+enforce_sqlite_foreign_keys(engine)
+
+
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 

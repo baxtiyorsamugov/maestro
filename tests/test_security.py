@@ -79,3 +79,37 @@ class TestLoginThrottle:
         throttle.register_failure("1.2.3.4")
         time.sleep(0.01)
         assert throttle.is_locked("1.2.3.4") == 0
+
+
+class TestConstantTimeEquals:
+    """
+    Сравнение, безопасное для не-ASCII.
+
+    `secrets.compare_digest` на объектах `str` требует, чтобы оба были только
+    из ASCII, и иначе бросает TypeError. В форме входа это означало бы, что
+    кириллический пароль роняет панель пятисоткой вместо того, чтобы получить
+    отказ — а аудитория здесь пишет по-русски и по-узбекски.
+    """
+
+    def test_equal_ascii(self):
+        assert security.constant_time_equals("secret", "secret") is True
+
+    def test_different_ascii(self):
+        assert security.constant_time_equals("secret", "другой"[:6]) is False
+
+    def test_cyrillic_does_not_raise(self):
+        assert security.constant_time_equals("пароль", "мимо") is False
+
+    def test_equal_cyrillic(self):
+        assert security.constant_time_equals("пароль", "пароль") is True
+
+    def test_mixed_alphabets(self):
+        assert security.constant_time_equals("owner", "владелец") is False
+
+    def test_empty_strings(self):
+        assert security.constant_time_equals("", "") is True
+        assert security.constant_time_equals("", "x") is False
+
+    def test_emoji_does_not_raise(self):
+        """Любой символ вне ASCII ломал бы сравнение одинаково."""
+        assert security.constant_time_equals("🔑", "🔑") is True
