@@ -38,15 +38,18 @@ router = Router(name="client_search")
 
 
 def is_client_main_menu_button(text_value: str | None) -> bool:
+    """
+    Нажата ли кнопка главного меню, а не введён текст запроса.
+
+    Список берётся из texts.BUTTONS целиком, а не перечисляется здесь руками.
+    Раньше перечислялся — и новая кнопка «Мои данные», нажатая посреди
+    поиска, ушла бы поисковым запросом по имени мастера. Ручной список
+    устаревает ровно в тот момент, когда меню пополняется.
+    """
     if not text_value:
         return False
-    buttons_ru = texts.get_buttons("ru")
-    buttons_uz = texts.get_buttons("uz")
     return text_value in {
-        buttons_ru["search_menu"], buttons_uz["search_menu"],
-        buttons_ru["my_masters"], buttons_uz["my_masters"],
-        buttons_ru["my_profile"], buttons_uz["my_profile"],
-        buttons_ru["change_language"], buttons_uz["change_language"],
+        variant for key in texts.BUTTONS for variant in texts.all_variants(key)
     }
 
 async def clear_search_context(state: FSMContext, user_id: int):

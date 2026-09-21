@@ -80,9 +80,43 @@ def string_literals(tree: ast.AST):
             yield node.lineno, node.value
 
 
+def mixed_line_endings(raw: bytes) -> tuple[int, int] | None:
+    """
+    Смешанные окончания строк внутри одного файла: (CRLF, голых LF) или None.
+
+    Это отпечаток дописывания файла через `cat >>` или `echo >>` из bash:
+    файл в рабочем дереве хранится с CRLF, а дописанное ложится с LF.
+    Именно так однажды сгорели 35 строк интерфейса (docs/AUDIT.md, A-1),
+    и CLAUDE.md, 4.1 запрещает этот способ — но запрет на бумаге однажды
+    нарушается. Кириллица при этом может и уцелеть; смешанные окончания
+    остаются всегда, поэтому ловим именно их.
+
+    Файл целиком в LF — не проблема: git сам приводит окончания при коммите.
+    Проблема только в смеси внутри одного файла.
+    """
+    crlf = raw.count(b"\r\n")
+    lf_only = raw.count(b"\n") - crlf
+    if crlf and lf_only:
+        return crlf, lf_only
+    return None
+
+
 def check_file(path: Path) -> list[str]:
     problems = []
-    source = path.read_text(encoding="utf-8")
+    raw = path.read_bytes()
+
+    mixed = mixed_line_endings(raw)
+    if mixed:
+        problems.append(
+            f"{path.relative_to(ROOT)}: смешанные окончания строк "
+            f"(CRLF {mixed[0]}, голых LF {mixed[1]}) — похоже на дописывание "
+            f"через bash; правьте файл инструментом Edit/Write"
+        )
+
+    # Как раньше делал read_text: универсальные переводы строк. Иначе правило
+    # EATEN_LETTER увидело бы \r\n там, где раньше видело \n, и поменяло бы
+    # поведение без всякой на то причины.
+    source = raw.decode("utf-8").replace("\r\n", "\n")
 
     try:
         tree = ast.parse(source, filename=str(path))

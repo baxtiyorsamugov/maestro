@@ -14,7 +14,7 @@
     («Мои записи», «Расписание») попадали бы в поле ввода имени.
 """
 from handlers import fallback
-from handlers.client import booking, profile, registration, stylist_card
+from handlers.client import booking, privacy, profile, registration, stylist_card
 from handlers.client import search as client_search
 from handlers.stylist import (
     bookings,
@@ -34,6 +34,7 @@ ROUTERS = [
     stylist_card.router,
     booking.router,
     profile.router,
+    privacy.router,
     panel.router,
     bookings.router,
     schedule.router,
