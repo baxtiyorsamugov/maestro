@@ -2,7 +2,8 @@
 Точка входа бота.
 
 Здесь только сборка: подключение роутеров, обработчик ошибок, фоновые задачи
-и запуск поллинга. Сами хендлеры живут в handlers/, бизнес-логика — в services/.
+и запуск: поллинг локально, вебхук на проде (задан WEBHOOK_URL).
+Сами хендлеры живут в handlers/, бизнес-логика — в services/.
 
 Объекты bot и dp создаются в loader.py, а не здесь: хендлеры должны иметь
 возможность отправлять сообщения, не импортируя точку входа — иначе цикл.
@@ -12,13 +13,16 @@ import logging
 import sys
 
 from aiogram.types import ErrorEvent
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database as db
 import handlers
 import observability
 import scheduler
-from config import load_sentry_settings
+import security
+from config import WebhookSettings, load_sentry_settings, load_webhook_settings
 from guards import get_user_lang
 from keyboards import get_main_keyboard
 from loader import bot, dp
@@ -100,13 +104,86 @@ def start_scheduler() -> AsyncIOScheduler:
     return tasks
 
 
+class WebhookHandler(SimpleRequestHandler):
+    """
+    Приём апдейтов со сверкой секрета через security.constant_time_equals.
+
+    aiogram сверяет заголовок через secrets.compare_digest на str, а тот на
+    не-ASCII бросает TypeError (S-11 в docs/SECURITY.md). Заголовок присылает
+    кто угодно, так что запрос с кириллицей в нём ронял бы обработку
+    пятисоткой вместо спокойного 401.
+    """
+
+    def verify_secret(self, telegram_secret_token: str, bot) -> bool:
+        if not self.secret_token:
+            return False
+        return security.constant_time_equals(telegram_secret_token, self.secret_token)
+
+
+def build_webhook_app(settings: WebhookSettings) -> web.Application:
+    """
+    aiohttp-приложение, которое принимает апдейты от Telegram.
+
+    Секрет сверяет сам aiogram: запрос без заголовка
+    X-Telegram-Bot-Api-Secret-Token или с чужим значением получает 401
+    и до диспетчера не доходит. Без этой проверки кто угодно, узнавший адрес,
+    слал бы поддельные нажатия от имени любого пользователя.
+    """
+    app = web.Application()
+
+    async def health(_request: web.Request) -> web.Response:
+        # nginx и docker healthcheck проверяют процесс, не трогая Telegram.
+        return web.json_response({"status": "ok"})
+
+    app.router.add_get("/health", health)
+    WebhookHandler(
+        dispatcher=dp, bot=bot, secret_token=settings.secret,
+    ).register(app, path=settings.path)
+    setup_application(app, dp, bot=bot)
+    return app
+
+
+async def run_webhook(settings: WebhookSettings) -> None:
+    app = build_webhook_app(settings)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, host=settings.host, port=settings.port).start()
+
+    # drop_pending_updates=False сознательно: апдейты, пришедшие во время
+    # рестарта, — это нажатия живых людей («Записаться», «Подтвердить»).
+    # При поллинге их сбрасывали; вебхук позволяет их не терять.
+    await bot.set_webhook(
+        settings.full_url,
+        secret_token=settings.secret,
+        allowed_updates=dp.resolve_used_update_types(),
+        drop_pending_updates=False,
+    )
+    # Адрес целиком не пишем: путь может быть частью защиты.
+    logging.info("bot.webhook url=%s port=%s", settings.url, settings.port)
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
+
+
+async def run_polling() -> None:
+    # Поллинг и вебхук взаимоисключающие: пока вебхук стоит, getUpdates
+    # отвечает ошибкой. Снимаем его — это и есть переход обратно на поллинг.
+    await bot.delete_webhook(drop_pending_updates=True)
+    logging.info("bot.polling")
+    await dp.start_polling(bot)
+
+
 async def main() -> None:
     await db.run_migrations()
     tasks = start_scheduler()
+    webhook = load_webhook_settings()
 
-    await bot.delete_webhook(drop_pending_updates=True)
     try:
-        await dp.start_polling(bot)
+        if webhook.enabled:
+            await run_webhook(webhook)
+        else:
+            await run_polling()
     finally:
         # Без явной остановки процесс не завершается: шедулер держит свои потоки,
         # а незакрытый пул соединений оставляет висящие сессии в базе.

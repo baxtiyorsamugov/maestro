@@ -92,6 +92,70 @@ ports:
 
 ---
 
+## Вебхук
+
+Без `WEBHOOK_URL` бот работает поллингом — так удобно локально. На проде
+нужен вебхук:
+
+- **рестарт без потерь.** При поллинге бот на старте сбрасывал накопившиеся
+  апдейты, то есть нажатия людей во время деплоя пропадали. Вебхук ставится
+  с `drop_pending_updates=False`: Telegram держит недоставленное у себя
+  и отдаёт после подъёма;
+- **нет постоянного соединения** к Telegram из процесса и конфликта
+  «два процесса поллят один токен».
+
+В `.env`:
+
+```bash
+WEBHOOK_URL=https://bot.example.uz
+WEBHOOK_SECRET=...   # python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Бот на старте сам вызывает `setWebhook` с этим секретом. Запрос без заголовка
+`X-Telegram-Bot-Api-Secret-Token` или с чужим значением получает 401 и до
+хендлеров не доходит. Без секрета вебхук не запускается вовсе — `check_environment`
+откажет на старте: иначе любой, кто узнал адрес, слал бы поддельные нажатия
+от имени любого пользователя, включая «подтвердить запись».
+
+Контейнер слушает `127.0.0.1:8081` хоста. Наружу — через nginx:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name bot.example.uz;
+
+    ssl_certificate     /etc/letsencrypt/live/bot.example.uz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bot.example.uz/privkey.pem;
+
+    # Только путь вебхука. /health наружу не нужен — его смотрят локально.
+    location = /telegram/webhook {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 1m;
+    }
+
+    location / {
+        return 404;
+    }
+}
+```
+
+Проверка после деплоя:
+
+```bash
+curl -s http://127.0.0.1:8081/health
+curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"
+```
+
+Во втором ответе `url` должен совпадать с вашим адресом, `pending_update_count`
+— уменьшаться до нуля, а `last_error_message` — отсутствовать.
+
+**Вернуться на поллинг:** убрать `WEBHOOK_URL` и перезапустить бота. На старте
+поллинга вебхук снимается автоматически — пока он стоит, `getUpdates` не работает.
+
+---
+
 ## Бэкапы
 
 ### Снять копию
@@ -367,7 +431,9 @@ TEST_DATABASE_URL=postgresql+asyncpg://postgres:pass@127.0.0.1:5432/postgres pyt
 
 Честный список из `docs/ROADMAP.md`, Фаза 6:
 
-- webhook вместо polling (сейчас polling и в проде).
+- вебхук реализован и проверен тестами (`tests/test_webhook.py`), но **с настоящим
+  Telegram через nginx и HTTPS не прогонялся** — для этого нужен домен с сертификатом.
+  Первый боевой запуск стоит сопроводить `getWebhookInfo` из раздела «Вебхук».
 
 Бэкапы есть и восстановление проверено (см. раздел выше), но **cron на боевом
 сервере никто не завёл** — это ручной шаг при развёртывании.

@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -79,6 +79,72 @@ class BotSettings(_Base):
                 "BOT_TOKEN не похож на токен Telegram (ожидается «123456789:AA...»)"
             )
         return value
+
+
+#: Допустимые символы секрета вебхука — ограничение самого Telegram.
+WEBHOOK_SECRET_ALPHABET = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+)
+MIN_WEBHOOK_SECRET_LEN = 32
+
+
+class WebhookSettings(_Base):
+    """
+    Режим приёма апдейтов. Без WEBHOOK_URL бот работает поллингом.
+
+    Поллинг удобен локально, но на проде это постоянное соединение к Telegram
+    и ровно один процесс на токен. Вебхук принимает апдейты через nginx
+    по HTTPS и переживает рестарт без потери нажатий: Telegram держит
+    недоставленные апдейты у себя и повторяет их.
+    """
+
+    url: str | None = Field(default=None, alias="WEBHOOK_URL")
+    path: str = Field(default="/telegram/webhook", alias="WEBHOOK_PATH")
+    secret: str | None = Field(default=None, alias="WEBHOOK_SECRET")
+    host: str = Field(default="127.0.0.1", alias="WEBHOOK_HOST")
+    port: int = Field(default=8081, alias="WEBHOOK_PORT")
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.url)
+
+    @property
+    def full_url(self) -> str:
+        return self.url.rstrip("/") + self.path
+
+    @field_validator("url")
+    @classmethod
+    def url_is_https(cls, value: str | None) -> str | None:
+        # Telegram на http вебхук не поставит; лучше узнать это на старте.
+        if value is not None and not value.startswith("https://"):
+            raise ValueError("WEBHOOK_URL должен начинаться с https://")
+        return value
+
+    @field_validator("path")
+    @classmethod
+    def path_is_absolute(cls, value: str) -> str:
+        if not value.startswith("/"):
+            raise ValueError("WEBHOOK_PATH должен начинаться с «/»")
+        return value
+
+    @field_validator("secret")
+    @classmethod
+    def secret_is_usable(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if not set(value) <= WEBHOOK_SECRET_ALPHABET or len(value) > 256:
+            raise ValueError("WEBHOOK_SECRET: только A-Z, a-z, 0-9, «_» и «-», до 256 символов")
+        if len(value) < MIN_WEBHOOK_SECRET_LEN:
+            raise ValueError(f"WEBHOOK_SECRET короче {MIN_WEBHOOK_SECRET_LEN} символов")
+        return value
+
+    @model_validator(mode="after")
+    def secret_required_with_url(self) -> "WebhookSettings":
+        # Без секрета любой, кто узнал адрес, шлёт боту поддельные апдейты
+        # от имени любого пользователя — в том числе «подтвердить запись».
+        if self.enabled and not self.secret:
+            raise ValueError("WEBHOOK_SECRET обязателен, когда задан WEBHOOK_URL")
+        return self
 
 
 class SentrySettings(_Base):
@@ -244,6 +310,10 @@ def load_sentry_settings() -> SentrySettings:
     return SentrySettings()
 
 
+def load_webhook_settings() -> WebhookSettings:
+    return WebhookSettings()
+
+
 def _problems_of(loader) -> list[str]:
     """Читаемые строки об ошибках одной группы настроек."""
     try:
@@ -252,11 +322,13 @@ def _problems_of(loader) -> list[str]:
         problems = []
         for error in exc.errors():
             # alias — это имя переменной окружения; именно его человек и правит.
-            name = str(error["loc"][0]) if error["loc"] else "?"
+            name = str(error["loc"][0]) if error["loc"] else ""
             message = error["msg"].removeprefix("Value error, ")
             if error["type"] == "missing":
                 message = "не задана"
-            problems.append(f"  {name}: {message}")
+            # У проверки всей группы (model_validator) нет одной переменной:
+            # имя уже в самом сообщении.
+            problems.append(f"  {name}: {message}" if error["loc"] else f"  {message}")
         return problems
     except ConfigError as exc:
         return [f"  {exc}"]
@@ -270,6 +342,7 @@ SETTING_GROUPS = {
     "bot": load_bot_settings,
     "admin": load_admin_settings,
     "database": load_database_settings,
+    "webhook": load_webhook_settings,
 }
 ALL_GROUPS = tuple(SETTING_GROUPS)
 

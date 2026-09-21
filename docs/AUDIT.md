@@ -41,7 +41,7 @@
 | C-4 | C | `print()` вперемешку с `logging`, нет структурных логов | 🟡 частично |
 | C-5 | C | Нет CI, линтера, форматтера, типизации | 🟡 конфиги есть, CI нет |
 | C-6 | C | Мусор от старого хостинга: `.htaccess`, `passenger_wsgi.py`, `public/`, `nohup` | 🟡 ждёт решения по деплою |
-| C-7 | C | Только polling, нет webhook-режима и graceful shutdown | ⬜ Фаза 6 |
+| C-7 | C | Только polling, нет webhook-режима и graceful shutdown | ✅ |
 
 ---
 
