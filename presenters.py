@@ -18,6 +18,7 @@ import texts
 import timeutils
 from constants import DEFAULT_LANGUAGE, day_name
 from services.access import get_subscription_days_left
+from services.stats import change_percent
 
 
 def format_break(schedule, lang: str = DEFAULT_LANGUAGE) -> str:
@@ -314,3 +315,68 @@ def get_subscription_menu_text(user: db.User | None, lang: str = DEFAULT_LANGUAG
 def get_registration_text(key: str, lang: str) -> str:
     """Тексты регистрации. Живут в texts.py вместе с остальными."""
     return texts.get_text(key, lang)
+
+
+def format_money(amount: int) -> str:
+    """800000 → «800 000»: так пишут суммы в Узбекистане и в России."""
+    return f"{amount:,.0f}".replace(",", " ")
+
+
+def _change_suffix(current: int, previous: int, lang: str) -> str:
+    if not current and not previous:
+        return ""
+    percent = change_percent(current, previous)
+    if percent is None:
+        # В прошлом периоде был ноль: процент роста ничего не скажет.
+        return ""
+    if percent == 0:
+        return texts.get_text("stats_change_same", lang)
+    return texts.get_text("stats_change", lang).format(
+        arrow="↑" if percent > 0 else "↓", percent=abs(percent),
+    )
+
+
+def build_stats_report(report, period_label: str, lang: str) -> str:
+    """
+    Отчёт мастеру. report — services.stats.StatsReport.
+
+    Строки без данных опускаются: «отменено 0 · отклонено 0» и «пиковые
+    часы:» с пустотой — шум, за которым теряется то, что важно.
+    """
+    now, before = report.current, report.previous
+    t = lambda key: texts.get_text(key, lang)  # noqa: E731
+    lines = [f"<b>{t('stats_report_title').format(period=period_label)}</b>", ""]
+
+    if not now.total and not now.lost:
+        lines.append(t("stats_empty"))
+        return "\n".join(lines)
+
+    lines.append(t("stats_line_total").format(
+        count=now.total, change=_change_suffix(now.total, before.total, lang),
+    ))
+    lines.append(t("stats_line_statuses").format(
+        completed=now.completed, approved=now.approved, pending=now.pending,
+    ))
+    if now.lost:
+        lines.append(t("stats_line_lost").format(cancelled=now.cancelled, declined=now.declined))
+
+    lines.append("")
+    lines.append(t("stats_line_earned").format(
+        amount=format_money(now.earned), change=_change_suffix(now.earned, before.earned, lang),
+    ))
+    if now.expected:
+        lines.append(t("stats_line_expected").format(amount=format_money(now.expected)))
+
+    if now.clients or now.guests:
+        lines.append("")
+    if now.clients:
+        lines.append(t("stats_line_clients").format(
+            clients=now.clients, returning=now.returning_clients,
+        ))
+    if now.guests:
+        lines.append(t("stats_line_guests").format(count=now.guests))
+    if now.peak_hours:
+        hours = ", ".join(f"{hour:02d}:00 ({count})" for hour, count in now.peak_hours)
+        lines.append(t("stats_line_peak").format(hours=hours))
+
+    return "\n".join(lines)

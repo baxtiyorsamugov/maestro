@@ -1105,6 +1105,59 @@ TEXTS = {
         "ru": "Время выбора истекло. Начните запись заново.",
         "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang.",
     },
+    # --- Статистика мастера (services/stats.py) ---------------------------
+    "stats_period_month": {
+        "ru": "За последние 30 дней",
+        "uz": "Oxirgi 30 kun uchun",
+    },
+    "stats_label_month": {
+        "ru": "последние 30 дней",
+        "uz": "oxirgi 30 kun",
+    },
+    "stats_line_total": {
+        "ru": "Записей: <b>{count}</b>{change}",
+        "uz": "Yozuvlar: <b>{count}</b>{change}",
+    },
+    "stats_line_statuses": {
+        "ru": "✅ завершено {completed} · 📅 подтверждено {approved} · ⏳ ждут ответа {pending}",
+        "uz": "✅ yakunlangan {completed} · 📅 tasdiqlangan {approved} · ⏳ javob kutmoqda {pending}",
+    },
+    "stats_line_lost": {
+        "ru": "❌ отменено {cancelled} · отклонено {declined}",
+        "uz": "❌ bekor qilingan {cancelled} · rad etilgan {declined}",
+    },
+    "stats_line_earned": {
+        "ru": "💰 Заработано: <b>{amount} so'm</b>{change}",
+        "uz": "💰 Ishlab topildi: <b>{amount} so'm</b>{change}",
+    },
+    "stats_line_expected": {
+        "ru": "📅 Ожидается по подтверждённым: {amount} so'm",
+        "uz": "📅 Tasdiqlanganlar bo'yicha kutilmoqda: {amount} so'm",
+    },
+    "stats_line_clients": {
+        "ru": "👥 Клиентов: {clients}, из них вернулись: {returning}",
+        "uz": "👥 Mijozlar: {clients}, shundan qaytib kelganlar: {returning}",
+    },
+    "stats_line_guests": {
+        "ru": "🧾 Записано вами вручную: {count}",
+        "uz": "🧾 Siz qo'lda yozganlar: {count}",
+    },
+    "stats_line_peak": {
+        "ru": "🕐 Пиковые часы: {hours}",
+        "uz": "🕐 Eng band soatlar: {hours}",
+    },
+    "stats_change": {
+        "ru": " ({arrow} {percent}% к прошлому периоду)",
+        "uz": " ({arrow} {percent}% oldingi davrga nisbatan)",
+    },
+    "stats_change_same": {
+        "ru": " (как в прошлом периоде)",
+        "uz": " (oldingi davr bilan bir xil)",
+    },
+    "stats_empty": {
+        "ru": "За этот период записей нет.",
+        "uz": "Bu davrda yozuvlar yo'q.",
+    },
     # --- Фоновые уведомления (scheduler.py) -------------------------------
     "reminder_day": {
         "ru": "👋 Привет! Напоминаем о вашей завтрашней записи в {time}.\nУслуга: {service}",
