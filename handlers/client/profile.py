@@ -27,6 +27,7 @@ from database import (
 )
 from guards import (
     deny_access,
+    ensure_registered_callback,
     ensure_registered_message,
     get_user_lang,
 )
@@ -95,9 +96,10 @@ async def show_profile(message: Message, state: FSMContext):
 
         response_text += (
             f"\n<b>{timeutils.format_human(booking.starts_at, lang)}</b>\n"
-            f"Барбершоп: {escape(booking.stylist.barbershop.name)}\n"
+            f"{texts.get_text('booking_barbershop', lang)}: {escape(booking.stylist.barbershop.name)}\n"
             f"{texts.get_text('master_label', lang)}: {escape(booking.stylist.name)}\n"
-            f"\u0423\u0441\u043b\u0443\u0433\u0430: {escape(booking.service.catalog_service.name)} ({booking.service.price:,.0f} so'm)\n"
+            f"{texts.get_text('booking_service', lang)}: "
+            f"{escape(booking.service.catalog_service.name)} ({booking.service.price:,.0f} so'm)\n"
             f"{texts.get_text('status_label', lang)}: <b>{status_icon}</b>\n"
             f"{'-' * 20}\n"
         )
@@ -132,18 +134,14 @@ async def cancel_booking(cb: CallbackQuery):
             await deny_access(cb)
             return
         if booking.status in (BOOKING_DECLINED, BOOKING_COMPLETED):
-            await cb.answer(
-                {"ru": "Эту запись уже нельзя отменить.", "uz": "Bu yozuvni endi bekor qilib bo'lmaydi."}[lang],
-                show_alert=True,
-            )
+            await cb.answer(texts.get_text("booking_cannot_cancel", lang), show_alert=True)
             return
 
-        stylist_telegram_id = (
-            booking.stylist.user_account.telegram_id
-            if booking.stylist and booking.stylist.user_account
-            else None
-        )
-        client_name = booking.user.first_name or "Клиент"
+        stylist_account = booking.stylist.user_account if booking.stylist else None
+        stylist_telegram_id = stylist_account.telegram_id if stylist_account else None
+        # Уведомление читает мастер — значит, и язык его, а не клиента.
+        stylist_lang = (stylist_account.language_code if stylist_account else None) or "ru"
+        client_name = booking.user.first_name or texts.get_text("booking_client", stylist_lang)
         booking_datetime = timeutils.format_slot(booking.starts_at)
 
         # Статус вместо удаления: история визитов нужна для статистики и follow-up.
@@ -153,27 +151,25 @@ async def cancel_booking(cb: CallbackQuery):
         # и читают («кто отменил эту запись и когда»).
         audit.record_client(
             session, audit.BOOKING_CANCELLED, booking,
-            details=f"было: {booking_datetime}",
+            details=booking_datetime,
         )
         await session.commit()
 
     if stylist_telegram_id:
-        notification_text = (
-            "<b>Запись отменена</b>\n\n"
-            f"Клиент: {escape(client_name)}\n"
-            f"Дата и время: {escape(booking_datetime)}\n\n"
-            "Это окно снова свободно для записи."
+        notification_text = texts.get_text("booking_cancelled_notice_stylist", stylist_lang).format(
+            client_label=texts.get_text("booking_client", stylist_lang),
+            client=escape(client_name),
+            datetime_label=texts.get_text("booking_datetime", stylist_lang),
+            slot=escape(booking_datetime),
         )
         try:
             await bot.send_message(chat_id=stylist_telegram_id, text=notification_text, parse_mode="HTML")
         except Exception as e:
             logging.warning("notify.cancel_failed booking_id=%s error=%s", booking_id, e)
 
-    await cb.answer({"ru": "Запись отменена.", "uz": "Yozuv bekor qilindi."}[lang], show_alert=True)
+    await cb.answer(texts.get_text("booking_cancelled_toast", lang), show_alert=True)
     await cb.message.delete()
-    await cb.message.answer(
-        {"ru": "Ваша запись успешно отменена.", "uz": "Yozuvingiz muvaffaqiyatli bekor qilindi."}[lang]
-    )
+    await cb.message.answer(texts.get_text("booking_cancelled_client", lang))
 
 # Хэндлер для кнопки "⭐ Мои мастера"
 @router.message(F.text.in_([texts.get_buttons("ru")["my_masters"], texts.get_buttons("uz")["my_masters"]]))
@@ -186,58 +182,92 @@ async def show_favorites(message: Message, state: FSMContext):
         return
 
     lang = user.language_code or "ru"
+    text, keyboard = await _favorites_view(message.from_user.id, lang)
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+
+
+async def _favorites_view(telegram_id: int, lang: str) -> tuple[str, InlineKeyboardMarkup | None]:
+    """
+    Экран «Мои мастера»: текст и клавиатура.
+
+    Отдельно от хендлера, потому что экран собирают двое: кнопка меню
+    и удаление мастера из списка. Раньше удаление звало show_favorites()
+    с сообщением бота и без state — то есть падало с TypeError, а даже
+    с state проверка регистрации смотрела бы на from_user бота.
+    """
     async with db.async_session() as session:
         user = await session.scalar(
             select(db.User)
-                .where(db.User.telegram_id == message.from_user.id)
-                .options(joinedload(db.User.favorite_stylists))
+            .where(db.User.telegram_id == telegram_id)
+            .options(joinedload(db.User.favorite_stylists))
         )
 
     if not user or not user.favorite_stylists:
-        await message.answer(texts.get_text("favorites_empty", lang))
-        return
+        return texts.get_text("favorites_empty", lang), None
 
-    btns = [[InlineKeyboardButton(text=f"💇‍♂️ {stylist.name}", callback_data=f"stylist_{stylist.id}"), 
-             InlineKeyboardButton(text="❌", callback_data=f"fav_rem_{stylist.id}")] for stylist in user.favorite_stylists]
-    
-    await message.answer(
+    btns = [
+        [
+            InlineKeyboardButton(text=f"💇‍♂️ {stylist.name}", callback_data=f"stylist_{stylist.id}"),
+            InlineKeyboardButton(text="❌", callback_data=f"fav_rem_{stylist.id}"),
+        ]
+        for stylist in user.favorite_stylists
+    ]
+    return (
         f"<b>{texts.get_text('favorites_title', lang)}</b>",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
-        parse_mode="HTML"
+        InlineKeyboardMarkup(inline_keyboard=btns),
     )
 
-# Хэндлер для добавления в избранное
+
 @router.callback_query(F.data.startswith("fav_add_"))
 async def add_favorite(cb: CallbackQuery):
     stylist_id = int(cb.data.split("_")[2])
+    # Незарегистрированный человек мог нажать кнопку из пересланной карточки:
+    # раньше это было AttributeError на user.id и «часики» без ответа.
+    user = await ensure_registered_callback(cb)
+    if not user:
+        return
+    lang = user.language_code or "ru"
+
     async with db.async_session() as session:
-        user = await session.scalar(select(db.User).where(db.User.telegram_id == cb.from_user.id))
-
-        # Проверяем, нет ли уже в избранном
+        stylist = await session.get(db.Stylist, stylist_id)
+        if not stylist:
+            await cb.answer(texts.get_text("stylist_not_found", lang), show_alert=True)
+            return
         existing = await session.scalar(
-            select(db.Favorite).where(db.Favorite.user_id == user.id, db.Favorite.stylist_id == stylist_id))
-        if not existing:
-            session.add(db.Favorite(user_id=user.id, stylist_id=stylist_id))
-            await session.commit()
-            await cb.answer("\n Мастер добавлен в избранное!", show_alert=True)
-        else:
-            await cb.answer("Этот мастер уже в избранном.", show_alert=True)
+            select(db.Favorite).where(db.Favorite.user_id == user.id, db.Favorite.stylist_id == stylist_id)
+        )
+        if existing:
+            await cb.answer(texts.get_text("favorite_already", lang), show_alert=True)
+            return
+        session.add(db.Favorite(user_id=user.id, stylist_id=stylist_id))
+        await session.commit()
 
-# Хэндлер для удаления из избранного
+    await cb.answer(texts.get_text("favorite_added", lang), show_alert=True)
+
+
 @router.callback_query(F.data.startswith("fav_rem_"))
 async def remove_favorite(cb: CallbackQuery):
     stylist_id = int(cb.data.split("_")[2])
+    user = await ensure_registered_callback(cb)
+    if not user:
+        return
+    lang = user.language_code or "ru"
+
     async with db.async_session() as session:
-        user = await session.scalar(select(db.User).where(db.User.telegram_id == cb.from_user.id))
-        fav_to_delete = await session.scalar(
-            select(db.Favorite).where(db.Favorite.user_id == user.id, db.Favorite.stylist_id == stylist_id))
-        if fav_to_delete:
-            await session.delete(fav_to_delete)
+        # Удаляем только из своего списка: user_id берётся из базы по
+        # отправителю, а не из callback_data.
+        favorite = await session.scalar(
+            select(db.Favorite).where(db.Favorite.user_id == user.id, db.Favorite.stylist_id == stylist_id)
+        )
+        if favorite:
+            await session.delete(favorite)
             await session.commit()
-            await cb.answer("Мастер удален из избранного.", show_alert=True)
-            # Обновляем сообщение со списком
-            await show_favorites(cb.message)
-            await cb.message.delete()
+
+    # Список перерисовывается на месте, даже если мастера там уже не было
+    # (двойное нажатие): человек видит актуальное состояние, а не ошибку.
+    text, keyboard = await _favorites_view(cb.from_user.id, lang)
+    await cb.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await cb.answer(texts.get_text("favorite_removed", lang))
 
 @router.callback_query(F.data.startswith("rate_"))
 async def handle_rating(cb: CallbackQuery, state: FSMContext):

@@ -86,10 +86,10 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
         stylist_query = select(db.Stylist).where(db.Stylist.id == maestro_id).options(joinedload(db.Stylist.barbershop), joinedload(db.Stylist.user_account))
         stylist = await session.scalar(stylist_query)
         if not stylist:
-            await cb.answer({"ru": "Мастер не найден.", "uz": "Maestro topilmadi."}[lang], show_alert=True)
+            await cb.answer(texts.get_text("stylist_not_found", lang), show_alert=True)
             return
         if not is_stylist_subscription_active(stylist.user_account):
-            await cb.answer({"ru": "У этого мастера истёк срок тарифа. Выберите другого мастера.", "uz": "Bu maestroning tarifi tugagan. Boshqa maestroni tanlang."}[lang], show_alert=True)
+            await cb.answer(texts.get_text("booking_stylist_expired", lang), show_alert=True)
             return
         user = await session.scalar(select(db.User).where(db.User.telegram_id == cb.from_user.id))
         is_favorite = await session.scalar(
@@ -99,7 +99,7 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
     btns = []
     for srv in services:
         price = f"{srv.price:,.0f}".replace(",", " ")
-        duration_label = {"ru": "мин", "uz": "daq"}[lang]
+        duration_label = texts.get_text("services_minutes_short", lang)
         btns.append([
             InlineKeyboardButton(
                 text=f"{srv.catalog_service.name} - {price} so'm - {srv.duration_min} {duration_label}",
@@ -110,15 +110,12 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
     if not services:
         btns.append([
             InlineKeyboardButton(
-                text={"ru": "Назад к мастеру", "uz": "Maestroga qaytish"}[lang],
+                text=texts.get_text("kb_back_to_stylist", lang),
                 callback_data=f"back_to_stylist_{stylist.id}",
             )
         ])
         await cb.message.edit_text(
-            {
-                "ru": f"У <b>{escape(stylist.name)}</b> пока нет добавленных услуг.\nВыберите другого мастера или загляните позже.",
-                "uz": f"<b>{escape(stylist.name)}</b> uchun hozircha xizmatlar mavjud emas.\nBoshqa maestroni tanlang yoki keyinroq qayting.",
-            }[lang],
+            texts.get_text("booking_no_services", lang).format(name=escape(stylist.name)),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
             parse_mode="HTML",
         )
@@ -128,18 +125,15 @@ async def show_services(cb: CallbackQuery, state: FSMContext):
     if not is_favorite:
         btns.append([
             InlineKeyboardButton(
-                text={"ru": "Добавить в избранное", "uz": "Sevimlilarga qo'shish"}[lang],
+                text=texts.get_text("kb_add_favorite", lang),
                 callback_data=f"fav_add_{stylist.id}",
             )
         ])
     btns.append([
-        InlineKeyboardButton(text={"ru": "Назад к мастеру", "uz": "Maestroga qaytish"}[lang], callback_data=f"back_to_stylist_{stylist.id}")
+        InlineKeyboardButton(text=texts.get_text("kb_back_to_stylist", lang), callback_data=f"back_to_stylist_{stylist.id}")
     ])
     await cb.message.edit_text(
-        {
-            "ru": f"<b>{escape(stylist.name)}</b>\nВыберите услугу для записи.",
-            "uz": f"<b>{escape(stylist.name)}</b>\nYozilish uchun xizmatni tanlang.",
-        }[lang],
+        texts.get_text("booking_pick_service", lang).format(name=escape(stylist.name)),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML",
     )
@@ -320,10 +314,9 @@ async def ignore_calendar_button(cb: CallbackQuery):
 async def show_dayoff_notice(cb: CallbackQuery):
     lang = await get_user_lang(cb.from_user.id)
     selected_date = cb.data.split("_", 1)[1]
-    await cb.answer({
-        "ru": f"\u041d\u0430 {selected_date} \u0443 \u043c\u0430\u0441\u0442\u0435\u0440\u0430 \u043d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0433\u043e \u0432\u0440\u0435\u043c\u0435\u043d\u0438. \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0440\u0443\u0433\u043e\u0439 \u0434\u0435\u043d\u044c.",
-        "uz": f"{selected_date} sanasida maestro bo'sh emas yoki ishlamaydi. Boshqa kunni tanlang.",
-    }[lang], show_alert=True)
+    await cb.answer(
+        texts.get_text("booking_dayoff_notice", lang).format(date=selected_date), show_alert=True
+    )
 
 @router.callback_query(F.data.startswith("cal_"))
 async def switch_calendar_month(cb: CallbackQuery, state: FSMContext):
@@ -336,23 +329,28 @@ async def switch_calendar_month(cb: CallbackQuery, state: FSMContext):
         month = int(month_str)
         stylist_id = int(stylist_id_str)
     except ValueError:
-        await cb.answer({"ru": "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043a\u0440\u044b\u0442\u044c \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c.", "uz": "Kalendarni ochib bo'lmadi."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("calendar_open_failed", lang), show_alert=True)
         return
 
     draft = await get_booking_draft(state)
     service_id = draft.get("service_id")
     if not service_id:
-        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_session_expired", lang), show_alert=True)
         return
 
+    reschedule_id = draft.get("reschedule_id")
     async with db.async_session() as session:
-        available_dates = await get_available_dates_for_month(session, stylist_id, service_id, year, month)
+        # При переносе переносимая запись не должна занимать собственный слот —
+        # так же, как в show_calendar_for_service. Без этого в соседнем месяце
+        # клиент видел своё же время занятым.
+        available_dates = await get_available_dates_for_month(
+            session, stylist_id, service_id, year, month,
+            exclude_booking_id=reschedule_id,
+        )
 
     kb = utils.generate_calendar(year, month, maestro_id=stylist_id, available_dates=available_dates)
-    await cb.message.edit_text(
-        {"ru": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u0443. \u0421\u0435\u0440\u044b\u0435 \u0434\u043d\u0438 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438.", "uz": "Sanani tanlang. Xira kunlar yozuv uchun yopiq."}[lang],
-        reply_markup=kb,
-    )
+    prompt = "reschedule_pick_date" if reschedule_id else "booking_pick_date"
+    await cb.message.edit_text(texts.get_text(prompt, lang), reply_markup=kb)
     await cb.answer()
 
 @router.callback_query(F.data.startswith("date_"))
@@ -365,7 +363,7 @@ async def pick_time(cb: CallbackQuery, state: FSMContext):
     selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
     draft = await get_booking_draft(state)
     if not {"stylist_id", "service_id"} <= draft.keys():
-        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Sessiya tugadi, qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_session_expired", lang), show_alert=True)
         return
 
     stylist_id = draft["stylist_id"]
@@ -378,18 +376,15 @@ async def pick_time(cb: CallbackQuery, state: FSMContext):
         )
 
     if not schedule:
-        await cb.answer({"ru": "\u041c\u0430\u0441\u0442\u0435\u0440 \u0432 \u044d\u0442\u043e\u0442 \u0434\u0435\u043d\u044c \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442.", "uz": "Maestro bu kuni ishlamaydi."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_day_not_working", lang), show_alert=True)
         return
 
     if not available_slots:
         back_kb = InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text={"ru": "\u041d\u0430\u0437\u0430\u0434 \u043a \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044e", "uz": "Kalendarga qaytish"}[lang], callback_data=f"back_to_calendar_{stylist_id}")
+            InlineKeyboardButton(text=texts.get_text("back_to_calendar", lang), callback_data=f"back_to_calendar_{stylist_id}")
         ]])
         await cb.message.edit_text(
-            {
-                "ru": f"\u041d\u0430 {selected_date_str} \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u044b\u0445 \u0441\u043b\u043e\u0442\u043e\u0432 \u043d\u0435\u0442.\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0440\u0443\u0433\u0443\u044e \u0434\u0430\u0442\u0443.",
-                "uz": f"{selected_date_str} sanasida bo'sh slotlar yo'q.\nBoshqa sanani tanlang.",
-            }[lang],
+            texts.get_text("booking_no_slots_on", lang).format(date=selected_date_str),
             reply_markup=back_kb,
         )
         await cb.answer()
@@ -404,10 +399,10 @@ async def pick_time(cb: CallbackQuery, state: FSMContext):
     if row:
         btns.append(row)
     btns.append([
-        InlineKeyboardButton(text={"ru": "\u041d\u0430\u0437\u0430\u0434 \u043a \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044e", "uz": "Kalendarga qaytish"}[lang], callback_data=f"back_to_calendar_{stylist_id}")
+        InlineKeyboardButton(text=texts.get_text("back_to_calendar", lang), callback_data=f"back_to_calendar_{stylist_id}")
     ])
     await cb.message.edit_text(
-        {"ru": f"\u0414\u0430\u0442\u0430: {selected_date_str}\n\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0440\u0435\u043c\u044f:", "uz": f"Sana: {selected_date_str}\nVaqtni tanlang:"}[lang],
+        texts.get_text("booking_pick_time", lang).format(date=selected_date_str),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
     )
     await cb.answer()
@@ -419,7 +414,7 @@ async def back_to_calendar(cb: CallbackQuery, state: FSMContext):
     draft = await get_booking_draft(state)
     service_id = draft.get("service_id")
     if not service_id:
-        await cb.answer({"ru": "\u0421\u0435\u0441\u0441\u0438\u044f \u0432\u044b\u0431\u043e\u0440\u0430 \u0438\u0441\u0442\u0435\u043a\u043b\u0430. \u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u0437\u0430\u043f\u0438\u0441\u044c \u0437\u0430\u043d\u043e\u0432\u043e.", "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_session_expired", lang), show_alert=True)
         return
 
     current_dt = datetime.strptime(draft.get("date") or timeutils.today().strftime("%Y-%m-%d"), "%Y-%m-%d")
@@ -430,10 +425,8 @@ async def back_to_calendar(cb: CallbackQuery, state: FSMContext):
         )
 
     kb = utils.generate_calendar(current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates)
-    await cb.message.edit_text(
-        {"ru": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0430\u0442\u0443. \u0410\u043a\u0442\u0438\u0432\u043d\u044b \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043d\u0438, \u0433\u0434\u0435 \u0435\u0441\u0442\u044c \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f.", "uz": "Sanani tanlang. Faqat bo'sh vaqti bor ish kunlari faol."}[lang],
-        reply_markup=kb,
-    )
+    prompt = "reschedule_pick_date" if draft.get("reschedule_id") else "booking_pick_date"
+    await cb.message.edit_text(texts.get_text(prompt, lang), reply_markup=kb)
     await cb.answer()
 
 @router.callback_query(F.data.startswith("time_"))
@@ -446,7 +439,7 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
     user_id = cb.from_user.id
     data = await get_booking_draft(state)
     if not {"stylist_id", "service_id", "date"} <= data.keys():
-        await cb.answer({"ru": "Время выбора истекло. Начните запись заново.", "uz": "Sessiya xatosi. Qaytadan boshlang."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("booking_session_expired", lang), show_alert=True)
         return
 
     full_datetime = f"{data['date']} {selected_time}"
@@ -454,7 +447,7 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
     async with db.async_session() as session:
         user_db = await session.scalar(select(db.User).where(db.User.telegram_id == user_id))
         if not user_db or not is_registration_complete(user_db):
-            await cb.answer({"ru": "Сначала завершите регистрацию через /start.", "uz": "Avval /start orqali ro'yxatdan o'tishni tugating."}[lang], show_alert=True)
+            await cb.answer(texts.get_text("registration_required", lang), show_alert=True)
             return
         stylist_profile = await session.scalar(
             select(db.Stylist)
@@ -462,7 +455,7 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
             .options(joinedload(db.Stylist.user_account))
         )
         if not stylist_profile or not is_stylist_subscription_active(stylist_profile.user_account):
-            await cb.answer({"ru": "Запись к этому мастеру временно закрыта. Выберите другого мастера.", "uz": "Bu maestroga yozilish vaqtincha yopiq. Boshqa maestroni tanlang."}[lang], show_alert=True)
+            await cb.answer(texts.get_text("booking_closed_pick_other", lang), show_alert=True)
             return
         reschedule_id = data.get("reschedule_id")
         moved_booking = None
@@ -486,7 +479,7 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
             exclude_booking_id=reschedule_id,
         )
         if selected_time not in available_slots:
-            await cb.answer({"ru": "Это время уже заняли. Выберите другое.", "uz": "Bu slot endi mavjud emas. Boshqa vaqtni tanlang."}[lang], show_alert=True)
+            await cb.answer(texts.get_text("booking_slot_taken", lang), show_alert=True)
             return
         service = await session.scalar(select(db.Service).where(db.Service.id == data['service_id']).options(joinedload(db.Service.catalog_service)))
         starts_at = timeutils.parse_slot(full_datetime)
@@ -538,13 +531,7 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
                 "booking.slot_race stylist_id=%s datetime=%s user=%s reschedule_id=%s",
                 data["stylist_id"], full_datetime, mask_user(user_id), reschedule_id,
             )
-            await cb.answer(
-                {
-                    "ru": "Это время только что заняли. Выберите другое.",
-                    "uz": "Bu vaqtni hozirgina band qilishdi. Boshqa vaqtni tanlang.",
-                }[lang],
-                show_alert=True,
-            )
+            await cb.answer(texts.get_text("booking_slot_just_taken", lang), show_alert=True)
             return
         booking_db_id = target_booking.id
         stylist_contact_query = (
@@ -555,10 +542,17 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
         stylist_contact = (await session.execute(stylist_contact_query)).first()
         stylist_telegram_id = stylist_contact[0] if stylist_contact else None
         stylist_lang = (stylist_contact[1] if stylist_contact else None) or "ru"
-        client_name = user_db.first_name or cb.from_user.first_name or "Клиент"
+        # Подстановки читает мастер — поэтому на его языке.
+        client_name = (
+            user_db.first_name or cb.from_user.first_name
+            or texts.get_text("booking_client", stylist_lang)
+        )
         client_telegram_id = user_db.telegram_id
-        client_phone = user_db.phone_number or "не указан"
-        service_name = service.catalog_service.name if service and service.catalog_service else "Услуга не указана"
+        client_phone = user_db.phone_number or texts.get_text("booking_phone_unknown", stylist_lang)
+        service_name = (
+            service.catalog_service.name if service and service.catalog_service
+            else texts.get_text("booking_service_unknown", stylist_lang)
+        )
 
     await clear_booking_draft(state)
     if old_starts_at:
@@ -573,10 +567,9 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
         )
     else:
         await cb.message.edit_text(
-            {
-                "ru": f"Заявка отправлена.\n{full_datetime}\n\nМастер посмотрит заявку и ответит в ближайшее время.",
-                "uz": f"So'rovingiz yuborildi.\n{full_datetime}\n\nMaestro so'rovni ko'rib chiqadi va tez orada javob beradi.",
-            }[lang]
+            texts.get_text("booking_request_sent", lang).format(
+                slot=timeutils.format_human(starts_at, lang)
+            )
         )
 
     if stylist_telegram_id:
@@ -588,13 +581,16 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
                 new_slot=escape(timeutils.format_human(starts_at, stylist_lang)),
             )
         else:
+            # Раньше это уведомление всегда уходило по-русски, хотя кнопки
+            # под ним уже были на языке мастера.
+            t = lambda key: texts.get_text(key, stylist_lang)  # noqa: E731
             admin_text = (
-                "<b>Новая заявка</b>\n\n"
-                f"Клиент: {escape(client_name)}\n"
-                f"Контакт: {escape(client_phone)}\n"
-                f'<a href="tg://user?id={client_telegram_id}">Написать в Telegram</a>\n'
-                f"Услуга: {escape(service_name)}\n"
-                f"Дата и время: {escape(full_datetime)}"
+                f"<b>{t('booking_card_title')}</b>\n\n"
+                f"{t('booking_client')}: {escape(client_name)}\n"
+                f"{t('booking_contact')}: {escape(client_phone)}\n"
+                f'<a href="tg://user?id={client_telegram_id}">{t("booking_write_telegram")}</a>\n'
+                f"{t('booking_service')}: {escape(service_name)}\n"
+                f"{t('booking_datetime')}: {escape(full_datetime)}"
             )
         # Кнопки на языке мастера: уведомление читает он, а не клиент.
         admin_kb = InlineKeyboardMarkup(

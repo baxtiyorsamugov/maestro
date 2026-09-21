@@ -105,13 +105,10 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
                 .where(db.Stylist.name.ilike(f"%{message.text}%"))
                 .options(joinedload(db.Stylist.user_account))
             )).scalars().all()
-            title = {"ru": "Результаты поиска по имени:", "uz": "Ism bo'yicha qidiruv natijalari:"}[lang]
+            title = texts.get_text("search_results_by_name", lang)
         elif search_type == "id":
             if not (message.text or "").isdigit():
-                await message.answer({
-                    "ru": "ID должен состоять только из цифр. Попробуйте ещё раз.",
-                    "uz": "ID faqat raqamlardan iborat bo'lishi kerak. Qayta urinib ko'ring.",
-                }[lang])
+                await message.answer(texts.get_text("search_id_digits_only", lang))
                 return False
 
             requested_id = int(message.text)
@@ -125,32 +122,22 @@ async def run_search_input_flow(message: Message, search_type: str) -> bool:
 
             if stylist and not is_stylist_subscription_active(stylist.user_account):
                 expiry_text = stylist.user_account.subscription_until.strftime("%Y-%m-%d") if stylist.user_account and stylist.user_account.subscription_until else None
-                await message.answer({
-                    "ru": f"Мастер найден, но сейчас недоступен для записи. Срок тарифа истёк: {expiry_text or 'не указан'}.",
-                    "uz": f"Maestro topildi, lekin hozir yozilish uchun mavjud emas. Tarif muddati tugagan: {expiry_text or 'koʻrsatilmagan'}.",
-                }[lang])
+                await message.answer(texts.get_text("search_stylist_expired", lang).format(
+                    expiry=expiry_text or texts.get_text("booking_phone_unknown", lang),
+                ))
                 return False
 
             stylists = [stylist] if stylist else []
-            title = {"ru": "Результат поиска по ID:", "uz": "ID bo'yicha qidiruv natijasi:"}[lang]
+            title = texts.get_text("search_results_by_id", lang)
         else:
-            await message.answer({"ru": "Не удалось выполнить поиск. Попробуйте ещё раз.", "uz": "Qidiruvda xatolik yuz berdi."}[lang])
+            await message.answer(texts.get_text("search_failed", lang))
             return False
 
     stylists = [stylist for stylist in stylists if stylist and is_stylist_subscription_active(stylist.user_account)]
 
     if not stylists:
-        retry_prompt = {
-            "id": {
-                "ru": "Мастер не найден. Отправьте другой ID или вернитесь в меню поиска.",
-                "uz": "Maestro topilmadi. Boshqa ID yuboring yoki qidiruv menyusiga qayting.",
-            },
-            "name": {
-                "ru": "По вашему запросу никого не нашли. Попробуйте другое имя.",
-                "uz": "So'rovingiz bo'yicha hech kim topilmadi. Boshqa ism bilan urinib ko'ring.",
-            },
-        }
-        await message.answer(retry_prompt.get(search_type, retry_prompt["name"])[lang])
+        retry_key = "search_id_not_found" if search_type == "id" else "search_name_not_found"
+        await message.answer(texts.get_text(retry_key, lang))
         return False
 
     await show_stylist_buttons(message, stylists, title, lang)
@@ -168,18 +155,17 @@ async def search_by_district_menu(cb: CallbackQuery):
             select(db.Barbershop.district).distinct().order_by(db.Barbershop.district)
         )).scalars().all()
 
+    # Экран был только на русском: язык сюда просто не передавался.
+    lang = await get_user_lang(cb.from_user.id)
     if not districts:
-        await cb.answer("Пока нет доступных районов для поиска.", show_alert=True)
+        await cb.answer(texts.get_text("search_no_districts", lang), show_alert=True)
         return
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         *[[InlineKeyboardButton(text=d, callback_data=f"dist_{d}")] for d in districts],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_home")],
+        [InlineKeyboardButton(text=texts.get_text("kb_back", lang), callback_data="back_home")],
     ])
-    await cb.message.edit_text(
-        "Выберите район. Потом можно открыть список подходящих барбершопов.",
-        reply_markup=kb,
-    )
+    await cb.message.edit_text(texts.get_text("search_pick_district", lang), reply_markup=kb)
     await cb.answer()
 
 @router.callback_query(F.data.startswith("search_"))
@@ -192,12 +178,8 @@ async def search_start(cb: CallbackQuery, state: FSMContext):
     await state.set_state(SearchForm.waiting_for_name)
 
     lang = await get_user_lang(cb.from_user.id)
-    prompt = (
-        {"ru": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0438\u043c\u044f \u0438\u043b\u0438 \u0447\u0430\u0441\u0442\u044c \u0438\u043c\u0435\u043d\u0438 \u043c\u0430\u0441\u0442\u0435\u0440\u0430:", "uz": "Maestroning ismini yoki bir qismini kiriting:"}[lang]
-        if search_type == "name"
-        else {"ru": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 ID \u043c\u0430\u0441\u0442\u0435\u0440\u0430 (\u0442\u043e\u043b\u044c\u043a\u043e \u0446\u0438\u0444\u0440\u044b):", "uz": "Maestro ID sini kiriting (faqat raqam):"}[lang]
-    )
-    await cb.message.edit_text(prompt)
+    prompt_key = "search_ask_name" if search_type == "name" else "search_ask_id"
+    await cb.message.edit_text(texts.get_text(prompt_key, lang))
     await cb.answer()
 
 @router.message(SearchForm.waiting_for_name)
@@ -233,20 +215,7 @@ async def send_booking_menu(target: Message, user: db.User, state: FSMContext) -
 
     lang = user.language_code or "ru"
 
-    text = {
-        "ru": (
-            "✨ <b>Добро пожаловать в мир Maestro!</b>\n\n"
-            "Чтобы мгновенно найти своего мастера и забронировать время, "
-            "просто <b>введите его ID номер</b> ниже:\n\n"
-            "🆔 <i>Номер указан на табличке с QR-кодом или визитке мастера.</i>"
-        ),
-        "uz": (
-            "✨ <b>Maestro olamiga xush kelibsiz!</b>\n\n"
-            "O'z maestroingizni bir zumda topish va vaqtni band qilish uchun "
-            "uning <b>ID raqamini</b> pastga yuboring:\n\n"
-            "🆔 <i>ID raqami Maestro peshlavhasidagi QR-kod ostida yoki instagram biosida ko'rsatilgan.</i>"
-        )
-    }[lang]
+    text = texts.get_text("search_id_intro", lang)
 
     # Отправляем сообщение. Мы не убираем Reply-кнопки, чтобы клиент мог передумать 
     # и нажать "Мой профиль", но фокус теперь на вводе цифр.
@@ -324,22 +293,21 @@ async def show_shops(cb: CallbackQuery):
                     stylist_counts[stylist.barbershop_id] = stylist_counts.get(stylist.barbershop_id, 0) + 1
 
     if not shops:
-        await cb.answer({"ru": "В этом районе пока нет барбершопов.", "uz": "Bu tumanda hozircha barbershoplarimiz yo'q."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("search_district_no_shops", lang), show_alert=True)
         return
 
     visible_shops = [shop for shop in shops if stylist_counts.get(shop.id, 0) > 0]
     if not visible_shops:
-        await cb.answer({"ru": "В этом районе пока нет активных мастеров.", "uz": "Bu tumanda hozircha faol maestrolar yo'q."}[lang], show_alert=True)
+        await cb.answer(texts.get_text("search_district_no_stylists", lang), show_alert=True)
         return
 
     btns = [[InlineKeyboardButton(text=f"{shop.name} - {stylist_counts.get(shop.id, 0)}", callback_data=f"shop_{shop.id}")] for shop in visible_shops]
-    btns.append([InlineKeyboardButton(text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data="search_district")])
+    btns.append([InlineKeyboardButton(text=texts.get_text("kb_back", lang), callback_data="search_district")])
 
     await cb.message.edit_text(
-        {
-            "ru": f"Выберите барбершоп в районе <b>{dist}</b>.\nКарту можно открыть в карточке мастера.",
-            "uz": f"<b>{dist}</b> tumanidagi barbershopni tanlang.\nXaritani usta kartasidan ochishingiz mumkin.",
-        }[lang],
+        # Район вводится в админке и уходит в HTML-сообщение: без escape
+        # название вроде «Юнусабад <новый>» ломало бы отправку целиком (S-4).
+        texts.get_text("search_pick_shop", lang).format(district=escape(dist)),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=btns),
         parse_mode="HTML",
     )
@@ -366,13 +334,7 @@ async def render_stylist_list(cb: CallbackQuery, shop_id: int, sort_mode: str) -
         cards = await load_stylist_cards(session, stylists)
 
     if not cards:
-        await cb.answer(
-            {
-                "ru": "В этом салоне пока нет активных мастеров.",
-                "uz": "Bu salonda hozircha faol maestrolar yo'q.",
-            }[lang],
-            show_alert=True,
-        )
+        await cb.answer(texts.get_text("search_shop_no_stylists", lang), show_alert=True)
         return
 
     cards = sort_cards(cards, sort_mode)
@@ -396,7 +358,7 @@ async def render_stylist_list(cb: CallbackQuery, shop_id: int, sort_mode: str) -
         ))
     btns.append(sort_row)
     btns.append([InlineKeyboardButton(
-        text={"ru": "Назад", "uz": "Ortga"}[lang], callback_data=f"dist_{shop.district}"
+        text=texts.get_text("kb_back", lang), callback_data=f"dist_{shop.district}"
     )])
 
     await cb.message.edit_text(

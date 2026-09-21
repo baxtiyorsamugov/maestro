@@ -34,6 +34,11 @@ ALL_VARS = (
     "DB_PASS",
     "DB_NAME",
     "SQLITE_PATH",
+    "WEBHOOK_URL",
+    "WEBHOOK_PATH",
+    "WEBHOOK_SECRET",
+    "WEBHOOK_HOST",
+    "WEBHOOK_PORT",
 )
 
 GOOD = {

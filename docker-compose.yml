@@ -8,6 +8,34 @@
 # работает на PostgreSQL и SQLite и не работает на MySQL, где остаётся
 # только перепроверка в транзакции (docs/SECURITY.md, S-6).
 
+# Общее окружение бота и админки. Вынесено якорем в начало файла: в YAML
+# якорь должен быть определён раньше, чем на него сослались. Переменные
+# вебхука добавляются только боту — админке они не нужны.
+x-app-env: &app_env
+  BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN обязателен}
+  DB_DRIVER: postgres
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_USER: ${DB_USER:-maestro}
+  DB_PASS: ${DB_PASS:?DB_PASS обязателен}
+  DB_NAME: ${DB_NAME:-maestro}
+  REDIS_URL: redis://redis:6379/0
+  ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME обязателен}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD обязателен}
+  ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:?ADMIN_SECRET_KEY обязателен}
+  # Вторая учётная запись с урезанными правами: смотреть всё,
+  # менять только записи. Необязательна.
+  ADMIN_MANAGER_USERNAME: ${ADMIN_MANAGER_USERNAME:-}
+  ADMIN_MANAGER_PASSWORD: ${ADMIN_MANAGER_PASSWORD:-}
+  LOG_SALT: ${LOG_SALT:-}
+  # json в контейнере: лог читает не только человек, но и сборщик.
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  TZ: Asia/Tashkent
+
 services:
   db:
     image: postgres:16-alpine
@@ -48,30 +76,20 @@ services:
     build: .
     restart: unless-stopped
     command: ["python", "bot.py"]
-    environment: &app_env
-      BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN обязателен}
-      DB_DRIVER: postgres
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-maestro}
-      DB_PASS: ${DB_PASS:?DB_PASS обязателен}
-      DB_NAME: ${DB_NAME:-maestro}
-      REDIS_URL: redis://redis:6379/0
-      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME обязателен}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD обязателен}
-      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY:?ADMIN_SECRET_KEY обязателен}
-      # Вторая учётная запись с урезанными правами: смотреть всё,
-      # менять только записи. Необязательна.
-      ADMIN_MANAGER_USERNAME: ${ADMIN_MANAGER_USERNAME:-}
-      ADMIN_MANAGER_PASSWORD: ${ADMIN_MANAGER_PASSWORD:-}
-      LOG_SALT: ${LOG_SALT:-}
-      # json в контейнере: лог читает не только человек, но и сборщик.
-      LOG_FORMAT: ${LOG_FORMAT:-json}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
-      SENTRY_DSN: ${SENTRY_DSN:-}
-      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
-      TZ: Asia/Tashkent
+    environment:
+      <<: *app_env
+      # Пусто — поллинг. Задан — вебхук за nginx (docs/DEPLOY.md, «Вебхук»).
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      WEBHOOK_PATH: ${WEBHOOK_PATH:-/telegram/webhook}
+      # Внутри контейнера слушаем все интерфейсы, иначе проброс порта
+      # не достучится. Наружу порт открыт только на localhost хоста.
+      WEBHOOK_HOST: 0.0.0.0
+      WEBHOOK_PORT: 8081
+    # Только localhost хоста: в интернет вебхук выходит через nginx с HTTPS.
+    # В режиме поллинга порт никто не слушает, и проброс ничего не открывает.
+    ports:
+      - "127.0.0.1:8081:8081"
     depends_on:
       db:
         condition: service_healthy
