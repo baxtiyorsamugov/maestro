@@ -19,13 +19,17 @@ import texts
 from guards import (
     get_user_lang,
 )
-from presenters import build_reviews_text
+from presenters import build_card_services_block, build_reviews_text
 from services.access import (
     is_stylist_subscription_active,
 )
 from services.reviews import count_reviews_for_stylist, load_reviews_for_stylist
 
 router = Router(name="client_stylist_card")
+
+#: Предел подписи к фото в Telegram. Считаем по сырому HTML вместе с тегами —
+#: это с запасом: Telegram теги в предел не засчитывает.
+CAPTION_LIMIT = 1024
 
 
 async def load_stylist_card(stylist_id: int, lang: str):
@@ -72,6 +76,15 @@ async def load_stylist_card(stylist_id: int, lang: str):
             f"<b>{t('card_district')}:</b> {escape(stylist.barbershop.district)}\n"
             f"<b>{t('card_address')}:</b> {escape(stylist.barbershop.address)}"
         )
+        services = (await session.execute(
+            select(db.Service)
+            .where(db.Service.stylist_id == stylist.id)
+            .options(joinedload(db.Service.catalog_service))
+        )).scalars().all()
+        services_block = build_card_services_block(services, lang)
+        if services_block:
+            caption += f"\n\n{services_block}"
+
         reviews_total = await count_reviews_for_stylist(session, stylist.id)
         portrait = stylist.photo_file_id
 
@@ -106,13 +119,18 @@ async def send_card_body(target: Message, card: dict) -> None:
         )
 
     if card["portrait"]:
-        await target.answer_photo(
-            photo=card["portrait"],
-            caption=card["caption"],
-            reply_markup=card["keyboard"],
-            parse_mode="HTML",
-        )
-        return
+        if len(card["caption"]) <= CAPTION_LIMIT:
+            await target.answer_photo(
+                photo=card["portrait"],
+                caption=card["caption"],
+                reply_markup=card["keyboard"],
+                parse_mode="HTML",
+            )
+            return
+        # Длинное описание + услуги не влезают в подпись к фото: Telegram
+        # отклонил бы сообщение целиком, и карточка не открылась бы вовсе.
+        # Тогда портрет отдельно, текст с кнопками — следом.
+        await target.answer_photo(photo=card["portrait"])
 
     await target.answer(card["caption"], reply_markup=card["keyboard"], parse_mode="HTML")
 

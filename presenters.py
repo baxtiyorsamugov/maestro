@@ -317,6 +317,35 @@ def get_registration_text(key: str, lang: str) -> str:
     return texts.get_text(key, lang)
 
 
+#: Сколько услуг показывать прямо на карточке. Остальные — на экране записи.
+CARD_SERVICES_SHOWN = 5
+
+
+def build_card_services_block(services, lang: str) -> str:
+    """
+    Услуги с ценами на карточке мастера — дешёвые сверху.
+
+    Раньше цены были только на следующем экране: чтобы узнать, по карману ли
+    мастер, приходилось начинать запись. Возвращает пустую строку, если услуг
+    нет — пустой заголовок «Услуги:» хуже, чем ничего.
+    """
+    if not services:
+        return ""
+    ordered = sorted(services, key=lambda s: (s.price or 0))
+    minutes = texts.get_text("services_minutes_short", lang)
+    lines = [f"<b>{texts.get_text('card_services_title', lang)}:</b>"]
+    for service in ordered[:CARD_SERVICES_SHOWN]:
+        name = service.catalog_service.name if service.catalog_service else "—"
+        lines.append(
+            f"• {escape(name)} — {format_money(service.price or 0)} so'm · "
+            f"{service.duration_min} {minutes}"
+        )
+    hidden = len(ordered) - CARD_SERVICES_SHOWN
+    if hidden > 0:
+        lines.append(texts.get_text("card_services_more", lang).format(count=hidden))
+    return "\n".join(lines)
+
+
 def format_money(amount: int) -> str:
     """800000 → «800 000»: так пишут суммы в Узбекистане и в России."""
     return f"{amount:,.0f}".replace(",", " ")

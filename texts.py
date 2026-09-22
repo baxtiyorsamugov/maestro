@@ -1252,6 +1252,14 @@ TEXTS = {
         "ru": "Адрес",
         "uz": "Manzil",
     },
+    "card_services_title": {
+        "ru": "Услуги",
+        "uz": "Xizmatlar",
+    },
+    "card_services_more": {
+        "ru": "…и ещё {count}",
+        "uz": "…yana {count} ta",
+    },
     "kb_book_stylist": {
         "ru": "Записаться к мастеру",
         "uz": "Maestroga yozilish",
