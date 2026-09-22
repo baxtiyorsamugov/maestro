@@ -11,11 +11,11 @@ import asyncio
 import pytest
 import pytest_asyncio
 from aiohttp.test_utils import TestClient, TestServer
+from scenario_harness import RecordingSession
 
 import bot as entry
 import config
 import loader
-from scenario_harness import RecordingSession
 
 WEBHOOK_VARS = ("WEBHOOK_URL", "WEBHOOK_PATH", "WEBHOOK_SECRET", "WEBHOOK_HOST", "WEBHOOK_PORT")
 SECRET = "s" * config.MIN_WEBHOOK_SECRET_LEN
@@ -110,11 +110,16 @@ async def client(session):
     loader.dp.storage.storage.clear()
 
 
-async def _wait_for_calls(recording: RecordingSession, timeout: float = 3.0) -> list:
-    """Апдейт обрабатывается в фоне: Telegram получает 200 сразу, не дожидаясь хендлера."""
+async def _wait_for_calls(recording: RecordingSession, limit_seconds: float = 3.0) -> list:
+    """
+    Апдейт обрабатывается в фоне: Telegram получает 200 сразу, не дожидаясь хендлера.
+
+    Опрос, а не Event: фоновую задачу создаёт aiogram внутри себя, и дождаться
+    её из теста напрямую нечем. Предел по времени не даёт тесту зависнуть.
+    """
     loop = asyncio.get_running_loop()
-    deadline = loop.time() + timeout
-    while not recording.calls and loop.time() < deadline:
+    deadline = loop.time() + limit_seconds
+    while not recording.calls and loop.time() < deadline:  # noqa: ASYNC110
         await asyncio.sleep(0.02)
     return recording.calls
 

@@ -65,7 +65,10 @@ class RecordingSession(BaseSession):
         super().__init__()
         self.calls: list[TelegramMethod] = []
 
-    async def make_request(self, bot, method: TelegramMethod, timeout: int | None = None) -> Any:
+    # Сигнатура задана BaseSession из aiogram, параметр timeout менять нельзя.
+    async def make_request(
+        self, bot, method: TelegramMethod, timeout: int | None = None  # noqa: ASYNC109
+    ) -> Any:
         self.calls.append(method)
         returning = str(method.__returning__)
 
