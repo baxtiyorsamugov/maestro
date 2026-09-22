@@ -14,6 +14,7 @@
 `get_required_env`, `get_optional_env`) сохранены: их зовут database.py, loader.py,
 admin_panel.py и migrations/env.py.
 """
+import ipaddress
 import os
 import sys
 from pathlib import Path
@@ -179,6 +180,22 @@ class AdminSettings(_Base):
     secret_key: str = Field(alias="ADMIN_SECRET_KEY")
     manager_username: str | None = Field(default=None, alias="ADMIN_MANAGER_USERNAME")
     manager_password: str | None = Field(default=None, alias="ADMIN_MANAGER_PASSWORD")
+    # Прокси, которым верим в заголовке X-Forwarded-For (адреса и сети через
+    # запятую). Остальным — нет: заголовок пишет кто угодно, и раньше смена
+    # его значения на каждой попытке обходила блокировку входа целиком.
+    trusted_proxies: str = Field(default="127.0.0.1,::1", alias="ADMIN_TRUSTED_PROXIES")
+
+    @field_validator("trusted_proxies")
+    @classmethod
+    def proxies_are_networks(cls, value: str) -> str:
+        for item in filter(None, (part.strip() for part in value.split(","))):
+            try:
+                ipaddress.ip_network(item, strict=False)
+            except ValueError:
+                raise ValueError(
+                    f"ADMIN_TRUSTED_PROXIES: «{item}» — не адрес и не сеть (пример: 127.0.0.1,172.16.0.0/12)"
+                ) from None
+        return value
 
     @field_validator("secret_key")
     @classmethod
