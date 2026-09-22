@@ -8,12 +8,12 @@
 from datetime import date, timedelta
 
 import pytest
+from test_scenarios import _open_workday, person, world  # noqa: F401 — фикстура world
 
 import database as db
 import presenters
 import timeutils
 from services import stats
-from test_scenarios import _open_workday, person, world  # noqa: F401 — фикстура world
 
 TODAY = date(2030, 5, 15)
 CYRILLIC = __import__("re").compile(r"[а-яА-ЯёЁ]")

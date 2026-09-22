@@ -78,7 +78,11 @@ jobs:
           ADMIN_USERNAME: ci
           ADMIN_PASSWORD: ci
           ADMIN_SECRET_KEY: ci-secret-key-for-tests-only-32chars
-        run: pytest tests/ -q
+        # Покрытие services/ с порогом из pyproject.toml (fail_under):
+        # падение ниже порога роняет сборку так же, как упавший тест.
+        run: |
+          coverage run -m pytest tests/ -q
+          coverage report
 
   postgres:
     # Тот же набор тестов на PostgreSQL — базе, которую объявляет основной

@@ -42,3 +42,7 @@ backups/
 # без этих строк любой `git add -A` затаскивает их обратно.
 public/
 .well-known/
+
+# Данные coverage — артефакт прогона, а не исходник.
+.coverage
+htmlcov/

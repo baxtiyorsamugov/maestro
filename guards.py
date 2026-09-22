@@ -25,7 +25,6 @@ from services.access import (
     is_stylist_subscription_active,
 )
 
-
 #: Пользователи, уже прочитанные в рамках текущего апдейта.
 #:
 #: Один callback тянул одну и ту же строку из users по три-четыре раза:
@@ -117,8 +116,8 @@ async def ensure_registered_callback(cb: CallbackQuery) -> db.User | None:
 async def ensure_active_stylist_message(message: Message):
     async with db.async_session() as session:
         user, stylist = await get_stylist_profile_by_telegram(session, message.from_user.id)
-    # \u0420\u0430\u043d\u044c\u0448\u0435 \u043e\u0431\u0430 \u043e\u0442\u043a\u0430\u0437\u0430 \u0431\u044b\u043b\u0438 \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e-\u0440\u0443\u0441\u0441\u043a\u0438, \u0430 \u0442\u0435\u043a\u0441\u0442 \u0442\u0430\u0440\u0438\u0444\u0430 \u0441\u043e\u0431\u0438\u0440\u0430\u043b\u0441\u044f
-    # \u0431\u0435\u0437 \u044f\u0437\u044b\u043a\u0430 \u2014 \u043c\u0430\u0441\u0442\u0435\u0440-\u0443\u0437\u0431\u0435\u043a \u043f\u043e\u043b\u0443\u0447\u0430\u043b \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u044d\u043a\u0440\u0430\u043d.
+    # Раньше оба отказа были только по-русски, а текст тарифа собирался
+    # без языка — мастер-узбек получал русский экран.
     lang = (user.language_code if user else None) or "ru"
     if not (user and stylist):
         await message.answer(texts.get_text("stylist_profile_missing", lang))

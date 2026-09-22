@@ -69,3 +69,14 @@ disallow_untyped_defs = false
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+
+# Покрытие меряется по services/: там бизнес-правила (свободен ли слот,
+# можно ли отменить, сколько заработано), и там непокрытая ветка стоит
+# дороже всего. Порог ниже текущих 96% с запасом, чтобы небольшой рефакторинг
+# не ронял CI, но заметное падение — ронял.
+[tool.coverage.run]
+source = ["services"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true

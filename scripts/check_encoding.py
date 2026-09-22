@@ -19,6 +19,7 @@
 import ast
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,6 +39,28 @@ EATEN_LETTER = re.compile(r"[а-яёА-ЯЁ]\n")
 
 # Вариационный селектор без символа перед ним: было эмодзи, осталась приправа.
 EATEN_EMOJI = re.compile(r"(?:^|\n|\s)️")
+
+# Видимый не-ASCII символ, записанный escape-последовательностью: «Ра...»
+# вместо «Ра...». Читать и ревьюить такое невозможно, а CLAUDE.md, 4.1 запрещает
+# новые escape'ы. Правило однажды нарушилось незаметно — инструмент правки
+# подхватил стиль файла, где escape'ы уже были, — поэтому теперь проверяется
+# машиной. Ищем в исходном тексте, а не в литералах: в комментариях порча та же,
+# а после разбора escape из литерала уже не отличить от обычного символа.
+# Двойной обратный слеш — описание escape'а в документации, его не трогаем.
+VISIBLE_ESCAPE = re.compile(r"(?<!\\)\\u([0-9a-fA-F]{4})")
+
+
+def visible_escapes(source: str) -> list[tuple[int, str]]:
+    """(номер строки, escape) для каждого escape'а видимого не-ASCII символа."""
+    found = []
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        for match in VISIBLE_ESCAPE.finditer(line):
+            char = chr(int(match.group(1), 16))
+            # Невидимые и управляющие символы (неразрывный пробел, селекторы)
+            # escape'ом как раз и пишут — иначе их не видно в коде.
+            if ord(char) >= 0x80 and unicodedata.category(char)[0] not in "CZM":
+                found.append((lineno, match.group(0)))
+    return found
 
 
 def tracked_python_files() -> list[Path]:
@@ -122,6 +145,14 @@ def check_file(path: Path) -> list[str]:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as e:
         return [f"{path.relative_to(ROOT)}: не разбирается — {e}"]
+
+    escapes = visible_escapes(source)
+    if escapes:
+        lineno, sample = escapes[0]
+        problems.append(
+            f"{path.relative_to(ROOT)}:{lineno}: текст записан escape-последовательностями "
+            f"({len(escapes)} шт., например {sample}) — пишите символы как есть"
+        )
 
     for lineno, value in string_literals(tree):
         rel = path.relative_to(ROOT)

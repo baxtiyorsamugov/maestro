@@ -13,12 +13,12 @@
 from datetime import timedelta
 
 import pytest_asyncio
+from scenario_harness import RecordingSession, Scenario
 
 import bot  # noqa: F401 — импорт подключает роутеры к диспетчеру
 import database as db
 import loader
 import timeutils
-from scenario_harness import RecordingSession, Scenario
 
 
 @pytest_asyncio.fixture

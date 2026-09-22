@@ -1,0 +1,34 @@
+# Локальные проверки перед коммитом — те же, что «Быстрые проверки» и «Линтер» в CI.
+#
+# Зачем: CI ловит проблему уже после пуша, а два раза подряд ветка уходила
+# с красным линтером и с текстом, записанным escape-последовательностями,
+# потому что проверки запускали по памяти. Хук запускает их сам.
+#
+# Установка один раз:
+#   pip install pre-commit
+#   pre-commit install
+#
+# language: system — берутся инструменты из активного окружения (.venv),
+# ничего не скачивается: версии уже закреплены в requirements-dev.txt.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: ruff check
+        language: system
+        types: [python]
+
+      - id: check-encoding
+        name: кодировка исходников
+        entry: python scripts/check_encoding.py
+        language: system
+        pass_filenames: false
+        types: [python]
+
+      - id: check-locales
+        name: полнота локализации
+        entry: python scripts/check_locales.py
+        language: system
+        pass_filenames: false
+        files: ^texts\.py$
