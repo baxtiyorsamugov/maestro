@@ -41,6 +41,7 @@ from services.booking import (
     can_change_booking,
     get_available_dates_for_month,
     get_available_slots_for_date,
+    price_snapshot,
 )
 
 router = Router(name="client_booking")
@@ -172,7 +173,8 @@ async def show_calendar_for_service(
         return
 
     kb = utils.generate_calendar(
-        current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates
+        current_dt.year, current_dt.month, maestro_id=stylist_id,
+        available_dates=available_dates, lang=lang,
     )
     prompt = "reschedule_pick_date" if reschedule_id else "booking_pick_date"
     await cb.message.edit_text(texts.get_text(prompt, lang), reply_markup=kb)
@@ -348,7 +350,9 @@ async def switch_calendar_month(cb: CallbackQuery, state: FSMContext):
             exclude_booking_id=reschedule_id,
         )
 
-    kb = utils.generate_calendar(year, month, maestro_id=stylist_id, available_dates=available_dates)
+    kb = utils.generate_calendar(
+        year, month, maestro_id=stylist_id, available_dates=available_dates, lang=lang
+    )
     prompt = "reschedule_pick_date" if reschedule_id else "booking_pick_date"
     await cb.message.edit_text(texts.get_text(prompt, lang), reply_markup=kb)
     await cb.answer()
@@ -424,7 +428,10 @@ async def back_to_calendar(cb: CallbackQuery, state: FSMContext):
             exclude_booking_id=draft.get("reschedule_id"),
         )
 
-    kb = utils.generate_calendar(current_dt.year, current_dt.month, maestro_id=stylist_id, available_dates=available_dates)
+    kb = utils.generate_calendar(
+        current_dt.year, current_dt.month, maestro_id=stylist_id,
+        available_dates=available_dates, lang=lang,
+    )
     prompt = "reschedule_pick_date" if draft.get("reschedule_id") else "booking_pick_date"
     await cb.message.edit_text(texts.get_text(prompt, lang), reply_markup=kb)
     await cb.answer()
@@ -505,6 +512,9 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
                 starts_at=starts_at,
                 ends_at=ends_at,
                 status=BOOKING_PENDING,
+                # Цена фиксируется сейчас: повышение цены потом не должно
+                # переписывать ни чек клиента, ни выручку мастера.
+                price=price_snapshot(service),
             )
             session.add(target_booking)
 

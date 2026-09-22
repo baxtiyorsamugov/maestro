@@ -82,6 +82,15 @@ class TestBuildOfflineBooking:
 
         assert booking.status == db.BOOKING_APPROVED
 
+    async def test_price_is_saved(self, fixture_data):
+        """Офлайн-визит тоже выручка — и тоже по цене на момент записи."""
+        service = await _service(fixture_data)
+        booking = build_offline_booking(
+            fixture_data["stylist"].id, service, timeutils.parse_slot("2099-05-05 12:00"),
+        )
+
+        assert booking.price == int(round(service.price))
+
     async def test_has_no_client(self, fixture_data):
         booking = build_offline_booking(
             fixture_data["stylist"].id,

@@ -29,6 +29,11 @@ CHECKED_MODULES = sorted(
               HANDLERS / "fallback.py"]
     if p.stem != "__init__"
 )
+ROOT_MODULES = ["bot.py", "guards.py", "middlewares.py", "scheduler.py"]
+#: Сознательные исключения: сводку проблем читает владелец сервиса, как и
+#: веб-панель, — она по-русски намеренно. Список короткий и явный: новое
+#: исключение требует правки теста, а не проходит молча.
+OWNER_FACING = {"<b>Maestro: требует внимания</b>\n\n"}
 
 
 def russian_literals(path: Path) -> list[tuple[int, str]]:
@@ -50,6 +55,21 @@ def russian_literals(path: Path) -> list[tuple[int, str]]:
 
 
 class TestNoHardcodedRussian:
+    @pytest.mark.parametrize("module", ROOT_MODULES)
+    def test_shared_module_has_no_russian_literals(self, module):
+        """
+        Отказы, антифлуд, общий обработчик ошибок и фоновые уведомления
+        видит каждый пользователь — значит, и узбекоязычный.
+        """
+        found = [
+            (line, value) for line, value in russian_literals(HANDLERS.parent / module)
+            if value not in OWNER_FACING
+        ]
+        assert found == [], (
+            f"русский текст прямо в коде — он не переводится: "
+            f"{[(line, value[:40]) for line, value in found]}"
+        )
+
     @pytest.mark.parametrize("module", CHECKED_MODULES)
     def test_module_has_no_russian_literals(self, module):
         found = russian_literals(HANDLERS / module)

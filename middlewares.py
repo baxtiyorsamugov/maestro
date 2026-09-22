@@ -20,19 +20,19 @@ from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, TelegramObject
 
 import guards
+import texts
 from logutil import mask_user
 
 logger = logging.getLogger(__name__)
 
-THROTTLE_WARNING = {
-    "ru": "Слишком быстро. Подождите пару секунд.",
-    "uz": "Juda tez. Bir necha soniya kuting.",
-}
-
-
 def throttle_message(lang: str | None) -> str:
-    """Текст предупреждения. Вынесен отдельно, чтобы проверяться без Telegram."""
-    return THROTTLE_WARNING.get(lang or "ru", THROTTLE_WARNING["ru"])
+    """
+    Текст предупреждения. Вынесен отдельно, чтобы проверяться без Telegram.
+
+    lang здесь — язык клиента Telegram (например, «en»), а не выбранный
+    в боте: get_text откатывается на русский для незнакомого языка.
+    """
+    return texts.get_text("throttled", lang or "ru")
 
 
 class ThrottlingMiddleware(BaseMiddleware):

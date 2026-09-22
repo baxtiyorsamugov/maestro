@@ -44,9 +44,14 @@ Barbershop ──1:N──> Stylist ──1:N──> Service ──N:1──> Ca
                        ├──1:N──> Portfolio         (telegram file_id фотографий)
                        └──N:M──> User (через Favorite)
 
-Booking: user_id, stylist_id, service_id, starts_at, ends_at, status,
+Booking: user_id, stylist_id, service_id, starts_at, ends_at, status, price,
          rating, review_text, reminder_day_sent, reminder_hour_sent, follow_up_sent
 ```
+
+`Booking.price` — цена на момент записи, в целых сумах. Выручка и «Мои записи» берут её,
+а не текущую цену услуги: иначе повышение цены переписывало прошлое. У записей, созданных
+до миграции без существующей услуги, она NULL — тогда берётся цена услуги
+(`services.booking.booking_price`, `COALESCE` в запросах).
 
 Замечания к модели:
 - `status` и `role` — свободные строки; для статусов есть константы `BOOKING_*`

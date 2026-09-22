@@ -10,6 +10,7 @@ scrypt устойчив к перебору на GPU, параметры взя�
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 import secrets
 import time
@@ -135,6 +136,82 @@ def authenticate_admin(username: str, password: str, settings) -> str | None:
             role = ROLE_MANAGER
 
     return role
+
+
+def parse_networks(value: str) -> list:
+    """«127.0.0.1, 172.16.0.0/12» → список сетей. Проверка формата — в config."""
+    return [
+        ipaddress.ip_network(part.strip(), strict=False)
+        for part in value.split(",") if part.strip()
+    ]
+
+
+def _is_trusted(address: str, trusted) -> bool:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(ip in network for network in trusted)
+
+
+def client_address(peer: str | None, forwarded_for: str | None, trusted) -> str:
+    """
+    Настоящий адрес клиента — ключ для блокировки входа и лимита запросов.
+
+    Раньше брался первый адрес из X-Forwarded-For без всяких условий. Этот
+    заголовок пишет сам клиент: подставляя новое значение на каждой попытке,
+    перебор пароля обходил блокировку после пяти неудач целиком.
+
+    Теперь заголовку верим, только если соединение пришло от доверенного
+    прокси, и читаем его справа налево: nginx дописывает настоящий адрес
+    в конец, а начало заголовка — то, что прислал клиент. Первый справа
+    адрес, который не наш прокси, и есть клиент.
+    """
+    peer = peer or "unknown"
+    if not forwarded_for or not _is_trusted(peer, trusted):
+        return peer
+    hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+    for hop in reversed(hops):
+        if not _is_trusted(hop, trusted):
+            return hop
+    return hops[0] if hops else peer
+
+
+@dataclass
+class RequestRateLimiter:
+    """
+    Скользящее окно запросов на ключ (адрес клиента).
+
+    Отдельно от LoginThrottle: тот считает неудачные входы и блокирует
+    надолго, этот — любые запросы и лишь притормаживает. /health и /metrics
+    на каждый вызов ходят в базу, и без лимита их можно дёргать в цикле.
+
+    Словарь чистится от устаревших ключей при росте: иначе поток запросов
+    с разных адресов раздувал бы память процесса без предела.
+    """
+
+    limit: int
+    window_seconds: float = 60.0
+    max_keys: int = 10_000
+    _hits: dict[str, list[float]] = field(default_factory=dict)
+
+    def hit(self, key: str, now: float | None = None) -> int:
+        """Регистрирует запрос. 0 — пропустить, иначе через сколько секунд можно снова."""
+        now = time.monotonic() if now is None else now
+        window_start = now - self.window_seconds
+        hits = [t for t in self._hits.get(key, ()) if t > window_start]
+        if len(hits) >= self.limit:
+            self._hits[key] = hits
+            return max(1, int(hits[0] + self.window_seconds - now) + 1)
+        hits.append(now)
+        self._hits[key] = hits
+        if len(self._hits) > self.max_keys:
+            self._prune(window_start)
+        return 0
+
+    def _prune(self, window_start: float) -> None:
+        for stale in [k for k, v in self._hits.items() if not v or v[-1] <= window_start]:
+            del self._hits[stale]
 
 
 @dataclass

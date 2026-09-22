@@ -12,7 +12,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 import texts
 import timeutils
-from constants import DEFAULT_LANGUAGE, week_header
+from constants import week_header
 
 
 def _month_title(year: int, month: int, lang: str) -> str:
@@ -27,10 +27,15 @@ def generate_calendar(
     available_dates=None,
     prefix: str = "",
     back_callback: str | None = None,
-    lang: str = DEFAULT_LANGUAGE,
+    *,
+    lang: str,
 ):
     """
     Сетка месяца: активны только даты из available_dates.
+
+    lang обязателен и без значения по умолчанию. Со значением по умолчанию
+    клиентский календарь годами рисовался по-русски: вызывающий код язык
+    просто не передавал, и ни один тест этого не замечал (CLAUDE.md, 4.5).
 
     prefix уводит нажатия в другой набор хендлеров, не задевая клиентские:
     «offbk_date_2026-09-20» не подходит под фильтр startswith("date_").
@@ -93,8 +98,9 @@ def generate_calendar(
             text=texts.get_text("kb_back", lang), callback_data=back_callback
         )])
     elif maestro_id:
+        # Назад — к списку услуг мастера (show_services ловит maestro_).
         kb.append([InlineKeyboardButton(
-            text="⬅️ Ortga / Назад", callback_data=f"maestro_{maestro_id}"
+            text=texts.get_text("kb_back", lang), callback_data=f"maestro_{maestro_id}"
         )])
 
     return InlineKeyboardMarkup(inline_keyboard=kb)

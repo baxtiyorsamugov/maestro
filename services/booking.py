@@ -341,7 +341,27 @@ def build_offline_booking(
         ends_at=starts_at + timedelta(minutes=service.duration_min),
         status=BOOKING_APPROVED,
         guest_name=normalize_guest_name(guest_name),
+        price=price_snapshot(service),
     )
+
+
+def price_snapshot(service: db.Service | None) -> int | None:
+    """
+    Цена услуги для сохранения в записи — в целых сумах.
+
+    Одна функция на оба места создания записи (клиентская воронка
+    и офлайн-запись мастера): иначе округление однажды разойдётся.
+    """
+    if service is None or service.price is None:
+        return None
+    return int(round(service.price))
+
+
+def booking_price(booking: db.Booking) -> int:
+    """Цена визита: сохранённая, а для старых записей без неё — цена услуги."""
+    if booking.price is not None:
+        return booking.price
+    return price_snapshot(booking.service) or 0
 
 
 def is_offline_booking(booking: db.Booking) -> bool:

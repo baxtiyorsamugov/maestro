@@ -42,12 +42,27 @@ if not security.looks_like_hash(ADMIN_SETTINGS.password):
     )
 
 
+TRUSTED_PROXIES = security.parse_networks(ADMIN_SETTINGS.trusted_proxies)
+
+#: Лимиты запросов в минуту на адрес. /health и /metrics строже: каждый вызов
+#: ходит в базу. Общий лимит щедрый — работа в панели укладывается с запасом.
+HEALTH_LIMITER = security.RequestRateLimiter(limit=30)
+PANEL_LIMITER = security.RequestRateLimiter(limit=300)
+PROBE_PATHS = ("/health", "/metrics")
+
+
 def _client_key(request: Request) -> str:
-    """Ключ для счётчика попыток. За прокси реальный адрес приходит в заголовке."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """
+    Ключ для счётчиков: настоящий адрес клиента.
+
+    X-Forwarded-For учитывается только от доверенного прокси
+    (ADMIN_TRUSTED_PROXIES), подробности — в security.client_address.
+    """
+    return security.client_address(
+        request.client.host if request.client else None,
+        request.headers.get("x-forwarded-for"),
+        TRUSTED_PROXIES,
+    )
 
 
 class MyBackend(AuthenticationBackend):
@@ -134,6 +149,23 @@ authentication_backend = MyBackend(secret_key=ADMIN_SETTINGS.secret_key)
 
 app = FastAPI(title="Maestro Admin")
 app.add_middleware(SessionMiddleware, secret_key=ADMIN_SETTINGS.secret_key, same_site="lax")
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    """429 с Retry-After вместо обработки, когда адрес превысил лимит."""
+    limiter = HEALTH_LIMITER if request.url.path in PROBE_PATHS else PANEL_LIMITER
+    client = _client_key(request)
+    retry_after = limiter.hit(client)
+    if retry_after:
+        logging.warning(
+            "admin.rate_limited client=%s path=%s retry_after=%s",
+            client, request.url.path, retry_after,
+        )
+        return PlainTextResponse(
+            "Too many requests", status_code=429, headers={"Retry-After": str(retry_after)}
+        )
+    return await call_next(request)
 admin = Admin(app, db.engine, authentication_backend=authentication_backend, title="Maestro Admin")
 
 
@@ -193,9 +225,10 @@ async def _collect_dashboard_data() -> dict:
             )
         ) or 0
         revenue_month = await session.scalar(
-            select(func.coalesce(func.sum(db.Service.price), 0))
+            # Цена из записи: повышение цены не должно переписывать прошлый месяц.
+            select(func.coalesce(func.sum(func.coalesce(db.Booking.price, db.Service.price)), 0))
             .select_from(db.Booking)
-            .join(db.Service, db.Service.id == db.Booking.service_id)
+            .join(db.Service, db.Service.id == db.Booking.service_id, isouter=True)
             .where(
                 db.Booking.status.in_((db.BOOKING_APPROVED, db.BOOKING_COMPLETED)),
                 db.Booking.starts_at >= month_start,
@@ -592,7 +625,10 @@ async def _check_database() -> tuple[str, str | None]:
             await conn.execute(text("SELECT 1"))
         return "ok", None
     except Exception as exc:
-        return "error", f"{type(exc).__name__}: {exc}"
+        # Подробности — в лог, наружу только тип. Текст ошибки драйвера
+        # содержит адрес базы и имя пользователя, а /health без авторизации.
+        logging.warning("health.database_failed error=%s", exc)
+        return "error", type(exc).__name__
 
 
 class RoleAwareView(ModelView):

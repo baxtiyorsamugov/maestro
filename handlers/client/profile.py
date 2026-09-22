@@ -36,7 +36,7 @@ from services import audit
 from services.access import (
     load_booking_for_client,
 )
-from services.booking import can_change_booking
+from services.booking import booking_price, can_change_booking
 from services.rating import recalculate_stylist_rating
 from services.reviews import REVIEW_MAX_LEN, can_leave_review, normalize_review
 from states import ReviewForm
@@ -99,7 +99,7 @@ async def show_profile(message: Message, state: FSMContext):
             f"{texts.get_text('booking_barbershop', lang)}: {escape(booking.stylist.barbershop.name)}\n"
             f"{texts.get_text('master_label', lang)}: {escape(booking.stylist.name)}\n"
             f"{texts.get_text('booking_service', lang)}: "
-            f"{escape(booking.service.catalog_service.name)} ({booking.service.price:,.0f} so'm)\n"
+            f"{escape(booking.service.catalog_service.name)} ({booking_price(booking):,.0f} so'm)\n"
             f"{texts.get_text('status_label', lang)}: <b>{status_icon}</b>\n"
             f"{'-' * 20}\n"
         )

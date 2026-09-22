@@ -1105,6 +1105,107 @@ TEXTS = {
         "ru": "Время выбора истекло. Начните запись заново.",
         "uz": "Tanlov sessiyasi tugadi. Qaytadan boshlang.",
     },
+    # --- Статистика мастера (services/stats.py) ---------------------------
+    "stats_period_month": {
+        "ru": "За последние 30 дней",
+        "uz": "Oxirgi 30 kun uchun",
+    },
+    "stats_label_month": {
+        "ru": "последние 30 дней",
+        "uz": "oxirgi 30 kun",
+    },
+    "stats_line_total": {
+        "ru": "Записей: <b>{count}</b>{change}",
+        "uz": "Yozuvlar: <b>{count}</b>{change}",
+    },
+    "stats_line_statuses": {
+        "ru": "✅ завершено {completed} · 📅 подтверждено {approved} · ⏳ ждут ответа {pending}",
+        "uz": "✅ yakunlangan {completed} · 📅 tasdiqlangan {approved} · ⏳ javob kutmoqda {pending}",
+    },
+    "stats_line_lost": {
+        "ru": "❌ отменено {cancelled} · отклонено {declined}",
+        "uz": "❌ bekor qilingan {cancelled} · rad etilgan {declined}",
+    },
+    "stats_line_earned": {
+        "ru": "💰 Заработано: <b>{amount} so'm</b>{change}",
+        "uz": "💰 Ishlab topildi: <b>{amount} so'm</b>{change}",
+    },
+    "stats_line_expected": {
+        "ru": "📅 Ожидается по подтверждённым: {amount} so'm",
+        "uz": "📅 Tasdiqlanganlar bo'yicha kutilmoqda: {amount} so'm",
+    },
+    "stats_line_clients": {
+        "ru": "👥 Клиентов: {clients}, из них вернулись: {returning}",
+        "uz": "👥 Mijozlar: {clients}, shundan qaytib kelganlar: {returning}",
+    },
+    "stats_line_guests": {
+        "ru": "🧾 Записано вами вручную: {count}",
+        "uz": "🧾 Siz qo'lda yozganlar: {count}",
+    },
+    "stats_line_peak": {
+        "ru": "🕐 Пиковые часы: {hours}",
+        "uz": "🕐 Eng band soatlar: {hours}",
+    },
+    "stats_change": {
+        "ru": " ({arrow} {percent}% к прошлому периоду)",
+        "uz": " ({arrow} {percent}% oldingi davrga nisbatan)",
+    },
+    "stats_change_same": {
+        "ru": " (как в прошлом периоде)",
+        "uz": " (oldingi davr bilan bir xil)",
+    },
+    "stats_empty": {
+        "ru": "За этот период записей нет.",
+        "uz": "Bu davrda yozuvlar yo'q.",
+    },
+    # --- Фоновые уведомления (scheduler.py) -------------------------------
+    "reminder_day": {
+        "ru": "👋 Привет! Напоминаем о вашей завтрашней записи в {time}.\nУслуга: {service}",
+        "uz": "👋 Salom! Ertaga soat {time} da sizni kutamiz.\nXizmat: {service}",
+    },
+    "reminder_hour": {
+        "ru": (
+            "⚡️ <b>Маэстро {stylist} уже ждёт вас!</b>\n\n"
+            "До нашей встречи остался всего один час. Мы уже вовсю готовимся "
+            "к вашему преображению. ✨\n\n"
+            "Пожалуйста, не опаздывайте, каждая минута важна для идеального результата! 😊"
+        ),
+        "uz": (
+            "⚡️ <b>Maestro {stylist} sizni kutmoqda!</b>\n\n"
+            "Bir soatdan keyin uchrashuvimiz boshlanadi. Biz sizning tashrifingizga "
+            "deyarli tayyormiz. ✨\n\n"
+            "Iltimos, kechikmang, har bir daqiqa sizning go'zalligingiz uchun muhim! 😊"
+        ),
+    },
+    "follow_up": {
+        "ru": "Привет, {name}! 👋\nПрошло 20 дней с визита к мастеру {stylist}. Пора обновить образ?\n👉 Записаться: {link}",
+        "uz": "Salom, {name}! 👋\nOxirgi marta {stylist} bilan ko'rishganingizdan beri 20 kun o'tdi. Balki yangilanish vaqti kelgandir?\n👉 Yozilish: {link}",
+    },
+    "subscription_expiring": {
+        "ru": "<b>Срок тарифа истекает!</b>\nОсталось дней: {days}. Не забудьте продлить доступ, чтобы не потерять записи клиентов.",
+        "uz": "<b>Tarif muddati yakunlanmoqda!</b>\nQolgan vaqt: {days} kun. Xizmatni uzaytirish uchun admin bilan bog'laning.",
+    },
+    # --- Общие ответы (guards, middlewares, bot.py) ----------------------
+    "access_denied": {
+        "ru": "Это действие доступно только участнику записи.",
+        "uz": "Bu amal faqat yozuv ishtirokchisiga ochiq.",
+    },
+    "stylist_profile_missing": {
+        "ru": "Профиль мастера не найден.",
+        "uz": "Maestro profili topilmadi.",
+    },
+    "stylist_subscription_expired": {
+        "ru": "Срок тарифа истёк. Продлите тариф у администраторов сервиса.",
+        "uz": "Tarif muddati tugagan. Tarifni xizmat administratorlari orqali uzaytiring.",
+    },
+    "throttled": {
+        "ru": "Слишком быстро. Подождите пару секунд.",
+        "uz": "Juda tez. Bir necha soniya kuting.",
+    },
+    "unexpected_error": {
+        "ru": "Что-то пошло не так. Мы уже разбираемся, попробуйте через минуту.",
+        "uz": "Nimadir xato ketdi. Biz tekshiryapmiz, bir daqiqadan so'ng urinib ko'ring.",
+    },
     # --- Клиентская часть: регистрация -----------------------------------
     "welcome_fallback_name": {
         "ru": "друг",
@@ -1150,6 +1251,14 @@ TEXTS = {
     "card_address": {
         "ru": "Адрес",
         "uz": "Manzil",
+    },
+    "card_services_title": {
+        "ru": "Услуги",
+        "uz": "Xizmatlar",
+    },
+    "card_services_more": {
+        "ru": "…и ещё {count}",
+        "uz": "…yana {count} ta",
     },
     "kb_book_stylist": {
         "ru": "Записаться к мастеру",

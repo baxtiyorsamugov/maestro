@@ -162,6 +162,8 @@ class TestBookingFunnel:
 
         assert len(created) == 1, "запись не создана"
         assert created[0].status == db.BOOKING_PENDING
+        # Цена зафиксирована при записи, а не подтягивается из услуги потом.
+        assert created[0].price == int(fixture_data["service"].price)
 
     async def test_stylist_is_notified_with_buttons(self, world, fixture_data):
         """
@@ -324,6 +326,31 @@ class TestStylistLanguage:
         assert notices, "мастер не узнал об отмене"
         chrome = notices[-1].replace("Клиент", "")
         assert not CYRILLIC.search(chrome), f"русский в уведомлении мастеру-узбеку: {notices[-1]!r}"
+
+
+class TestClientLanguage:
+    async def test_uzbek_client_sees_uzbek_calendar(self, world, fixture_data):
+        """
+        Календарь рисовался по-русски для всех: вызывающий код не передавал
+        язык, а у generate_calendar было значение по умолчанию.
+        """
+        await _open_workday(fixture_data)
+        fixture_data["client_user"].language_code = "uz"
+        await fixture_data["session"].commit()
+        client = person(world, fixture_data["client_user"].telegram_id, "Mijoz")
+        target = await _free_date(fixture_data)
+
+        await client.press(f"book_{fixture_data['stylist'].id}")
+        calendar = await client.press(f"srv_{fixture_data['service'].id}")
+        month_forward = await client.press(
+            f"cal_{target.year + 1}-{target.month}_{fixture_data['stylist'].id}"
+        )
+        slots = await client.press(f"date_{target:%Y-%m-%d}")
+
+        for screen in (calendar, month_forward, slots):
+            labels = " ".join(text for text, _ in screen.buttons()) + screen.last_text
+            assert labels.strip(), "экран пустой — проверка языка ничего бы не значила"
+            assert not CYRILLIC.search(labels), f"русский на экране узбекского клиента: {labels!r}"
 
 
 class TestFavorites:
