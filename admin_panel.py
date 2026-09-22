@@ -193,9 +193,10 @@ async def _collect_dashboard_data() -> dict:
             )
         ) or 0
         revenue_month = await session.scalar(
-            select(func.coalesce(func.sum(db.Service.price), 0))
+            # Цена из записи: повышение цены не должно переписывать прошлый месяц.
+            select(func.coalesce(func.sum(func.coalesce(db.Booking.price, db.Service.price)), 0))
             .select_from(db.Booking)
-            .join(db.Service, db.Service.id == db.Booking.service_id)
+            .join(db.Service, db.Service.id == db.Booking.service_id, isouter=True)
             .where(
                 db.Booking.status.in_((db.BOOKING_APPROVED, db.BOOKING_COMPLETED)),
                 db.Booking.starts_at >= month_start,

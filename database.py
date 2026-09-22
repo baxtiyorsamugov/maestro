@@ -239,6 +239,11 @@ class Booking(Base, TimestampMixin):
 
     status: Mapped[str] = mapped_column(String(20), default=BOOKING_PENDING)
 
+    # Цена на момент записи, в сумах. Без неё повышение цены задним числом
+    # переписывало прошлую выручку. NULL — только у записей, чья услуга
+    # удалена до миграции; читающий код тогда берёт цену услуги.
+    price: Mapped[int] = mapped_column(Integer, nullable=True)
+
     rating: Mapped[int] = mapped_column(Integer, nullable=True)  # Оценка от 1 до 5
     review_text: Mapped[str] = mapped_column(String(500), nullable=True)  # Текст отзыва
 

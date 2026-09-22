@@ -162,6 +162,8 @@ class TestBookingFunnel:
 
         assert len(created) == 1, "запись не создана"
         assert created[0].status == db.BOOKING_PENDING
+        # Цена зафиксирована при записи, а не подтягивается из услуги потом.
+        assert created[0].price == int(fixture_data["service"].price)
 
     async def test_stylist_is_notified_with_buttons(self, world, fixture_data):
         """

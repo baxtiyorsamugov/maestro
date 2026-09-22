@@ -10,9 +10,9 @@
 - в «доход» попадали подтверждённые визиты, которые ещё не состоялись.
   Заработанное и ожидаемое теперь разделены: первое — деньги, второе — план.
 
-Ограничение, о котором стоит знать: цена берётся из услуги сейчас, а не на
-момент визита — отдельной колонки с ценой в записи нет. Мастер, поднявший
-цену, увидит прошлую выручку пересчитанной по новой.
+Цена — та, что сохранена в записи при её создании (bookings.price), а не
+текущая цена услуги: иначе повышение цены переписывало бы прошлую выручку.
+Для старых записей без сохранённой цены берётся цена услуги.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 import database as db
 import timeutils
@@ -136,7 +136,10 @@ async def collect(session, stylist_id: int, period: str, today: date | None = No
     # считать в Python проще и переносимее, чем часы через SQL-функции,
     # которые у SQLite и PostgreSQL разные.
     rows = (await session.execute(
-        select(db.Booking.status, db.Booking.user_id, db.Booking.starts_at, db.Service.price)
+        select(
+            db.Booking.status, db.Booking.user_id, db.Booking.starts_at,
+            func.coalesce(db.Booking.price, db.Service.price),
+        )
         .join(db.Service, db.Service.id == db.Booking.service_id, isouter=True)
         .where(
             db.Booking.stylist_id == stylist_id,

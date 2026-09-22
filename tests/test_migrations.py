@@ -139,3 +139,37 @@ def test_booking_uses_timestamp_columns(scratch_db):
     columns = _columns(scratch_db, "bookings")
     assert {"starts_at", "ends_at"} <= columns
     assert "datetime" not in columns
+
+
+def test_booking_price_backfilled_from_service(scratch_db):
+    """
+    Существующие записи получают цену услуги на момент миграции, а запись
+    без услуги остаётся с NULL — и читающий код берёт цену услуги сам.
+    """
+    cfg = _config(scratch_db)
+    command.upgrade(cfg, "d8f3a71c9b42")
+
+    conn = sqlite3.connect(scratch_db)
+    try:
+        conn.execute(
+            "INSERT INTO services (id, catalog_service_id, price, duration_min, stylist_id)"
+            " VALUES (1, 1, 149999.6, 60, 1)"
+        )
+        booking_sql = (
+            "INSERT INTO bookings (id, stylist_id, service_id, status, reminder_day_sent,"
+            " reminder_hour_sent, follow_up_sent, starts_at, ends_at)"
+            " VALUES (?, 1, ?, 'completed', 0, 0, 0, '2030-01-01 10:00:00', '2030-01-01 11:00:00')"
+        )
+        conn.execute(booking_sql, (1, 1))
+        conn.execute(booking_sql, (2, 999))  # услуга удалена
+        conn.commit()
+    finally:
+        conn.close()
+
+    command.upgrade(cfg, "head")
+
+    assert _query_one(scratch_db, "SELECT price FROM bookings WHERE id = 1") == (150000,)
+    assert _query_one(scratch_db, "SELECT price FROM bookings WHERE id = 2") == (None,)
+
+    command.downgrade(cfg, "d8f3a71c9b42")
+    assert "price" not in _columns(scratch_db, "bookings")

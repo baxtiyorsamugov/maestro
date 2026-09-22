@@ -135,6 +135,34 @@ class TestCollect:
 
         assert report.current.peak_hours[0] == (18, 3)
 
+    async def test_price_rise_does_not_rewrite_past_revenue(self, fixture_data):
+        """
+        Раньше выручка считалась по текущей цене услуги: мастер поднял цену —
+        и прошлый месяц «заработал» больше, чем было на самом деле.
+        """
+        from services.booking import price_snapshot
+
+        await _clear(fixture_data)
+        booking = await _add(fixture_data, TODAY - timedelta(days=1), 10, db.BOOKING_COMPLETED)
+        booking.price = price_snapshot(fixture_data["service"])
+        old_price = booking.price
+        fixture_data["service"].price = old_price * 2
+        await fixture_data["session"].commit()
+
+        report = await stats.collect(fixture_data["session"], fixture_data["stylist"].id, "7", TODAY)
+
+        assert report.current.earned == old_price
+
+    async def test_booking_without_saved_price_falls_back_to_service(self, fixture_data):
+        """Записи до миграции, у которых услуги уже не было, цены не получили."""
+        await _clear(fixture_data)
+        await _add(fixture_data, TODAY, 10, db.BOOKING_COMPLETED)  # price=None
+        await fixture_data["session"].commit()
+
+        report = await stats.collect(fixture_data["session"], fixture_data["stylist"].id, "today", TODAY)
+
+        assert report.current.earned == fixture_data["service"].price
+
     async def test_other_stylists_bookings_not_counted(self, fixture_data):
         await _clear(fixture_data)
         await _add(fixture_data, TODAY, 10, db.BOOKING_COMPLETED)

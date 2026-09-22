@@ -41,6 +41,7 @@ from services.booking import (
     can_change_booking,
     get_available_dates_for_month,
     get_available_slots_for_date,
+    price_snapshot,
 )
 
 router = Router(name="client_booking")
@@ -511,6 +512,9 @@ async def finalize_booking(cb: CallbackQuery, state: FSMContext):
                 starts_at=starts_at,
                 ends_at=ends_at,
                 status=BOOKING_PENDING,
+                # Цена фиксируется сейчас: повышение цены потом не должно
+                # переписывать ни чек клиента, ни выручку мастера.
+                price=price_snapshot(service),
             )
             session.add(target_booking)
 
